@@ -1,0 +1,13 @@
+apps/
+apps/scanner/
+apps/dashboard/
+packages/
+packages/core/
+packages/db/
+packages/utils/
+packages/config/
+infrastructure/
+infrastructure/docker/
+infrastructure/terraform/
+docs/
+README.md
