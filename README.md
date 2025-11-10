@@ -1,7 +1,7 @@
 # WCAG AI Platform
 
 ## Quick Start
-```
+```bash
 docker-compose up -d
 npm install
 npx prisma db push
