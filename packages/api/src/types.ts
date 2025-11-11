@@ -1,12 +1,36 @@
 /**
- * API Type Definitions - Shared with Frontend
+ * API Type Definitions - Shared with Frontend & Prisma Models
  */
+
+import type { Scan as PrismaScan, Violation as PrismaViolation, ReviewLog as PrismaReviewLog } from "@prisma/client";
 
 export type ViolationSeverity = 'critical' | 'high' | 'medium' | 'low';
 export type EmailStatus = 'draft' | 'pending_review' | 'approved' | 'sent' | 'rejected';
+export type ApprovalStatus = 'pending' | 'approved' | 'disputed' | 'rejected';
 export type WCAGLevel = 'A' | 'AA' | 'AAA';
 
-export interface Violation {
+/**
+ * Scan - Main auditable unit
+ */
+export interface Scan extends PrismaScan {
+  violations?: Violation[];
+  reviewLogs?: ReviewLog[];
+}
+
+/**
+ * Violation - Individual WCAG violation
+ */
+export interface Violation extends PrismaViolation {}
+
+/**
+ * ReviewLog - Audit trail entry
+ */
+export interface ReviewLog extends PrismaReviewLog {}
+
+/**
+ * Legacy types for backward compatibility
+ */
+export interface LegacyViolation {
   id: string;
   url: string;
   pageTitle: string;
@@ -30,7 +54,7 @@ export interface EmailDraft {
   company?: string;
   subject: string;
   body: string;
-  violations: Violation[];
+  violations: LegacyViolation[];
   createdAt: Date;
   updatedAt: Date;
   status: EmailStatus;
@@ -40,16 +64,16 @@ export interface EmailDraft {
   tags?: string[];
 }
 
-export interface Consultant {
+export interface ConsultantProfile {
   id: string;
   name: string;
   email: string;
-  company: string;
-  website: string;
-  phone: string;
-  hubspotContactId: string;
-  lastContacted: Date;
-  responseRate: number;
+  wcagCertified: boolean;
+  yearsExperience: number;
+  specialization?: string;
+  isActive: boolean;
+  totalAuditsReviewed: number;
+  accuracyScore: number; // 0.0-1.0
 }
 
 export interface ApiResponse<T = unknown> {

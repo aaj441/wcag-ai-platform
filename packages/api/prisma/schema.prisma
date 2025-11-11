@@ -1,0 +1,127 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Main Scan Model with Confidence Scoring
+model Scan {
+  id                  String   @id @default(cuid())
+  websiteUrl          String   @db.VarChar(2048)
+
+  // Raw scan results (WCAG violations found)
+  scanResults         String   @db.Text
+
+  // Confidence Scoring (0.0-1.0)
+  aiConfidenceScore   Float    @default(0.0)
+  confidenceDetails   Json     @default("{}")
+
+  // Consultant Review Fields
+  reviewed            Boolean  @default(false)
+  reviewedBy          String?  @db.VarChar(255)
+  reviewedAt          DateTime?
+  approvalStatus      String   @default("pending") // pending, approved, disputed, rejected
+
+  // Report Generation
+  reportPdf           String?  @db.VarChar(2048)
+  reportGeneratedAt   DateTime?
+
+  // Metadata
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  violations          Violation[]
+  reviewLogs          ReviewLog[]
+
+  @@index([approvalStatus])
+  @@index([aiConfidenceScore])
+  @@index([createdAt])
+}
+
+// WCAG Violation Details
+model Violation {
+  id              String   @id @default(cuid())
+
+  // Foreign Key
+  scanId          String
+  scan            Scan     @relation(fields: [scanId], references: [id], onDelete: Cascade)
+
+  // WCAG Violation Details
+  wcagCriteria    String   @db.VarChar(10) // e.g., "1.4.3", "2.1.1"
+  severity        String   @db.VarChar(20) // critical, high, medium, low
+  description     String   @db.Text
+
+  // AI Confidence for Individual Violation (0.0-1.0)
+  aiConfidence    Float    @default(0.0)
+  humanReviewed   Boolean  @default(false)
+
+  // Evidence
+  elementSelector String?  @db.VarChar(2048)
+  screenshot      String?  @db.VarChar(2048) // S3 URL
+  codeSnippet     String?  @db.Text // HTML sample
+
+  // Metadata
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([scanId])
+  @@index([wcagCriteria])
+  @@index([aiConfidence])
+}
+
+// Audit Trail for Compliance & Transparency
+model ReviewLog {
+  id              String   @id @default(cuid())
+
+  // Foreign Key
+  scanId          String
+  scan            Scan     @relation(fields: [scanId], references: [id], onDelete: Cascade)
+
+  // Action Details
+  action          String   @db.VarChar(50) // reviewed, approved, disputed, rejected, exported
+  consultantEmail String   @db.VarChar(255)
+  timestamp       DateTime @default(now())
+
+  // Flexible details field for action-specific data
+  details         Json     @default("{}")
+  // Can contain: { "reason": "...", "notes": "...", "violationId": "...", etc }
+
+  @@index([scanId])
+  @@index([timestamp])
+  @@index([action])
+}
+
+// Optional: Consultant Profile (future use)
+model Consultant {
+  id              String   @id @default(cuid())
+
+  // Identity
+  email           String   @unique @db.VarChar(255)
+  name            String   @db.VarChar(255)
+
+  // Professional Info
+  wcagCertified   Boolean  @default(false)
+  yearsExperience Int      @default(0)
+  specialization  String?  @db.VarChar(255)
+
+  // Status
+  isActive        Boolean  @default(true)
+
+  // Performance Metrics
+  totalAuditsReviewed Int  @default(0)
+  accuracyScore   Float    @default(0.0) // 0.0-1.0
+
+  // Metadata
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([email])
+  @@index([isActive])
+}
