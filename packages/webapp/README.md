@@ -78,15 +78,44 @@ function App() {
 # Install dependencies
 npm install
 
+# Development mode with hot reload
+npm run dev
+
 # Type check
 npm run type-check
 
-# Build
+# Build for production
 npm run build
 
-# Development mode
-npm run dev
+# Preview production build locally
+npm run preview
+
+# Start production server
+npm start
 ```
+
+## Deployment
+
+### Railway
+
+This application is configured for Railway deployment with the following files:
+- `railway.json` - Railway configuration
+- `railway.toml` - Alternative configuration format
+- `server.js` - Express production server
+
+Railway will automatically:
+1. Run `npm install && npm run build`
+2. Start the server with `npm start` on `$PORT`
+
+The server listens on `0.0.0.0` and uses the `PORT` environment variable provided by Railway.
+
+### Environment Variables (Production)
+
+Set these in your Railway dashboard:
+- `NODE_ENV=production`
+- `HUBSPOT_API_URL` (optional, defaults to https://api.hubapi.com)
+- `HUBSPOT_API_KEY` (required for HubSpot integration)
+- `SENDER_EMAIL` (required for email logging)
 
 ## Dark Theme
 
