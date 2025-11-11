@@ -1,350 +1,568 @@
 /**
- * ConsultantApprovalDashboard - Main dashboard component for reviewing and approving
- * email drafts to consultants about WCAG violations
+ * Consultant Approval Dashboard - The Grand Lodge
+ * Complete workflow for reviewing and approving accessibility violation emails
+ * Architecture: Hierarchical state management with clear separation of concerns
  */
 
-import React, { useState, useEffect } from 'react';
-import { EmailDraft, DashboardState } from '../types';
-import { ViolationReviewCard } from './ViolationReviewCard';
-import { hubspotService } from '../services/hubspot';
+import React, { useState, useEffect, useMemo } from 'react';
+import { EmailDraft, EmailStatus, Notification } from '../types';
+import { mockEmailDrafts } from '../services/mockData';
+import { STATUS_CONFIG, APP_CONFIG } from '../config/constants';
+import {
+  formatDate,
+  sortDrafts,
+  searchDrafts,
+  getViolationStats,
+  validateDraft,
+  estimateReadTime,
+} from '../utils/helpers';
+import { ViolationCard } from './ViolationCard';
 
 export const ConsultantApprovalDashboard: React.FC = () => {
-  // State management for email editing and dashboard
-  const [state, setState] = useState<DashboardState>({
-    emailDrafts: [],
-    selectedDraft: null,
-    editMode: false,
-    isLoading: true,
-    error: null,
-  });
+  // ============================================================================
+  // STATE MANAGEMENT - The Foundation
+  // ============================================================================
 
-  // Temporary state for editing
+  const [drafts, setDrafts] = useState<EmailDraft[]>([]);
+  const [selectedDraft, setSelectedDraft] = useState<EmailDraft | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [filterStatus, setFilterStatus] = useState<EmailStatus | 'all'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'date' | 'priority' | 'severity'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  // Edit form state
   const [editedSubject, setEditedSubject] = useState('');
   const [editedBody, setEditedBody] = useState('');
   const [editedRecipient, setEditedRecipient] = useState('');
+  const [editedNotes, setEditedNotes] = useState('');
 
-  // Load email drafts on component mount
+  // ============================================================================
+  // INITIALIZATION - Load Data
+  // ============================================================================
+
   useEffect(() => {
-    loadEmailDrafts();
+    // Simulate API call
+    setTimeout(() => {
+      setDrafts(mockEmailDrafts);
+      setIsLoading(false);
+      addNotification('success', 'Email drafts loaded successfully');
+    }, 500);
   }, []);
 
-  // Update edit fields when selected draft changes
-  useEffect(() => {
-    if (state.selectedDraft) {
-      setEditedSubject(state.selectedDraft.subject);
-      setEditedBody(state.selectedDraft.body);
-      setEditedRecipient(state.selectedDraft.recipient);
+  // ============================================================================
+  // COMPUTED VALUES - Derived State
+  // ============================================================================
+
+  const filteredAndSortedDrafts = useMemo(() => {
+    let result = drafts;
+
+    // Filter by status
+    if (filterStatus !== 'all') {
+      result = result.filter(d => d.status === filterStatus);
     }
-  }, [state.selectedDraft]);
 
-  const loadEmailDrafts = async () => {
-    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+    // Search
+    result = searchDrafts(result, searchQuery);
 
-    try {
-      // In a real app, this would fetch from an API
-      // For now, using mock data
-      const mockDrafts: EmailDraft[] = [
-        {
-          id: '1',
-          recipient: 'consultant@example.com',
-          subject: 'WCAG Accessibility Issues Found',
-          body: 'We have identified several WCAG compliance issues on your website...',
-          violations: [
-            {
-              id: 'v1',
-              url: 'https://example.com/page1',
-              element: 'button.submit',
-              wcagCriteria: 'WCAG 2.1 - 1.4.3 Contrast (Minimum)',
-              severity: 'high',
-              description: 'Button has insufficient color contrast ratio (2.8:1)',
-              recommendation: 'Increase contrast to at least 4.5:1 for normal text',
-            },
-          ],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          status: 'draft',
-        },
-      ];
+    // Sort
+    result = sortDrafts(result, sortBy, sortOrder);
 
-      setState((prev) => ({
-        ...prev,
-        emailDrafts: mockDrafts,
-        isLoading: false,
-      }));
-    } catch (error) {
-      setState((prev) => ({
-        ...prev,
-        error: 'Failed to load email drafts',
-        isLoading: false,
-      }));
+    return result;
+  }, [drafts, filterStatus, searchQuery, sortBy, sortOrder]);
+
+  const stats = useMemo(() => {
+    return {
+      total: drafts.length,
+      draft: drafts.filter(d => d.status === 'draft').length,
+      pending_review: drafts.filter(d => d.status === 'pending_review').length,
+      approved: drafts.filter(d => d.status === 'approved').length,
+      sent: drafts.filter(d => d.status === 'sent').length,
+      rejected: drafts.filter(d => d.status === 'rejected').length,
+    };
+  }, [drafts]);
+
+  // ============================================================================
+  // ACTIONS - The Rituals
+  // ============================================================================
+
+  function addNotification(type: Notification['type'], message: string) {
+    const notification: Notification = {
+      id: `notif-${Date.now()}`,
+      type,
+      message,
+      timestamp: new Date(),
+      read: false,
+    };
+    setNotifications(prev => [notification, ...prev]);
+
+    // Auto-remove after duration
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== notification.id));
+    }, APP_CONFIG.notificationDuration);
+  }
+
+  function selectDraft(draft: EmailDraft) {
+    setSelectedDraft(draft);
+    setEditMode(false);
+    setEditedSubject(draft.subject);
+    setEditedBody(draft.body);
+    setEditedRecipient(draft.recipient);
+    setEditedNotes(draft.notes || '');
+  }
+
+  function toggleEditMode() {
+    if (!selectedDraft) return;
+
+    if (editMode) {
+      // Exiting edit mode - reset to original values
+      setEditedSubject(selectedDraft.subject);
+      setEditedBody(selectedDraft.body);
+      setEditedRecipient(selectedDraft.recipient);
+      setEditedNotes(selectedDraft.notes || '');
     }
-  };
 
-  const selectDraft = (draft: EmailDraft) => {
-    setState((prev) => ({
-      ...prev,
-      selectedDraft: draft,
-      editMode: false,
-    }));
-  };
+    setEditMode(!editMode);
+  }
 
-  const toggleEditMode = () => {
-    setState((prev) => ({ ...prev, editMode: !prev.editMode }));
-  };
-
-  const saveDraft = () => {
-    if (!state.selectedDraft) return;
+  function saveDraft() {
+    if (!selectedDraft) return;
 
     const updatedDraft: EmailDraft = {
-      ...state.selectedDraft,
+      ...selectedDraft,
       subject: editedSubject,
       body: editedBody,
       recipient: editedRecipient,
+      notes: editedNotes,
       updatedAt: new Date(),
     };
 
-    setState((prev) => ({
-      ...prev,
-      emailDrafts: prev.emailDrafts.map((d) =>
-        d.id === updatedDraft.id ? updatedDraft : d
-      ),
-      selectedDraft: updatedDraft,
-      editMode: false,
-    }));
-  };
-
-  const approveDraft = async () => {
-    if (!state.selectedDraft) return;
-
-    setState((prev) => ({ ...prev, isLoading: true }));
-
-    try {
-      // Log to HubSpot
-      await hubspotService.logEmailActivity(state.selectedDraft);
-
-      const approvedDraft: EmailDraft = {
-        ...state.selectedDraft,
-        status: 'approved',
-        updatedAt: new Date(),
-      };
-
-      setState((prev) => ({
-        ...prev,
-        emailDrafts: prev.emailDrafts.map((d) =>
-          d.id === approvedDraft.id ? approvedDraft : d
-        ),
-        selectedDraft: approvedDraft,
-        isLoading: false,
-      }));
-
-      alert('Email approved and logged to HubSpot!');
-    } catch (error) {
-      setState((prev) => ({
-        ...prev,
-        error: 'Failed to approve email',
-        isLoading: false,
-      }));
+    const validation = validateDraft(updatedDraft);
+    if (!validation.valid) {
+      addNotification('error', validation.errors[0]);
+      return;
     }
-  };
+
+    setDrafts(prev => prev.map(d => d.id === updatedDraft.id ? updatedDraft : d));
+    setSelectedDraft(updatedDraft);
+    setEditMode(false);
+    addNotification('success', 'Draft saved successfully');
+  }
+
+  function approveDraft() {
+    if (!selectedDraft) return;
+
+    const updatedDraft: EmailDraft = {
+      ...selectedDraft,
+      status: 'approved',
+      approvedBy: 'admin@wcag-ai.com',
+      approvedAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    setDrafts(prev => prev.map(d => d.id === updatedDraft.id ? updatedDraft : d));
+    setSelectedDraft(updatedDraft);
+    addNotification('success', `Email to ${updatedDraft.recipient} approved!`);
+  }
+
+  function rejectDraft() {
+    if (!selectedDraft) return;
+
+    const updatedDraft: EmailDraft = {
+      ...selectedDraft,
+      status: 'rejected',
+      updatedAt: new Date(),
+    };
+
+    setDrafts(prev => prev.map(d => d.id === updatedDraft.id ? updatedDraft : d));
+    setSelectedDraft(updatedDraft);
+    addNotification('warning', 'Draft rejected');
+  }
+
+  function markAsSent() {
+    if (!selectedDraft || selectedDraft.status !== 'approved') return;
+
+    const updatedDraft: EmailDraft = {
+      ...selectedDraft,
+      status: 'sent',
+      updatedAt: new Date(),
+    };
+
+    setDrafts(prev => prev.map(d => d.id === updatedDraft.id ? updatedDraft : d));
+    setSelectedDraft(updatedDraft);
+    addNotification('success', 'Email marked as sent');
+  }
+
+  // ============================================================================
+  // RENDER - The Manifestation
+  // ============================================================================
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100">
       {/* Header */}
-      <header className="bg-gray-800 border-b border-gray-700 shadow-lg">
+      <header className="bg-gray-800 border-b border-gray-700 shadow-lg sticky top-0 z-10">
         <div className="container mx-auto px-6 py-4">
-          <h1 className="text-3xl font-bold text-gray-100">
-            Consultant Approval Dashboard
-          </h1>
-          <p className="text-gray-400 mt-1">
-            Review and approve WCAG violation emails
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-100 flex items-center">
+                <span className="mr-3 text-3xl">🏛️</span>
+                {APP_CONFIG.name}
+              </h1>
+              <p className="text-sm text-gray-400 mt-1">{APP_CONFIG.tagline}</p>
+            </div>
+            <div className="flex items-center space-x-4">
+              <div className="text-right">
+                <div className="text-sm font-semibold text-gray-300">{stats.total} Total Drafts</div>
+                <div className="text-xs text-gray-500">{stats.pending_review} Pending Review</div>
+              </div>
+            </div>
+          </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-6 py-8">
-        {/* Error message */}
-        {state.error && (
-          <div className="bg-red-900 border border-red-700 text-red-200 px-4 py-3 rounded mb-4">
-            {state.error}
+      {/* Notifications */}
+      <div className="fixed top-20 right-6 z-50 space-y-2 max-w-md">
+        {notifications.map(notif => (
+          <div
+            key={notif.id}
+            className={`p-4 rounded-lg shadow-lg border animate-slide-in ${
+              notif.type === 'success' ? 'bg-green-900/90 border-green-700 text-green-100' :
+              notif.type === 'error' ? 'bg-red-900/90 border-red-700 text-red-100' :
+              notif.type === 'warning' ? 'bg-yellow-900/90 border-yellow-700 text-yellow-100' :
+              'bg-blue-900/90 border-blue-700 text-blue-100'
+            }`}
+          >
+            <div className="flex items-start">
+              <span className="text-xl mr-3">
+                {notif.type === 'success' ? '✓' : notif.type === 'error' ? '✕' : notif.type === 'warning' ? '⚠' : 'ℹ'}
+              </span>
+              <div className="flex-1">
+                <p className="text-sm font-medium">{notif.message}</p>
+              </div>
+            </div>
           </div>
-        )}
+        ))}
+      </div>
 
-        {/* Loading state */}
-        {state.isLoading && (
-          <div className="text-center py-8">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-            <p className="text-gray-400 mt-4">Loading...</p>
-          </div>
-        )}
-
-        {/* Main content */}
-        {!state.isLoading && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Email drafts list */}
-            <div className="lg:col-span-1">
-              <h2 className="text-xl font-semibold mb-4 text-gray-100">
-                Email Drafts ({state.emailDrafts.length})
-              </h2>
-              <div className="space-y-3">
-                {state.emailDrafts.map((draft) => (
-                  <div
-                    key={draft.id}
-                    onClick={() => selectDraft(draft)}
-                    className={`p-4 rounded-lg cursor-pointer transition-colors border ${
-                      state.selectedDraft?.id === draft.id
-                        ? 'bg-blue-900 border-blue-700'
+      {/* Main Content */}
+      <div className="container mx-auto px-6 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Panel - Draft List */}
+          <div className="lg:col-span-1">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              {(['pending_review', 'approved'] as const).map(status => {
+                const config = STATUS_CONFIG[status];
+                return (
+                  <button
+                    key={status}
+                    onClick={() => setFilterStatus(status)}
+                    className={`p-3 rounded-lg border transition-all ${
+                      filterStatus === status
+                        ? 'bg-blue-900/50 border-blue-600'
                         : 'bg-gray-800 border-gray-700 hover:border-gray-600'
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-semibold text-gray-100">
-                        {draft.recipient}
-                      </span>
-                      <span
-                        className={`px-2 py-1 rounded text-xs ${
-                          draft.status === 'approved'
-                            ? 'bg-green-900 text-green-200'
-                            : 'bg-gray-700 text-gray-300'
-                        }`}
-                      >
-                        {draft.status}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-400 truncate">
-                      {draft.subject}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-2">
-                      {draft.violations.length} violation(s)
-                    </p>
-                  </div>
-                ))}
+                    <div className="text-2xl font-bold text-gray-100">{stats[status]}</div>
+                    <div className="text-xs text-gray-400 mt-1">{config.label}</div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Search & Filter */}
+            <div className="mb-4 space-y-2">
+              <input
+                type="text"
+                placeholder="Search drafts..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-600"
+              />
+
+              <div className="flex space-x-2">
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value as EmailStatus | 'all')}
+                  className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-100 focus:outline-none focus:border-blue-600"
+                >
+                  <option value="all">All Status</option>
+                  {Object.entries(STATUS_CONFIG).map(([key, config]) => (
+                    <option key={key} value={key}>{config.label}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                  className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-100 focus:outline-none focus:border-blue-600"
+                >
+                  <option value="date">Date</option>
+                  <option value="priority">Priority</option>
+                  <option value="severity">Severity</option>
+                </select>
               </div>
             </div>
 
-            {/* Email preview and editor */}
-            <div className="lg:col-span-2">
-              {state.selectedDraft ? (
-                <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 shadow-lg">
-                  {/* Email header */}
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-semibold text-gray-100">
-                      Email Preview
-                    </h2>
-                    <div className="space-x-2">
-                      <button
-                        onClick={toggleEditMode}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
-                      >
-                        {state.editMode ? 'Cancel' : 'Edit'}
-                      </button>
-                      {state.editMode && (
-                        <button
-                          onClick={saveDraft}
-                          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
-                        >
-                          Save
-                        </button>
+            {/* Draft List */}
+            <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+              {filteredAndSortedDrafts.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <p>No drafts found</p>
+                </div>
+              ) : (
+                filteredAndSortedDrafts.map(draft => {
+                  const statusConfig = STATUS_CONFIG[draft.status];
+                  const isSelected = selectedDraft?.id === draft.id;
+                  const violationStats = getViolationStats(draft.violations);
+
+                  return (
+                    <button
+                      key={draft.id}
+                      onClick={() => selectDraft(draft)}
+                      className={`w-full text-left p-4 rounded-lg border transition-all ${
+                        isSelected
+                          ? 'bg-blue-900/30 border-blue-600 shadow-lg'
+                          : 'bg-gray-800 border-gray-700 hover:border-gray-600 hover:bg-gray-800/80'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${statusConfig.color} ${statusConfig.bgColor}`}>
+                          {statusConfig.icon} {statusConfig.label}
+                        </span>
+                        <span className="text-xs text-gray-500">{formatDate(draft.updatedAt)}</span>
+                      </div>
+
+                      <div className="font-semibold text-gray-100 mb-1 truncate">
+                        {draft.recipientName || draft.recipient}
+                      </div>
+                      {draft.company && (
+                        <div className="text-xs text-gray-400 mb-2">{draft.company}</div>
                       )}
-                      {!state.editMode &&
-                        state.selectedDraft.status === 'draft' && (
+
+                      <div className="text-sm text-gray-300 truncate mb-2">{draft.subject}</div>
+
+                      <div className="flex items-center space-x-2 text-xs">
+                        {violationStats.critical > 0 && (
+                          <span className="px-2 py-0.5 rounded bg-red-900/50 text-red-200 border border-red-700">
+                            {violationStats.critical} Critical
+                          </span>
+                        )}
+                        {violationStats.high > 0 && (
+                          <span className="px-2 py-0.5 rounded bg-orange-900/50 text-orange-200 border border-orange-700">
+                            {violationStats.high} High
+                          </span>
+                        )}
+                        <span className="text-gray-500">{violationStats.total} total</span>
+                      </div>
+
+                      {draft.tags && draft.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {draft.tags.slice(0, 2).map(tag => (
+                            <span key={tag} className="px-2 py-0.5 rounded text-xs bg-gray-700 text-gray-300">
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Right Panel - Draft Preview/Edit */}
+          <div className="lg:col-span-2">
+            {!selectedDraft ? (
+              <div className="bg-gray-800 border border-gray-700 rounded-lg p-12 text-center">
+                <div className="text-6xl mb-4">📧</div>
+                <h3 className="text-xl font-semibold text-gray-300 mb-2">Select a draft to review</h3>
+                <p className="text-gray-500">Choose an email draft from the list to preview and manage it</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Preview Header */}
+                <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3 mb-3">
+                        <span className={`px-3 py-1 rounded font-medium ${STATUS_CONFIG[selectedDraft.status].color} ${STATUS_CONFIG[selectedDraft.status].bgColor}`}>
+                          {STATUS_CONFIG[selectedDraft.status].icon} {STATUS_CONFIG[selectedDraft.status].label}
+                        </span>
+                        {selectedDraft.tags && selectedDraft.tags.map(tag => (
+                          <span key={tag} className="px-2 py-1 rounded text-xs bg-gray-700 text-gray-300">
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="text-sm text-gray-400 space-y-1">
+                        <div>Created: {formatDate(selectedDraft.createdAt)}</div>
+                        <div>Updated: {formatDate(selectedDraft.updatedAt)}</div>
+                        {selectedDraft.approvedBy && (
+                          <div>Approved by: {selectedDraft.approvedBy} on {formatDate(selectedDraft.approvedAt!)}</div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex space-x-2">
+                      {selectedDraft.status === 'pending_review' && (
+                        <>
                           <button
                             onClick={approveDraft}
-                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
+                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
                           >
-                            Approve
+                            ✓ Approve
                           </button>
-                        )}
+                          <button
+                            onClick={rejectDraft}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+                          >
+                            ✕ Reject
+                          </button>
+                        </>
+                      )}
+                      {selectedDraft.status === 'approved' && (
+                        <button
+                          onClick={markAsSent}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                        >
+                          📧 Mark as Sent
+                        </button>
+                      )}
+                      {(selectedDraft.status === 'draft' || selectedDraft.status === 'pending_review') && (
+                        <button
+                          onClick={toggleEditMode}
+                          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors"
+                        >
+                          {editMode ? '✕ Cancel' : '✏️ Edit'}
+                        </button>
+                      )}
                     </div>
                   </div>
 
-                  {/* Email fields */}
-                  {state.editMode ? (
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                          Recipient
-                        </label>
+                  {/* Email Fields */}
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-400 mb-2">To:</label>
+                      {editMode ? (
                         <input
                           type="email"
                           value={editedRecipient}
                           onChange={(e) => setEditedRecipient(e.target.value)}
-                          className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-gray-100 focus:outline-none focus:border-blue-500"
+                          className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:border-blue-600"
                         />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                          Subject
-                        </label>
+                      ) : (
+                        <div className="text-gray-100">
+                          {selectedDraft.recipientName && (
+                            <span className="font-semibold">{selectedDraft.recipientName}</span>
+                          )}
+                          {' '}<span className="text-gray-400">&lt;{selectedDraft.recipient}&gt;</span>
+                          {selectedDraft.company && (
+                            <span className="text-gray-500"> - {selectedDraft.company}</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-400 mb-2">Subject:</label>
+                      {editMode ? (
                         <input
                           type="text"
                           value={editedSubject}
                           onChange={(e) => setEditedSubject(e.target.value)}
-                          className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-gray-100 focus:outline-none focus:border-blue-500"
+                          className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:border-blue-600"
                         />
+                      ) : (
+                        <div className="text-gray-100 font-medium">{selectedDraft.subject}</div>
+                      )}
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-sm font-semibold text-gray-400">Message:</label>
+                        <span className="text-xs text-gray-500">
+                          {estimateReadTime(selectedDraft.body)} min read
+                        </span>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                          Body
-                        </label>
+                      {editMode ? (
                         <textarea
                           value={editedBody}
                           onChange={(e) => setEditedBody(e.target.value)}
-                          rows={10}
-                          className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-gray-100 focus:outline-none focus:border-blue-500 font-mono text-sm"
+                          rows={12}
+                          className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-gray-100 font-mono text-sm focus:outline-none focus:border-blue-600 resize-none"
                         />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div>
-                        <p className="text-sm text-gray-500">To:</p>
-                        <p className="text-gray-100">
-                          {state.selectedDraft.recipient}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Subject:</p>
-                        <p className="text-gray-100">
-                          {state.selectedDraft.subject}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500 mb-2">Body:</p>
-                        <div className="p-4 bg-gray-900 border border-gray-700 rounded">
-                          <p className="text-gray-200 whitespace-pre-wrap">
-                            {state.selectedDraft.body}
-                          </p>
+                      ) : (
+                        <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 text-gray-300 whitespace-pre-wrap font-mono text-sm max-h-96 overflow-y-auto">
+                          {selectedDraft.body}
                         </div>
-                      </div>
+                      )}
                     </div>
-                  )}
 
-                  {/* Violations */}
-                  <div className="mt-8">
-                    <h3 className="text-xl font-semibold mb-4 text-gray-100">
-                      Violations ({state.selectedDraft.violations.length})
-                    </h3>
-                    <div className="space-y-4">
-                      {state.selectedDraft.violations.map((violation) => (
-                        <ViolationReviewCard
-                          key={violation.id}
-                          violation={violation}
-                        />
-                      ))}
-                    </div>
+                    {(editMode || selectedDraft.notes) && (
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-400 mb-2">Internal Notes:</label>
+                        {editMode ? (
+                          <textarea
+                            value={editedNotes}
+                            onChange={(e) => setEditedNotes(e.target.value)}
+                            rows={3}
+                            placeholder="Add internal notes..."
+                            className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-gray-100 text-sm focus:outline-none focus:border-blue-600"
+                          />
+                        ) : (
+                          <div className="text-gray-400 text-sm italic">{selectedDraft.notes}</div>
+                        )}
+                      </div>
+                    )}
+
+                    {editMode && (
+                      <div className="flex justify-end">
+                        <button
+                          onClick={saveDraft}
+                          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                        >
+                          💾 Save Changes
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
-              ) : (
-                <div className="bg-gray-800 border border-gray-700 rounded-lg p-12 text-center shadow-lg">
-                  <p className="text-gray-400 text-lg">
-                    Select an email draft to preview
-                  </p>
+
+                {/* Violations */}
+                <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
+                  <h3 className="text-lg font-semibold text-gray-100 mb-4 flex items-center">
+                    <span className="mr-2">🔍</span>
+                    Violations ({selectedDraft.violations.length})
+                  </h3>
+                  <div className="space-y-4">
+                    {selectedDraft.violations.map((violation, index) => (
+                      <ViolationCard key={violation.id} violation={violation} index={index} />
+                    ))}
+                  </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
 };
+
+export default ConsultantApprovalDashboard;

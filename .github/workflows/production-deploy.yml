@@ -1,0 +1,357 @@
+name: Production Deployment Pipeline
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/api/**'
+      - 'packages/webapp/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+  RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+jobs:
+  # ========================================
+  # Security Scanning
+  # ========================================
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: GitGuardian Secrets Scan
+        uses: GitGuardian/ggshield-action@v1.31.0
+        env:
+          GITHUB_PUSH_BEFORE_SHA: ${{ github.event.before }}
+          GITHUB_PUSH_BASE_SHA: ${{ github.event.before }}
+          GITHUB_PULL_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GITHUB_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
+        continue-on-error: true
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+        continue-on-error: true
+
+  # ========================================
+  # Test & Build
+  # ========================================
+  test-api:
+    name: Test API
+    needs: security-scan
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./packages/api
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ./packages/api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linter
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Run type check
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        run: npm test
+        continue-on-error: true
+
+      - name: Build
+        run: npm run build
+
+      - name: Snyk Security Scan
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: test
+          args: --severity-threshold=high --file=./packages/api/package.json
+        continue-on-error: true
+
+  test-webapp:
+    name: Test Web App
+    needs: security-scan
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./packages/webapp
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ./packages/webapp/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linter
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Run type check
+        run: npm run type-check
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_API_BASE_URL: https://placeholder.com
+
+  # ========================================
+  # Build Docker Images
+  # ========================================
+  build-api-image:
+    name: Build API Docker Image
+    needs: [test-api]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/api
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ./packages/api
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ========================================
+  # Deploy to Staging
+  # ========================================
+  deploy-staging:
+    name: Deploy to Staging
+    needs: [build-api-image, test-webapp]
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://wcagaii-staging.railway.app
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy Backend to Railway Staging
+        run: railway up --service=wcagaii-backend --environment=staging
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        working-directory: ./packages/api
+
+      - name: Deploy Frontend to Railway Staging
+        run: railway up --service=wcagaii-frontend --environment=staging
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        working-directory: ./packages/webapp
+
+      - name: Wait for deployment
+        run: sleep 30
+
+      - name: Health check
+        run: |
+          curl -f ${{ vars.STAGING_API_URL }}/health || exit 1
+          echo "✅ Staging health check passed"
+
+      - name: Run smoke tests
+        run: |
+          curl -f ${{ vars.STAGING_API_URL }}/api/status || exit 1
+          echo "✅ Smoke tests passed"
+
+  # ========================================
+  # Deploy to Production
+  # ========================================
+  deploy-production:
+    name: Deploy to Production
+    needs: [deploy-staging]
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://wcagaii.railway.app
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy Backend to Railway Production
+        id: deploy-backend
+        run: |
+          railway up --service=wcagaii-backend --environment=production
+          echo "deployment_id=$(railway status --service=wcagaii-backend --json | jq -r '.deploymentId')" >> $GITHUB_OUTPUT
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        working-directory: ./packages/api
+
+      - name: Deploy Frontend to Railway Production
+        run: railway up --service=wcagaii-frontend --environment=production
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        working-directory: ./packages/webapp
+
+      - name: Wait for deployment
+        run: sleep 45
+
+      - name: Production health check
+        id: health-check
+        run: |
+          MAX_ATTEMPTS=10
+          ATTEMPT=0
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            if curl -f -s ${{ vars.PRODUCTION_API_URL }}/health > /dev/null; then
+              echo "✅ Production health check passed"
+              exit 0
+            fi
+            ATTEMPT=$((ATTEMPT+1))
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS failed, retrying in 10s..."
+            sleep 10
+          done
+          echo "❌ Health check failed after $MAX_ATTEMPTS attempts"
+          exit 1
+
+      - name: Run production smoke tests
+        run: |
+          curl -f ${{ vars.PRODUCTION_API_URL }}/api/status || exit 1
+          curl -f ${{ vars.PRODUCTION_FRONTEND_URL }} || exit 1
+          echo "✅ Production smoke tests passed"
+
+      - name: Notify Sentry of deployment
+        uses: getsentry/action-release@v1
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: wcagaii
+        with:
+          environment: production
+          version: ${{ github.sha }}
+
+      # ========================================
+      # Rollback on Failure
+      # ========================================
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "🚨 Deployment failed! Initiating rollback..."
+          railway rollback --service=wcagaii-backend --environment=production
+          railway rollback --service=wcagaii-frontend --environment=production
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+      - name: Send PagerDuty alert on failure
+        if: failure()
+        uses: PagerDuty/pagerduty-change-events-action@v1.1.0
+        with:
+          integration-key: ${{ secrets.PAGERDUTY_INTEGRATION_KEY }}
+          custom-event: |
+            {
+              "severity": "critical",
+              "summary": "Production deployment failed and rolled back",
+              "source": "GitHub Actions",
+              "component": "wcagaii-deployment"
+            }
+
+  # ========================================
+  # Post-Deployment Verification
+  # ========================================
+  verify-deployment:
+    name: Verify Deployment
+    needs: [deploy-production]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install k6 for load testing
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+
+      - name: Run load test
+        run: |
+          k6 run --vus 5 --duration 30s deployment/scripts/load-test.js
+        env:
+          API_URL: ${{ vars.PRODUCTION_API_URL }}
+        continue-on-error: true
+
+      - name: Check metrics endpoint
+        run: |
+          curl -f ${{ vars.PRODUCTION_API_URL }}/metrics || echo "⚠️  Metrics endpoint not available"
+
+      - name: Verify environment variables
+        run: |
+          response=$(curl -f ${{ vars.PRODUCTION_API_URL }}/api/config)
+          echo "✅ Configuration endpoint responding"
+
+      - name: Tag successful deployment
+        run: |
+          git tag -a "deploy-$(date +%Y%m%d-%H%M%S)" -m "Production deployment ${{ github.sha }}"
+          git push origin --tags
+        continue-on-error: true

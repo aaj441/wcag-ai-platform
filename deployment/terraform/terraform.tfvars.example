@@ -1,0 +1,26 @@
+# ========================================
+# WCAG AI Platform - Terraform Variable Values
+# ========================================
+# Copy this file to terraform.tfvars and fill in your values
+
+project_name    = "wcagai"
+aws_region      = "us-east-1"
+environment     = "production"
+
+# Secrets (DO NOT commit terraform.tfvars to git)
+railway_token           = "your-railway-token"
+openai_api_key          = "sk-your-openai-key"
+sentry_dsn              = "https://your-sentry-dsn@sentry.io/..."
+launchdarkly_sdk_key    = "sdk-your-launchdarkly-key"
+
+# Scaling Configuration
+backend_min_replicas = 1
+backend_max_replicas = 5
+
+# Database Configuration
+db_pool_min = 2
+db_pool_max = 10
+
+# Application Configuration
+scan_timeout_ms = 30000
+api_rate_limit  = 100
