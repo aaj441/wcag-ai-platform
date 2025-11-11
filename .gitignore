@@ -55,3 +55,27 @@ coverage/
 *.tmp
 *.temp
 .cache/
+
+# Production service data directories
+backend/data/
+data/worker-keys/
+data/replay-recordings/
+/tmp/compliance-exports/
+/tmp/onboarding_*.log
+/tmp/onboarding_metrics_*.json
+/tmp/migrate-safe-*.log
+/tmp/migration_*_state.json
+
+# Audit logs
+audit-logs/
+
+# Compliance exports (keep structure, exclude actual exports)
+exports/
+reports/deprecation/*.md
+!reports/deprecation/.gitkeep
+
+# Secret rotation audit logs
+secret-rotation-audit.log
+
+# Migration tracking
+migrations/*/state.json
