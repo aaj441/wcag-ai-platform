@@ -10,6 +10,7 @@ npx tsx apps/scanner/src/scripts/validate.ts
 
 ## Structure
 - `apps/scanner`: Core scanning service
+- `apps/dashboard`: Dashboard web application (under development)
 - `packages/core`: Confidence scoring engine (MOAT)
 - `packages/db`: Prisma schema
 - `packages/config`: Configuration utilities
