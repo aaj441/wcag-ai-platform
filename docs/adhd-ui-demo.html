@@ -567,7 +567,7 @@
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'C') {
         e.preventDefault();
         const checkbox = document.getElementById('contrastToggle');
-        checkbox.checked = !checkbox.checked();
+        checkbox.checked = !checkbox.checked;
         toggleContrast();
       }
     });
