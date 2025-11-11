@@ -1,0 +1,493 @@
+{
+  "playbook_version": "10.0.0",
+  "playbook_name": "WCAG AI Platform - Production Agentic Deployment",
+  "description": "Complete CI/CD lifecycle for zero-touch agentic deployment with comprehensive monitoring and automated recovery",
+  "created": "2025-11-11",
+  "author": "WCAG AI Platform DevOps Team",
+  "
+": {
+    "environment": "production",
+    "auto_deploy_enabled": true,
+    "zero_downtime_required": true,
+    "rollback_on_failure": true,
+    "human_approval_required": false
+  },
+  
+  "phases": {
+    "1_pre_flight_checks": {
+      "description": "Validate system readiness before deployment",
+      "timeout_minutes": 10,
+      "steps": [
+        {
+          "name": "Health Check",
+          "action": "api_health_check",
+          "endpoint": "${PRODUCTION_API_URL}/health",
+          "expected_status": 200,
+          "retry_count": 3,
+          "critical": true
+        },
+        {
+          "name": "Database Connection",
+          "action": "database_check",
+          "query": "SELECT 1",
+          "timeout_seconds": 5,
+          "critical": true
+        },
+        {
+          "name": "Cost Budget Check",
+          "action": "cost_controller_check",
+          "endpoint": "${PRODUCTION_API_URL}/api/cost/status",
+          "validate": {
+            "kill_switch_active": false,
+            "daily_budget_remaining": "> 20%"
+          },
+          "critical": false
+        },
+        {
+          "name": "Worker Attestation Status",
+          "action": "worker_identity_check",
+          "endpoint": "${PRODUCTION_API_URL}/api/workers/status",
+          "validate": {
+            "active_workers": "> 0",
+            "revoked_workers_count": "< 5"
+          },
+          "critical": false
+        },
+        {
+          "name": "Model Drift Check",
+          "action": "feedback_loop_check",
+          "endpoint": "${PRODUCTION_API_URL}/api/feedback/stats",
+          "validate": {
+            "active_model_dismissal_rate": "< 0.15"
+          },
+          "critical": false
+        }
+      ]
+    },
+    
+    "2_security_scanning": {
+      "description": "Comprehensive security validation",
+      "timeout_minutes": 15,
+      "steps": [
+        {
+          "name": "GitGuardian Secrets Scan",
+          "action": "run_workflow",
+          "workflow": "security-scan",
+          "blocking": true
+        },
+        {
+          "name": "Trivy Vulnerability Scan",
+          "action": "trivy_scan",
+          "scan_type": "fs",
+          "severity": ["CRITICAL", "HIGH"],
+          "blocking": true
+        },
+        {
+          "name": "Snyk Dependency Scan",
+          "action": "snyk_test",
+          "severity_threshold": "high",
+          "blocking": false
+        },
+        {
+          "name": "CodeQL Analysis",
+          "action": "codeql_scan",
+          "languages": ["javascript", "typescript"],
+          "blocking": false
+        }
+      ]
+    },
+    
+    "3_build_and_test": {
+      "description": "Build artifacts and run test suites",
+      "timeout_minutes": 30,
+      "parallel": true,
+      "steps": [
+        {
+          "name": "Build API",
+          "action": "npm_build",
+          "working_directory": "./packages/api",
+          "command": "npm run build",
+          "cache_enabled": true
+        },
+        {
+          "name": "Build Frontend",
+          "action": "npm_build",
+          "working_directory": "./packages/webapp",
+          "command": "npm run build",
+          "cache_enabled": true
+        },
+        {
+          "name": "Run API Tests",
+          "action": "npm_test",
+          "working_directory": "./packages/api",
+          "command": "npm test",
+          "coverage_required": 70
+        },
+        {
+          "name": "Build Docker Images",
+          "action": "docker_build",
+          "registry": "ghcr.io",
+          "images": [
+            {
+              "name": "api",
+              "context": "./packages/api",
+              "tags": ["latest", "${GIT_SHA}"]
+            }
+          ]
+        }
+      ]
+    },
+    
+    "4_staging_deployment": {
+      "description": "Deploy to staging environment for validation",
+      "timeout_minutes": 15,
+      "environment": "staging",
+      "steps": [
+        {
+          "name": "Deploy to Staging",
+          "action": "railway_deploy",
+          "service": "wcagaii-backend",
+          "environment": "staging",
+          "wait_for_ready": true
+        },
+        {
+          "name": "Staging Health Check",
+          "action": "api_health_check",
+          "endpoint": "${STAGING_API_URL}/health",
+          "expected_status": 200,
+          "retry_count": 5,
+          "retry_delay_seconds": 10
+        },
+        {
+          "name": "Run Smoke Tests",
+          "action": "smoke_tests",
+          "tests": [
+            {
+              "name": "API Status",
+              "endpoint": "${STAGING_API_URL}/api/status",
+              "method": "GET",
+              "expected_status": 200
+            },
+            {
+              "name": "Cost Controller",
+              "endpoint": "${STAGING_API_URL}/api/cost/report",
+              "method": "GET",
+              "expected_status": 200
+            },
+            {
+              "name": "Worker Identity",
+              "endpoint": "${STAGING_API_URL}/api/workers/stats",
+              "method": "GET",
+              "expected_status": 200
+            }
+          ]
+        }
+      ]
+    },
+    
+    "5_production_deployment": {
+      "description": "Deploy to production with zero downtime",
+      "timeout_minutes": 20,
+      "environment": "production",
+      "steps": [
+        {
+          "name": "Database Migration (Safe)",
+          "action": "run_script",
+          "script": "./scripts/migrate-safe.sh",
+          "args": ["${MIGRATION_NAME}"],
+          "environment_vars": {
+            "DB_HOST": "${PRODUCTION_DB_HOST}",
+            "DB_NAME": "${PRODUCTION_DB_NAME}",
+            "ROLLBACK_ON_ERROR": "true"
+          },
+          "optional": true,
+          "skip_if": "NO_MIGRATION"
+        },
+        {
+          "name": "Deploy Backend",
+          "action": "railway_deploy",
+          "service": "wcagaii-backend",
+          "environment": "production",
+          "strategy": "blue-green",
+          "wait_for_ready": true
+        },
+        {
+          "name": "Deploy Frontend",
+          "action": "railway_deploy",
+          "service": "wcagaii-frontend",
+          "environment": "production",
+          "wait_for_ready": true
+        },
+        {
+          "name": "Production Health Check",
+          "action": "api_health_check",
+          "endpoint": "${PRODUCTION_API_URL}/health",
+          "expected_status": 200,
+          "retry_count": 10,
+          "retry_delay_seconds": 10,
+          "critical": true
+        },
+        {
+          "name": "Initialize Production Services",
+          "action": "service_initialization",
+          "services": [
+            "workerIdentity",
+            "costController",
+            "replayEngine",
+            "feedbackLoop"
+          ]
+        }
+      ]
+    },
+    
+    "6_post_deployment_validation": {
+      "description": "Validate deployment success",
+      "timeout_minutes": 10,
+      "steps": [
+        {
+          "name": "Run Production Smoke Tests",
+          "action": "smoke_tests",
+          "endpoint_base": "${PRODUCTION_API_URL}",
+          "tests": [
+            {"path": "/health", "expected_status": 200},
+            {"path": "/api/status", "expected_status": 200},
+            {"path": "/metrics", "expected_status": 200}
+          ]
+        },
+        {
+          "name": "Load Test",
+          "action": "k6_load_test",
+          "script": "./deployment/scripts/load-test.js",
+          "vus": 5,
+          "duration": "30s",
+          "thresholds": {
+            "http_req_duration": "p(95)<500",
+            "http_req_failed": "rate<0.01"
+          }
+        },
+        {
+          "name": "Validate Services",
+          "action": "service_validation",
+          "services": [
+            {
+              "name": "Cost Controller",
+              "endpoint": "${PRODUCTION_API_URL}/api/cost/report",
+              "validate": {"kill_switch_active": false}
+            },
+            {
+              "name": "Worker Identity",
+              "endpoint": "${PRODUCTION_API_URL}/api/workers/stats",
+              "validate": {"total_workers": "> 0"}
+            },
+            {
+              "name": "Feedback Loop",
+              "endpoint": "${PRODUCTION_API_URL}/api/feedback/stats",
+              "validate": {"active_model": "!= null"}
+            }
+          ]
+        },
+        {
+          "name": "Notify Sentry",
+          "action": "sentry_release",
+          "version": "${GIT_SHA}",
+          "environment": "production"
+        }
+      ]
+    },
+    
+    "7_continuous_monitoring": {
+      "description": "Continuous health monitoring and alerting",
+      "continuous": true,
+      "steps": [
+        {
+          "name": "Health Monitoring",
+          "action": "run_workflow_schedule",
+          "workflow": ".github/workflows/alerting.yml",
+          "schedule": "*/5 * * * *"
+        },
+        {
+          "name": "Cost Monitoring",
+          "action": "monitor_metric",
+          "metric": "ai_cost_daily_total",
+          "threshold": "${DAILY_AI_BUDGET} * 0.95",
+          "alert_channel": "pagerduty",
+          "check_interval_minutes": 15
+        },
+        {
+          "name": "Model Drift Monitoring",
+          "action": "monitor_metric",
+          "metric": "model_drift_score",
+          "threshold": 0.15,
+          "alert_channel": "pagerduty",
+          "check_interval_minutes": 30
+        },
+        {
+          "name": "Worker Health Monitoring",
+          "action": "monitor_endpoint",
+          "endpoint": "${PRODUCTION_API_URL}/api/workers/stats",
+          "check_interval_minutes": 10,
+          "validate": {
+            "active_workers": "> 0",
+            "revoked_workers_count": "< 10"
+          }
+        }
+      ]
+    }
+  },
+  
+  "rollback_strategy": {
+    "trigger_conditions": [
+      {
+        "condition": "health_check_failed",
+        "consecutive_failures": 3
+      },
+      {
+        "condition": "error_rate_exceeded",
+        "threshold": 0.05
+      },
+      {
+        "condition": "load_test_failed",
+        "severity": "critical"
+      }
+    ],
+    "rollback_steps": [
+      {
+        "name": "Alert Team",
+        "action": "pagerduty_alert",
+        "severity": "critical",
+        "message": "Deployment failed, initiating automated rollback"
+      },
+      {
+        "name": "Rollback Railway Services",
+        "action": "railway_rollback",
+        "services": ["wcagaii-backend", "wcagaii-frontend"],
+        "environment": "production"
+      },
+      {
+        "name": "Rollback Database",
+        "action": "run_script",
+        "script": "./scripts/migrate-safe.sh",
+        "args": ["${MIGRATION_NAME}", "rollback"],
+        "optional": true
+      },
+      {
+        "name": "Verify Rollback",
+        "action": "api_health_check",
+        "endpoint": "${PRODUCTION_API_URL}/health",
+        "expected_status": 200,
+        "critical": true
+      }
+    ]
+  },
+  
+  "incident_response": {
+    "automated_actions": {
+      "high_queue_depth": {
+        "threshold": 100,
+        "actions": [
+          {"action": "clear_cache"},
+          {"action": "restart_workers"},
+          {"action": "scale_up_replicas", "target": 3}
+        ]
+      },
+      "cost_budget_exceeded": {
+        "threshold": "${DAILY_AI_BUDGET} * 0.95",
+        "actions": [
+          {"action": "activate_kill_switch"},
+          {"action": "send_alert", "channel": "pagerduty", "severity": "critical"}
+        ]
+      },
+      "model_drift_detected": {
+        "threshold": 0.20,
+        "actions": [
+          {"action": "rollback_model"},
+          {"action": "send_alert", "channel": "pagerduty", "severity": "high"}
+        ]
+      },
+      "worker_compromised": {
+        "trigger": "manual_report",
+        "actions": [
+          {"action": "revoke_worker"},
+          {"action": "invalidate_worker_results"},
+          {"action": "send_alert", "channel": "pagerduty", "severity": "critical"}
+        ]
+      }
+    }
+  },
+  
+  "maintenance_windows": {
+    "secret_rotation": {
+      "schedule": "0 2 1 * *",
+      "workflow": ".github/workflows/rotate-secrets.yml",
+      "notification_required": false
+    },
+    "deprecation_report": {
+      "schedule": "0 9 1 1,4,7,10 *",
+      "workflow": ".github/workflows/quarterly-deprecation.yml",
+      "notification_required": true
+    },
+    "compliance_export": {
+      "schedule": "manual",
+      "script": "./scripts/export-compliance.sh",
+      "retention_days": 2555
+    }
+  },
+  
+  "metrics_and_kpis": {
+    "deployment_frequency": {
+      "target": "10+ per day",
+      "measurement": "automated"
+    },
+    "lead_time_for_changes": {
+      "target": "< 1 hour",
+      "measurement": "git_commit_to_production"
+    },
+    "mean_time_to_recovery": {
+      "target": "< 15 minutes",
+      "measurement": "incident_detection_to_resolution"
+    },
+    "change_failure_rate": {
+      "target": "< 5%",
+      "measurement": "failed_deployments / total_deployments"
+    },
+    "availability": {
+      "target": "99.9%",
+      "measurement": "uptime_monitoring"
+    }
+  },
+  
+  "compliance_and_audit": {
+    "audit_logging": {
+      "enabled": true,
+      "retention_days": 2555,
+      "encryption": true
+    },
+    "secret_rotation": {
+      "frequency": "monthly",
+      "automated": true
+    },
+    "vulnerability_scanning": {
+      "frequency": "every_deployment",
+      "automated": true
+    },
+    "compliance_exports": {
+      "on_demand": true,
+      "cryptographically_signed": true
+    }
+  },
+  
+  "disaster_recovery": {
+    "backup_strategy": {
+      "database": {
+        "frequency": "hourly",
+        "retention_days": 30
+      },
+      "configuration": {
+        "frequency": "on_change",
+        "retention_days": 90
+      }
+    },
+    "recovery_time_objective": "1 hour",
+    "recovery_point_objective": "15 minutes"
+  }
+}

@@ -1,0 +1,296 @@
+name: Quarterly Deprecation Report
+
+on:
+  schedule:
+    # Run on the 1st of January, April, July, October at 9 AM UTC
+    - cron: '0 9 1 1,4,7,10 *'
+  workflow_dispatch:
+
+jobs:
+  generate-deprecation-report:
+    name: Generate Deprecation Report
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Scan codebase for deprecations
+        id: scan
+        run: |
+          cat > /tmp/scan-deprecations.js <<'EOF'
+          const fs = require('fs');
+          const path = require('path');
+          
+          const deprecations = {
+            current: [],
+            upcoming: [],
+            overdue: []
+          };
+          
+          function scanDirectory(dir) {
+            const files = fs.readdirSync(dir);
+            
+            files.forEach(file => {
+              const filePath = path.join(dir, file);
+              const stat = fs.statSync(filePath);
+              
+              if (stat.isDirectory() && !file.includes('node_modules')) {
+                scanDirectory(filePath);
+              } else if (file.endsWith('.ts') || file.endsWith('.js')) {
+                const content = fs.readFileSync(filePath, 'utf8');
+                const lines = content.split('\n');
+                
+                lines.forEach((line, index) => {
+                  if (line.includes('@deprecated')) {
+                    // Extract deprecation info
+                    const deadlineMatch = line.match(/deadline:\s*(\d{4}-\d{2}-\d{2})/i);
+                    const replacementMatch = line.match(/use\s+([^\s]+)/i);
+                    const reasonMatch = line.match(/@deprecated\s+(.+?)(?:deadline:|use\s+|$)/i);
+                    
+                    const item = {
+                      file: filePath,
+                      line: index + 1,
+                      reason: reasonMatch ? reasonMatch[1].trim() : 'No reason provided',
+                      deadline: deadlineMatch ? deadlineMatch[1] : null,
+                      replacement: replacementMatch ? replacementMatch[1] : null,
+                      context: lines.slice(Math.max(0, index - 2), Math.min(lines.length, index + 3)).join('\n')
+                    };
+                    
+                    if (item.deadline) {
+                      const deadline = new Date(item.deadline);
+                      const now = new Date();
+                      const threeMonthsFromNow = new Date();
+                      threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3);
+                      
+                      if (deadline < now) {
+                        deprecations.overdue.push(item);
+                      } else if (deadline < threeMonthsFromNow) {
+                        deprecations.upcoming.push(item);
+                      } else {
+                        deprecations.current.push(item);
+                      }
+                    } else {
+                      deprecations.current.push(item);
+                    }
+                  }
+                });
+              }
+            });
+          }
+          
+          // Scan directories
+          if (fs.existsSync('packages')) scanDirectory('packages');
+          if (fs.existsSync('backend')) scanDirectory('backend');
+          
+          // Save results
+          fs.writeFileSync('/tmp/deprecations.json', JSON.stringify(deprecations, null, 2));
+          
+          // Print summary
+          console.log('\n📊 Deprecation Summary:');
+          console.log(`   Overdue: ${deprecations.overdue.length}`);
+          console.log(`   Upcoming (next 3 months): ${deprecations.upcoming.length}`);
+          console.log(`   Future: ${deprecations.current.length}`);
+          console.log(`   Total: ${deprecations.overdue.length + deprecations.upcoming.length + deprecations.current.length}`);
+          EOF
+          
+          node /tmp/scan-deprecations.js
+
+      - name: Generate detailed report
+        run: |
+          cat > /tmp/generate-report.js <<'EOF'
+          const fs = require('fs');
+          const deprecations = JSON.parse(fs.readFileSync('/tmp/deprecations.json', 'utf8'));
+          
+          const now = new Date();
+          const quarter = Math.floor(now.getMonth() / 3) + 1;
+          const year = now.getFullYear();
+          
+          let report = `# Quarterly Deprecation Report - Q${quarter} ${year}\n\n`;
+          report += `**Generated:** ${now.toISOString().split('T')[0]}\n\n`;
+          report += `---\n\n`;
+          
+          // Executive Summary
+          report += `## Executive Summary\n\n`;
+          report += `This report identifies all deprecated APIs and their removal schedules.\n\n`;
+          report += `| Category | Count |\n`;
+          report += `|----------|-------|\n`;
+          report += `| ⚠️ Overdue for Removal | ${deprecations.overdue.length} |\n`;
+          report += `| 🔔 Upcoming (Next 3 Months) | ${deprecations.upcoming.length} |\n`;
+          report += `| 📅 Future Deprecations | ${deprecations.current.length} |\n`;
+          report += `| **Total** | **${deprecations.overdue.length + deprecations.upcoming.length + deprecations.current.length}** |\n\n`;
+          
+          // Overdue
+          if (deprecations.overdue.length > 0) {
+            report += `## 🚨 Overdue for Removal\n\n`;
+            report += `These APIs are past their removal deadline and should be removed immediately:\n\n`;
+            deprecations.overdue.forEach(item => {
+              report += `### ${item.file}:${item.line}\n\n`;
+              report += `- **Deadline:** ${item.deadline} (OVERDUE)\n`;
+              report += `- **Reason:** ${item.reason}\n`;
+              if (item.replacement) {
+                report += `- **Replacement:** \`${item.replacement}\`\n`;
+              }
+              report += `\n\`\`\`\n${item.context}\n\`\`\`\n\n`;
+            });
+          }
+          
+          // Upcoming
+          if (deprecations.upcoming.length > 0) {
+            report += `## ⏰ Upcoming Removals (Next 3 Months)\n\n`;
+            report += `These APIs are scheduled for removal soon:\n\n`;
+            deprecations.upcoming.forEach(item => {
+              report += `### ${item.file}:${item.line}\n\n`;
+              report += `- **Deadline:** ${item.deadline}\n`;
+              report += `- **Reason:** ${item.reason}\n`;
+              if (item.replacement) {
+                report += `- **Replacement:** \`${item.replacement}\`\n`;
+              }
+              report += `\n\`\`\`\n${item.context}\n\`\`\`\n\n`;
+            });
+          }
+          
+          // Future
+          if (deprecations.current.length > 0) {
+            report += `## 📋 Future Deprecations\n\n`;
+            report += `These APIs are deprecated but have deadlines beyond 3 months:\n\n`;
+            deprecations.current.forEach(item => {
+              report += `### ${item.file}:${item.line}\n\n`;
+              report += `- **Deadline:** ${item.deadline || 'Not specified'}\n`;
+              report += `- **Reason:** ${item.reason}\n`;
+              if (item.replacement) {
+                report += `- **Replacement:** \`${item.replacement}\`\n`;
+              }
+              report += `\n`;
+            });
+          }
+          
+          // Action Items
+          report += `\n## 📝 Action Items\n\n`;
+          if (deprecations.overdue.length > 0) {
+            report += `1. **URGENT:** Remove ${deprecations.overdue.length} overdue deprecated APIs\n`;
+          }
+          if (deprecations.upcoming.length > 0) {
+            report += `2. **HIGH PRIORITY:** Plan removal of ${deprecations.upcoming.length} upcoming deprecations\n`;
+          }
+          report += `3. Communicate deprecation timeline to users\n`;
+          report += `4. Update migration guides\n`;
+          report += `5. Schedule next quarterly review\n\n`;
+          
+          // Save report
+          fs.writeFileSync('/tmp/deprecation-report.md', report);
+          console.log('✅ Report generated');
+          EOF
+          
+          node /tmp/generate-report.js
+
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deprecation-report-${{ github.run_id }}
+          path: /tmp/deprecation-report.md
+          retention-days: 90
+
+      - name: Commit report to repository
+        run: |
+          mkdir -p reports/deprecation
+          QUARTER=$(date +Q%q)
+          YEAR=$(date +%Y)
+          REPORT_FILE="reports/deprecation/deprecation-report-${YEAR}-${QUARTER}.md"
+          
+          cp /tmp/deprecation-report.md "$REPORT_FILE"
+          
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          
+          git add "$REPORT_FILE"
+          git commit -m "docs: Add quarterly deprecation report ${YEAR} ${QUARTER}" || true
+          git push || true
+
+      - name: Create GitHub Issue for overdue items
+        id: check-overdue
+        run: |
+          OVERDUE_COUNT=$(node -e "
+            const data = require('/tmp/deprecations.json');
+            console.log(data.overdue.length);
+          ")
+          echo "overdue_count=$OVERDUE_COUNT" >> $GITHUB_OUTPUT
+
+      - name: Create issue if overdue items exist
+        if: steps.check-overdue.outputs.overdue_count > 0
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const deprecations = JSON.parse(fs.readFileSync('/tmp/deprecations.json', 'utf8'));
+            
+            const now = new Date();
+            const quarter = Math.floor(now.getMonth() / 3) + 1;
+            const year = now.getFullYear();
+            
+            let body = `## 🚨 Overdue Deprecated APIs - Q${quarter} ${year}\n\n`;
+            body += `This is an automated quarterly report identifying deprecated APIs that are past their removal deadline.\n\n`;
+            body += `**Total Overdue:** ${deprecations.overdue.length}\n\n`;
+            body += `### Items Requiring Immediate Action:\n\n`;
+            
+            deprecations.overdue.forEach((item, index) => {
+              body += `${index + 1}. **${item.file}:${item.line}**\n`;
+              body += `   - Deadline: ${item.deadline} (OVERDUE)\n`;
+              body += `   - Reason: ${item.reason}\n`;
+              if (item.replacement) {
+                body += `   - Replacement: \`${item.replacement}\`\n`;
+              }
+              body += `\n`;
+            });
+            
+            body += `\n### Action Required\n\n`;
+            body += `- [ ] Review each overdue deprecation\n`;
+            body += `- [ ] Remove deprecated code\n`;
+            body += `- [ ] Update tests\n`;
+            body += `- [ ] Update documentation\n`;
+            body += `- [ ] Notify users of changes\n\n`;
+            body += `📄 [View Full Report](${context.payload.repository.html_url}/actions/runs/${context.runId})\n`;
+            
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚨 Quarterly Deprecation Report: ${deprecations.overdue.length} Overdue Items - Q${quarter} ${year}`,
+              body: body,
+              labels: ['tech-debt', 'deprecation', 'priority-high']
+            });
+            
+            console.log(`Created issue: ${issue.data.html_url}`);
+
+      - name: Send notification
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              "text": "📊 Quarterly Deprecation Report Generated",
+              "attachments": [{
+                "color": "${{ steps.check-overdue.outputs.overdue_count > 0 && 'danger' || 'good' }}",
+                "fields": [
+                  {
+                    "title": "Overdue Items",
+                    "value": "${{ steps.check-overdue.outputs.overdue_count }}",
+                    "short": true
+                  },
+                  {
+                    "title": "Report",
+                    "value": "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Full Report>",
+                    "short": true
+                  }
+                ]
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        continue-on-error: true
