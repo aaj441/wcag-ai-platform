@@ -1,5 +1,21 @@
 # WCAG AI Platform
 
+## Quick Start
+```bash
+docker-compose up -d
+npm install
+npx prisma db push
+npx tsx apps/scanner/src/scripts/validate.ts
+```
+
+## Structure
+- `apps/scanner`: Core scanning service
+- `apps/dashboard`: Dashboard web application (under development)
+- `packages/core`: Confidence scoring engine (MOAT)
+- `packages/db`: Prisma schema
+- `packages/config`: Configuration utilities
+- `packages/utils`: Search helpers
+
 > **Master monorepo: combines all previous experimental and production WCAG AI codebases, automated setup per consolidation protocol.**
 
 ***
