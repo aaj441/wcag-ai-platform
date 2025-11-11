@@ -12,6 +12,7 @@ npx tsx apps/scanner/src/scripts/validate.ts
 - `apps/scanner`: Core scanning service
 - `packages/core`: Confidence scoring engine (MOAT)
 - `packages/db`: Prisma schema
+- `packages/config`: Configuration utilities
 - `packages/utils`: Search helpers
 
 ## Product Validation Protocol
