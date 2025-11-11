@@ -40,6 +40,18 @@ export interface EmailDraft {
   tags?: string[];
 }
 
+export interface Consultant {
+  id: string;
+  name: string;
+  email: string;
+  company: string;
+  website: string;
+  phone: string;
+  hubspotContactId: string;
+  lastContacted: Date;
+  responseRate: number;
+}
+
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
