@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WCAG AI Platform - Health Dashboard</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    header {
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #334155;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      color: #f1f5f9;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      color: #94a3b8;
+      font-size: 1.125rem;
+    }
+
+    .config-section {
+      background: #1e293b;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+      border: 1px solid #334155;
+    }
+
+    .config-section label {
+      display: block;
+      color: #cbd5e1;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+
+    .config-section input {
+      width: 100%;
+      max-width: 500px;
+      padding: 12px;
+      background: #0f172a;
+      border: 1px solid #475569;
+      border-radius: 8px;
+      color: #e2e8f0;
+      font-size: 1rem;
+    }
+
+    .config-section input:focus {
+      outline: none;
+      border-color: #3b82f6;
+    }
+
+    .config-section button {
+      margin-top: 15px;
+      padding: 12px 24px;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .config-section button:hover {
+      background: #2563eb;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .metric-card {
+      background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+      padding: 24px;
+      border-radius: 12px;
+      border: 1px solid #475569;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    .metric-card h3 {
+      color: #94a3b8;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+
+    .metric-value {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .metric-value.green { color: #10b981; }
+    .metric-value.yellow { color: #fbbf24; }
+    .metric-value.red { color: #ef4444; }
+    .metric-value.blue { color: #3b82f6; }
+    .metric-value.purple { color: #a78bfa; }
+
+    .metric-label {
+      color: #64748b;
+      font-size: 0.875rem;
+    }
+
+    .chart-container {
+      background: #1e293b;
+      padding: 24px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+      border: 1px solid #334155;
+    }
+
+    .chart-container h2 {
+      color: #f1f5f9;
+      margin-bottom: 20px;
+      font-size: 1.5rem;
+    }
+
+    .chart {
+      height: 300px;
+      background: #0f172a;
+      border-radius: 8px;
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #64748b;
+    }
+
+    .status-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+
+    .status-indicator.healthy { background: #10b981; }
+    .status-indicator.degraded { background: #fbbf24; }
+    .status-indicator.down { background: #ef4444; }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #64748b;
+    }
+
+    .error {
+      background: #7f1d1d;
+      color: #fecaca;
+      padding: 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+
+    .timestamp {
+      text-align: right;
+      color: #64748b;
+      font-size: 0.875rem;
+      margin-top: 20px;
+    }
+
+    .alert-section {
+      background: #7f1d1d;
+      border: 1px solid #991b1b;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 30px;
+    }
+
+    .alert-section h2 {
+      color: #fecaca;
+      margin-bottom: 15px;
+      font-size: 1.25rem;
+    }
+
+    .alert-item {
+      background: #991b1b;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      color: #fee2e2;
+    }
+
+    .alert-item:last-child {
+      margin-bottom: 0;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .updating {
+      animation: pulse 2s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🏥 WCAG AI Platform Health Dashboard</h1>
+      <p class="subtitle">Real-time production metrics and system health monitoring</p>
+    </header>
+
+    <div class="config-section">
+      <label for="api-url">API Endpoint URL</label>
+      <input
+        type="text"
+        id="api-url"
+        placeholder="https://your-api.railway.app"
+        value="http://localhost:8080"
+      />
+      <button onclick="connectToAPI()">Connect to API</button>
+    </div>
+
+    <div id="connection-status" class="loading">
+      Enter your API URL and click Connect to start monitoring
+    </div>
+
+    <div id="alert-container"></div>
+
+    <div id="metrics-container" style="display:none;">
+      <!-- Health Status -->
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <h3>System Health</h3>
+          <div class="metric-value" id="health-status">
+            <span class="status-indicator healthy"></span>
+            Checking...
+          </div>
+          <div class="metric-label">Overall system status</div>
+        </div>
+
+        <div class="metric-card">
+          <h3>Uptime</h3>
+          <div class="metric-value blue" id="uptime">--</div>
+          <div class="metric-label">Time since last restart</div>
+        </div>
+
+        <div class="metric-card">
+          <h3>Response Time</h3>
+          <div class="metric-value green" id="response-time">--</div>
+          <div class="metric-label">Average API response</div>
+        </div>
+
+        <div class="metric-card">
+          <h3>Error Rate</h3>
+          <div class="metric-value" id="error-rate">--</div>
+          <div class="metric-label">Errors per minute</div>
+        </div>
+      </div>
+
+      <!-- Scan Metrics -->
+      <div class="chart-container">
+        <h2>📊 Scan Performance</h2>
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <h3>Total Scans</h3>
+            <div class="metric-value blue" id="total-scans">--</div>
+            <div class="metric-label">All-time scan count</div>
+          </div>
+
+          <div class="metric-card">
+            <h3>Queue Depth</h3>
+            <div class="metric-value" id="queue-depth">--</div>
+            <div class="metric-label">Scans waiting to process</div>
+          </div>
+
+          <div class="metric-card">
+            <h3>Avg Scan Duration</h3>
+            <div class="metric-value purple" id="scan-duration">--</div>
+            <div class="metric-label">Time to complete scan</div>
+          </div>
+
+          <div class="metric-card">
+            <h3>Success Rate</h3>
+            <div class="metric-value green" id="success-rate">--</div>
+            <div class="metric-label">Successful scans</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Metrics -->
+      <div class="chart-container">
+        <h2>🤖 AI Usage & Cost</h2>
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <h3>Tokens (Input)</h3>
+            <div class="metric-value blue" id="tokens-input">--</div>
+            <div class="metric-label">Total input tokens</div>
+          </div>
+
+          <div class="metric-card">
+            <h3>Tokens (Output)</h3>
+            <div class="metric-value blue" id="tokens-output">--</div>
+            <div class="metric-label">Total output tokens</div>
+          </div>
+
+          <div class="metric-card">
+            <h3>Estimated Cost</h3>
+            <div class="metric-value yellow" id="ai-cost">--</div>
+            <div class="metric-label">AI API spending</div>
+          </div>
+
+          <div class="metric-card">
+            <h3>Model</h3>
+            <div class="metric-value purple" id="ai-model">--</div>
+            <div class="metric-label">Current AI model</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Violation Stats -->
+      <div class="chart-container">
+        <h2>🔍 WCAG Violations</h2>
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <h3>Total Violations</h3>
+            <div class="metric-value red" id="total-violations">--</div>
+            <div class="metric-label">All violations detected</div>
+          </div>
+
+          <div class="metric-card">
+            <h3>Critical</h3>
+            <div class="metric-value red" id="critical-violations">--</div>
+            <div class="metric-label">Critical severity</div>
+          </div>
+
+          <div class="metric-card">
+            <h3>Serious</h3>
+            <div class="metric-value yellow" id="serious-violations">--</div>
+            <div class="metric-label">Serious severity</div>
+          </div>
+
+          <div class="metric-card">
+            <h3>Moderate</h3>
+            <div class="metric-value blue" id="moderate-violations">--</div>
+            <div class="metric-label">Moderate severity</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="timestamp">
+        Last updated: <span id="last-update">--</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let apiUrl = '';
+    let updateInterval;
+    const REFRESH_RATE = 5000; // 5 seconds
+
+    function connectToAPI() {
+      const input = document.getElementById('api-url');
+      apiUrl = input.value.trim();
+
+      if (!apiUrl) {
+        showError('Please enter a valid API URL');
+        return;
+      }
+
+      // Remove trailing slash
+      apiUrl = apiUrl.replace(/\/$/, '');
+
+      document.getElementById('connection-status').innerHTML =
+        '<div class="loading updating">Connecting to API...</div>';
+
+      // Initial fetch
+      fetchMetrics();
+
+      // Set up auto-refresh
+      if (updateInterval) {
+        clearInterval(updateInterval);
+      }
+      updateInterval = setInterval(fetchMetrics, REFRESH_RATE);
+    }
+
+    async function fetchMetrics() {
+      try {
+        // Fetch health endpoint
+        const healthResponse = await fetch(`${apiUrl}/health`);
+        const healthData = await healthResponse.json();
+
+        // Fetch metrics endpoint
+        const metricsResponse = await fetch(`${apiUrl}/metrics`);
+        const metricsText = await metricsResponse.text();
+
+        // Parse Prometheus metrics
+        const metrics = parsePrometheusMetrics(metricsText);
+
+        // Update dashboard
+        updateDashboard(healthData, metrics);
+
+        // Hide connection status, show metrics
+        document.getElementById('connection-status').style.display = 'none';
+        document.getElementById('metrics-container').style.display = 'block';
+
+        // Clear alerts
+        document.getElementById('alert-container').innerHTML = '';
+
+      } catch (error) {
+        showError(`Connection failed: ${error.message}. Make sure the API is running and CORS is enabled.`);
+        console.error('Fetch error:', error);
+      }
+    }
+
+    function parsePrometheusMetrics(text) {
+      const metrics = {};
+      const lines = text.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('#') || !line.trim()) continue;
+
+        const match = line.match(/^([a-z_]+)(?:\{([^}]*)\})?\s+([\d.]+|NaN)/);
+        if (match) {
+          const [, name, labels, value] = match;
+          metrics[name] = parseFloat(value) || 0;
+        }
+      }
+
+      return metrics;
+    }
+
+    function updateDashboard(health, metrics) {
+      // Health Status
+      const healthStatus = document.getElementById('health-status');
+      const statusIndicator = healthStatus.querySelector('.status-indicator');
+
+      if (health.status === 'ok' || health.status === 'healthy') {
+        healthStatus.innerHTML = '<span class="status-indicator healthy"></span>Healthy';
+        healthStatus.className = 'metric-value green';
+      } else {
+        healthStatus.innerHTML = '<span class="status-indicator degraded"></span>Degraded';
+        healthStatus.className = 'metric-value yellow';
+      }
+
+      // Uptime
+      if (health.uptime) {
+        const uptimeHours = (health.uptime / 3600).toFixed(1);
+        document.getElementById('uptime').textContent = `${uptimeHours}h`;
+      }
+
+      // Response Time (mock - would come from metrics)
+      const avgResponseTime = metrics.wcagai_scan_duration_seconds_sum / metrics.wcagai_scan_duration_seconds_count || 0;
+      document.getElementById('response-time').textContent =
+        avgResponseTime ? `${(avgResponseTime * 1000).toFixed(0)}ms` : '< 100ms';
+
+      // Error Rate
+      const errorRate = metrics.wcagai_api_errors_total || 0;
+      const errorElem = document.getElementById('error-rate');
+      errorElem.textContent = errorRate.toFixed(0);
+      errorElem.className = errorRate > 10 ? 'metric-value red' :
+                           errorRate > 5 ? 'metric-value yellow' :
+                           'metric-value green';
+
+      // Scan Metrics
+      document.getElementById('total-scans').textContent =
+        (metrics.wcagai_scans_total || 0).toLocaleString();
+
+      const queueDepth = metrics.wcagai_queue_length || 0;
+      const queueElem = document.getElementById('queue-depth');
+      queueElem.textContent = queueDepth.toFixed(0);
+      queueElem.className = queueDepth > 100 ? 'metric-value red' :
+                            queueDepth > 50 ? 'metric-value yellow' :
+                            'metric-value green';
+
+      const scanDuration = (metrics.wcagai_scan_duration_seconds_sum / metrics.wcagai_scan_duration_seconds_count) || 0;
+      document.getElementById('scan-duration').textContent =
+        scanDuration ? `${scanDuration.toFixed(1)}s` : '--';
+
+      const successRate = metrics.wcagai_scans_total ?
+        ((metrics.wcagai_scans_total - (metrics.wcagai_scans_failed_total || 0)) / metrics.wcagai_scans_total * 100) : 100;
+      document.getElementById('success-rate').textContent = `${successRate.toFixed(1)}%`;
+
+      // AI Metrics
+      document.getElementById('tokens-input').textContent =
+        (metrics.wcagai_ai_tokens_input_total || 0).toLocaleString();
+
+      document.getElementById('tokens-output').textContent =
+        (metrics.wcagai_ai_tokens_output_total || 0).toLocaleString();
+
+      const aiCost = metrics.wcagai_ai_cost_usd_total || 0;
+      document.getElementById('ai-cost').textContent = `$${aiCost.toFixed(2)}`;
+
+      document.getElementById('ai-model').textContent =
+        metrics.wcagai_ai_model || 'GPT-4';
+
+      // Violation Stats
+      document.getElementById('total-violations').textContent =
+        (metrics.wcagai_violations_total || 0).toLocaleString();
+
+      document.getElementById('critical-violations').textContent =
+        (metrics.wcagai_violations_critical_total || 0).toLocaleString();
+
+      document.getElementById('serious-violations').textContent =
+        (metrics.wcagai_violations_serious_total || 0).toLocaleString();
+
+      document.getElementById('moderate-violations').textContent =
+        (metrics.wcagai_violations_moderate_total || 0).toLocaleString();
+
+      // Alerts
+      checkAlerts(metrics);
+
+      // Update timestamp
+      document.getElementById('last-update').textContent = new Date().toLocaleString();
+    }
+
+    function checkAlerts(metrics) {
+      const alerts = [];
+
+      // High queue depth
+      if (metrics.wcagai_queue_length > 100) {
+        alerts.push('⚠️ Queue depth is high (> 100). Consider scaling up workers.');
+      }
+
+      // High error rate
+      if (metrics.wcagai_api_errors_total > 10) {
+        alerts.push('❌ Error rate is elevated (> 10/min). Check application logs.');
+      }
+
+      // High AI cost
+      if (metrics.wcagai_ai_cost_usd_total > 100) {
+        alerts.push('💰 AI costs are high ($' + metrics.wcagai_ai_cost_usd_total.toFixed(2) + '). Review usage patterns.');
+      }
+
+      // Display alerts
+      const container = document.getElementById('alert-container');
+      if (alerts.length > 0) {
+        container.innerHTML = `
+          <div class="alert-section">
+            <h2>⚠️ Active Alerts</h2>
+            ${alerts.map(alert => `<div class="alert-item">${alert}</div>`).join('')}
+          </div>
+        `;
+      } else {
+        container.innerHTML = '';
+      }
+    }
+
+    function showError(message) {
+      document.getElementById('connection-status').innerHTML = `
+        <div class="error">${message}</div>
+      `;
+      document.getElementById('metrics-container').style.display = 'none';
+    }
+
+    // Try to load from localStorage
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedUrl = localStorage.getItem('apiUrl');
+      if (savedUrl) {
+        document.getElementById('api-url').value = savedUrl;
+      }
+    });
+
+    // Save URL to localStorage
+    document.getElementById('api-url').addEventListener('change', (e) => {
+      localStorage.setItem('apiUrl', e.target.value);
+    });
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+      if (updateInterval) {
+        clearInterval(updateInterval);
+      }
+    });
+  </script>
+</body>
+</html>

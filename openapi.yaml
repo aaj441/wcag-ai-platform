@@ -1,0 +1,588 @@
+openapi: 3.0.3
+info:
+  title: WCAG AI Platform API
+  description: |
+    AI-powered Web Content Accessibility Guidelines (WCAG) 2.2 conformance testing platform.
+
+    ## Features
+    - **AI-Powered Analysis:** GPT-4 powered accessibility insights
+    - **WCAG 2.2 Compliant:** Tests against latest WCAG 2.2 success criteria
+    - **Multi-Level Testing:** Supports A, AA, and AAA conformance levels
+    - **Industry-Specific:** Optimized for 10+ industries
+    - **Real-Time Metrics:** Prometheus metrics and health monitoring
+
+    ## Authentication
+    API key authentication required for production use. Include your API key in the `X-API-Key` header.
+
+    ## Rate Limits
+    - **Standard:** 100 requests per 15 minutes
+    - **Scans:** 10 scans per hour
+    - Contact sales for higher limits
+
+    ## Support
+    - **Documentation:** https://docs.wcagii.com
+    - **Status Page:** https://status.wcagii.com
+    - **Issues:** https://github.com/your-org/wcag-ai-platform/issues
+
+  version: 2.0.0
+  contact:
+    name: WCAG AI Platform Support
+    email: support@wcagii.com
+    url: https://wcagii.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.wcagii.com/v1
+    description: Production server
+  - url: https://staging-api.wcagii.com/v1
+    description: Staging server
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: Scans
+    description: WCAG accessibility scanning operations
+  - name: Health
+    description: System health and monitoring
+  - name: Metrics
+    description: Prometheus metrics endpoints
+
+paths:
+  /api/scan:
+    post:
+      tags:
+        - Scans
+      summary: Create new accessibility scan
+      description: |
+        Initiates a new WCAG accessibility scan for the provided URL.
+
+        **Processing Time:** 15-45 seconds depending on page complexity.
+
+        **What's Scanned:**
+        - Page structure and semantics
+        - Color contrast ratios
+        - Keyboard accessibility
+        - ARIA implementation
+        - Form accessibility
+        - Media accessibility
+        - And 100+ other WCAG success criteria
+
+      operationId: createScan
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScanRequest'
+            examples:
+              basic:
+                summary: Basic scan
+                value:
+                  url: https://example.com
+                  wcagLevel: AA
+              advanced:
+                summary: Advanced scan with options
+                value:
+                  url: https://example.com
+                  wcagLevel: AAA
+                  includeWarnings: true
+                  timeout: 60000
+                  industry: healthcare
+                  viewport:
+                    width: 1920
+                    height: 1080
+      responses:
+        '200':
+          description: Scan initiated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanResponse'
+              example:
+                scanId: scan_abc123xyz
+                status: pending
+                url: https://example.com
+                wcagLevel: AA
+                estimatedCompletionTime: 30
+                message: Scan queued successfully
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidUrl:
+                  summary: Invalid URL
+                  value:
+                    error: Invalid URL format
+                    message: URL must be a valid HTTP/HTTPS URL
+                    code: INVALID_URL
+                ssrfBlocked:
+                  summary: SSRF Protection
+                  value:
+                    error: URL blocked
+                    message: Cannot scan private/localhost URLs for security
+                    code: SSRF_BLOCKED
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Rate limit exceeded
+                message: Maximum 10 scans per hour. Please wait before retrying.
+                code: RATE_LIMIT_EXCEEDED
+                retryAfter: 3600
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/scans/{scanId}:
+    get:
+      tags:
+        - Scans
+      summary: Get scan results
+      description: |
+        Retrieves the results of a previously initiated scan.
+
+        **Scan Statuses:**
+        - `pending`: Scan is queued
+        - `running`: Scan is in progress
+        - `completed`: Scan finished successfully
+        - `failed`: Scan encountered an error
+
+      operationId: getScan
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: scanId
+          in: path
+          required: true
+          description: Unique scan identifier returned from POST /api/scan
+          schema:
+            type: string
+            example: scan_abc123xyz
+      responses:
+        '200':
+          description: Scan results retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanResult'
+        '404':
+          description: Scan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Scan not found
+                message: No scan found with ID scan_abc123xyz
+                code: SCAN_NOT_FOUND
+
+  /api/scans:
+    get:
+      tags:
+        - Scans
+      summary: List all scans
+      description: |
+        Retrieves a paginated list of all scans for the authenticated user.
+
+        Results are sorted by creation date (newest first).
+
+      operationId: listScans
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number (1-indexed)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Results per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          description: Filter by scan status
+          schema:
+            type: string
+            enum: [pending, running, completed, failed]
+      responses:
+        '200':
+          description: Scan list retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanListResponse'
+
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check endpoint
+      description: |
+        Returns the current health status of the API.
+
+        **Used For:**
+        - Load balancer health checks
+        - Uptime monitoring
+        - Deployment verification
+
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: ok
+                uptime: 3600
+                database: connected
+                redis: connected
+                timestamp: '2024-01-01T00:00:00Z'
+                version: 2.0.0
+        '503':
+          description: Service is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: degraded
+                uptime: 3600
+                database: disconnected
+                redis: connected
+                errors:
+                  - Database connection timeout
+                timestamp: '2024-01-01T00:00:00Z'
+
+  /metrics:
+    get:
+      tags:
+        - Metrics
+      summary: Prometheus metrics
+      description: |
+        Exposes Prometheus-formatted metrics for monitoring and alerting.
+
+        **Key Metrics:**
+        - `wcagai_scans_total`: Total scans processed
+        - `wcagai_scan_duration_seconds`: Scan duration histogram
+        - `wcagai_queue_length`: Current queue depth
+        - `wcagai_violations_total`: Total violations detected
+        - `wcagai_ai_tokens_total`: AI token consumption
+        - `wcagai_ai_cost_usd_total`: Estimated AI costs
+
+        **Grafana:** Import dashboard from `/deployment/grafana/dashboard.json`
+
+      operationId: getMetrics
+      responses:
+        '200':
+          description: Metrics retrieved successfully
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: |
+                  # HELP wcagai_scans_total Total number of scans processed
+                  # TYPE wcagai_scans_total counter
+                  wcagai_scans_total 12345
+
+                  # HELP wcagai_queue_length Current scan queue depth
+                  # TYPE wcagai_queue_length gauge
+                  wcagai_queue_length 5
+
+                  # HELP wcagai_scan_duration_seconds Scan duration histogram
+                  # TYPE wcagai_scan_duration_seconds histogram
+                  wcagai_scan_duration_seconds_sum 1234.5
+                  wcagai_scan_duration_seconds_count 100
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        API key for authentication. Get your key from https://wcagii.com/dashboard/api-keys
+
+  schemas:
+    ScanRequest:
+      type: object
+      required:
+        - url
+        - wcagLevel
+      properties:
+        url:
+          type: string
+          format: uri
+          maxLength: 2048
+          description: The URL to scan (HTTP/HTTPS only, no localhost/private IPs)
+          example: https://example.com
+        wcagLevel:
+          type: string
+          enum: [A, AA, AAA]
+          description: WCAG conformance level to test against
+          example: AA
+        includeWarnings:
+          type: boolean
+          default: false
+          description: Include best practice warnings in addition to violations
+        timeout:
+          type: integer
+          minimum: 10000
+          maximum: 120000
+          default: 30000
+          description: Maximum scan timeout in milliseconds
+        industry:
+          type: string
+          enum:
+            - ecommerce
+            - financial
+            - healthcare
+            - education
+            - government
+            - media
+            - saas
+            - social
+            - travel
+            - entertainment
+          description: Industry-specific test focus
+          example: healthcare
+        viewport:
+          type: object
+          description: Browser viewport dimensions
+          properties:
+            width:
+              type: integer
+              minimum: 320
+              maximum: 3840
+              default: 1920
+            height:
+              type: integer
+              minimum: 568
+              maximum: 2160
+              default: 1080
+
+    ScanResponse:
+      type: object
+      properties:
+        scanId:
+          type: string
+          description: Unique scan identifier
+          example: scan_abc123xyz
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+          description: Current scan status
+        url:
+          type: string
+          format: uri
+          description: URL being scanned
+        wcagLevel:
+          type: string
+          enum: [A, AA, AAA]
+          description: WCAG level being tested
+        estimatedCompletionTime:
+          type: integer
+          description: Estimated seconds until completion
+        message:
+          type: string
+          description: Human-readable status message
+        createdAt:
+          type: string
+          format: date-time
+          description: Scan creation timestamp
+
+    ScanResult:
+      type: object
+      properties:
+        scanId:
+          type: string
+          example: scan_abc123xyz
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+        url:
+          type: string
+          format: uri
+        wcagLevel:
+          type: string
+          enum: [A, AA, AAA]
+        complianceScore:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: Overall compliance percentage
+          example: 87.5
+        violations:
+          type: array
+          description: Array of WCAG violations found
+          items:
+            $ref: '#/components/schemas/Violation'
+        warnings:
+          type: array
+          description: Best practice warnings (if includeWarnings=true)
+          items:
+            $ref: '#/components/schemas/Violation'
+        summary:
+          type: object
+          properties:
+            totalViolations:
+              type: integer
+            critical:
+              type: integer
+            serious:
+              type: integer
+            moderate:
+              type: integer
+            minor:
+              type: integer
+        metadata:
+          type: object
+          properties:
+            scanDuration:
+              type: number
+              description: Scan duration in seconds
+            pageTitle:
+              type: string
+            screenshotUrl:
+              type: string
+              format: uri
+            timestamp:
+              type: string
+              format: date-time
+
+    Violation:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique violation identifier
+          example: color-contrast
+        rule:
+          type: string
+          description: WCAG success criterion
+          example: 1.4.3 Contrast (Minimum)
+        severity:
+          type: string
+          enum: [critical, serious, moderate, minor]
+          description: Violation severity
+        message:
+          type: string
+          description: Human-readable violation description
+          example: Element has insufficient color contrast of 3.2:1 (must be at least 4.5:1)
+        element:
+          type: string
+          description: CSS selector for the problematic element
+          example: body > main > div.card > p
+        suggestion:
+          type: string
+          description: AI-powered remediation suggestion
+          example: Increase text color contrast by using #000000 instead of #666666
+        wcagLevel:
+          type: string
+          enum: [A, AA, AAA]
+        conformance:
+          type: string
+          description: WCAG conformance level (e.g., "WCAG 2.2 Level AA")
+
+    ScanListResponse:
+      type: object
+      properties:
+        scans:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScanResult'
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+            limit:
+              type: integer
+            total:
+              type: integer
+              description: Total number of scans
+            pages:
+              type: integer
+              description: Total number of pages
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded, down]
+          description: Overall health status
+        uptime:
+          type: integer
+          description: Uptime in seconds
+        database:
+          type: string
+          enum: [connected, disconnected]
+          description: Database connection status
+        redis:
+          type: string
+          enum: [connected, disconnected]
+          description: Redis connection status
+        errors:
+          type: array
+          description: Array of error messages (if any)
+          items:
+            type: string
+        timestamp:
+          type: string
+          format: date-time
+        version:
+          type: string
+          description: API version
+          example: 2.0.0
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+        - code
+      properties:
+        error:
+          type: string
+          description: Error summary
+          example: Invalid URL
+        message:
+          type: string
+          description: Detailed error message
+          example: The provided URL is not a valid HTTP/HTTPS URL
+        code:
+          type: string
+          description: Machine-readable error code
+          example: INVALID_URL
+        retryAfter:
+          type: integer
+          description: Seconds to wait before retrying (for rate limits)
+        details:
+          type: object
+          description: Additional error context
+          additionalProperties: true
+
+security:
+  - ApiKeyAuth: []

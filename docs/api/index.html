@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WCAG AI Platform API Documentation</title>
+  <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5.10.0/swagger-ui.css">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+    }
+
+    .topbar {
+      display: none;
+    }
+
+    .swagger-ui .info {
+      margin: 50px 0;
+    }
+
+    .swagger-ui .info .title {
+      font-size: 3rem;
+      color: #3b82f6;
+    }
+
+    .custom-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 40px 20px;
+      text-align: center;
+    }
+
+    .custom-header h1 {
+      margin: 0 0 10px 0;
+      font-size: 2.5rem;
+    }
+
+    .custom-header p {
+      margin: 0;
+      font-size: 1.125rem;
+      opacity: 0.9;
+    }
+
+    .custom-nav {
+      background: #1e293b;
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: white;
+    }
+
+    .custom-nav a {
+      color: #3b82f6;
+      text-decoration: none;
+      margin: 0 15px;
+      font-weight: 500;
+    }
+
+    .custom-nav a:hover {
+      text-decoration: underline;
+    }
+
+    .custom-footer {
+      background: #0f172a;
+      color: #94a3b8;
+      padding: 30px 20px;
+      text-align: center;
+      margin-top: 40px;
+    }
+
+    .custom-footer a {
+      color: #3b82f6;
+      text-decoration: none;
+    }
+
+    .custom-footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="custom-header">
+    <h1>🌐 WCAG AI Platform API</h1>
+    <p>AI-Powered Accessibility Testing for WCAG 2.2 Compliance</p>
+  </div>
+
+  <div class="custom-nav">
+    <div>
+      <strong>WCAG AI Platform v2.0</strong>
+    </div>
+    <div>
+      <a href="https://wcagii.com" target="_blank">Home</a>
+      <a href="https://docs.wcagii.com" target="_blank">Docs</a>
+      <a href="https://status.wcagii.com" target="_blank">Status</a>
+      <a href="https://github.com/your-org/wcag-ai-platform" target="_blank">GitHub</a>
+      <a href="../../deployment/dashboard/index.html">Dashboard</a>
+    </div>
+  </div>
+
+  <div id="swagger-ui"></div>
+
+  <div class="custom-footer">
+    <p>
+      <strong>WCAG AI Platform</strong> |
+      <a href="mailto:support@wcagii.com">Support</a> |
+      <a href="https://wcagii.com/privacy">Privacy</a> |
+      <a href="https://wcagii.com/terms">Terms</a>
+    </p>
+    <p style="margin-top: 10px; font-size: 0.875rem;">
+      © 2024 WCAG AI Platform. Licensed under MIT.
+    </p>
+  </div>
+
+  <script src="https://unpkg.com/swagger-ui-dist@5.10.0/swagger-ui-bundle.js"></script>
+  <script src="https://unpkg.com/swagger-ui-dist@5.10.0/swagger-ui-standalone-preset.js"></script>
+  <script>
+    window.onload = () => {
+      window.ui = SwaggerUIBundle({
+        url: '../../openapi.yaml',
+        dom_id: '#swagger-ui',
+        deepLinking: true,
+        presets: [
+          SwaggerUIBundle.presets.apis,
+          SwaggerUIStandalonePreset
+        ],
+        plugins: [
+          SwaggerUIBundle.plugins.DownloadUrl
+        ],
+        layout: 'StandaloneLayout',
+        defaultModelsExpandDepth: 1,
+        defaultModelExpandDepth: 1,
+        docExpansion: 'list',
+        filter: true,
+        tryItOutEnabled: true,
+        persistAuthorization: true,
+        syntaxHighlight: {
+          activate: true,
+          theme: 'monokai'
+        }
+      });
+    };
+  </script>
+</body>
+</html>
