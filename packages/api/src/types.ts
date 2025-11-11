@@ -55,3 +55,16 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
     totalPages: number;
   };
 }
+
+export interface Consultant {
+  id: string;
+  name: string;
+  email: string;
+  company?: string;
+  role?: string;
+  phone?: string;
+  website?: string;
+  hubspotContactId?: string;
+  lastContacted?: Date;
+  responseRate?: number;
+}
