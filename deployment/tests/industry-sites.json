@@ -1,0 +1,340 @@
+{
+  "industries": [
+    {
+      "name": "E-Commerce",
+      "sites": [
+        {
+          "name": "Amazon",
+          "url": "https://www.amazon.com",
+          "wcagLevel": "AA",
+          "criticalElements": ["product search", "checkout flow", "cart", "product pages", "filters"],
+          "expectedIssues": ["Complex filtering", "Dynamic pricing", "Image-heavy galleries"]
+        },
+        {
+          "name": "Shopify Store",
+          "url": "https://www.shopify.com",
+          "wcagLevel": "AA",
+          "criticalElements": ["navigation", "product listings", "checkout", "forms"],
+          "expectedIssues": ["Third-party widgets", "Payment gateways", "Live chat"]
+        }
+      ]
+    },
+    {
+      "name": "Financial Services",
+      "sites": [
+        {
+          "name": "Chase Bank",
+          "url": "https://www.chase.com",
+          "wcagLevel": "AA",
+          "criticalElements": ["account login", "transaction tables", "bill pay", "mobile check deposit"],
+          "expectedIssues": ["Security modals", "Complex forms", "Data tables"]
+        },
+        {
+          "name": "Stripe Dashboard",
+          "url": "https://dashboard.stripe.com",
+          "wcagLevel": "AA",
+          "criticalElements": ["dashboard widgets", "charts", "forms", "API docs"],
+          "expectedIssues": ["Complex data visualizations", "Code snippets", "Real-time updates"]
+        }
+      ]
+    },
+    {
+      "name": "Healthcare",
+      "sites": [
+        {
+          "name": "Mayo Clinic",
+          "url": "https://www.mayoclinic.org",
+          "wcagLevel": "AA",
+          "criticalElements": ["symptom checker", "appointment booking", "patient portal", "search"],
+          "expectedIssues": ["Medical terminology", "Interactive diagnostics", "Video consultations"]
+        },
+        {
+          "name": "CVS Health",
+          "url": "https://www.cvs.com",
+          "wcagLevel": "AA",
+          "criticalElements": ["prescription refill", "store locator", "photo upload", "insurance"],
+          "expectedIssues": ["Pharmacy workflows", "Image uploads", "Third-party integrations"]
+        }
+      ]
+    },
+    {
+      "name": "Education",
+      "sites": [
+        {
+          "name": "Khan Academy",
+          "url": "https://www.khanacademy.org",
+          "wcagLevel": "AA",
+          "criticalElements": ["video player", "exercises", "progress tracking", "dashboard"],
+          "expectedIssues": ["Math equations", "Interactive exercises", "Video captions"]
+        },
+        {
+          "name": "Coursera",
+          "url": "https://www.coursera.org",
+          "wcagLevel": "AA",
+          "criticalElements": ["course catalog", "video lectures", "quizzes", "peer review"],
+          "expectedIssues": ["Video accessibility", "Complex assignments", "Forum discussions"]
+        }
+      ]
+    },
+    {
+      "name": "Government",
+      "sites": [
+        {
+          "name": "USA.gov",
+          "url": "https://www.usa.gov",
+          "wcagLevel": "AA",
+          "criticalElements": ["search", "forms", "benefit finder", "agency directory"],
+          "expectedIssues": ["Form complexity", "Document downloads", "Multiple languages"]
+        },
+        {
+          "name": "IRS",
+          "url": "https://www.irs.gov",
+          "wcagLevel": "AA",
+          "criticalElements": ["tax forms", "payment portal", "refund tracker", "account access"],
+          "expectedIssues": ["PDF forms", "Complex calculators", "Security requirements"]
+        }
+      ]
+    },
+    {
+      "name": "Media & News",
+      "sites": [
+        {
+          "name": "NY Times",
+          "url": "https://www.nytimes.com",
+          "wcagLevel": "AA",
+          "criticalElements": ["articles", "multimedia", "comments", "navigation"],
+          "expectedIssues": ["Paywalls", "Video embeds", "Interactive graphics"]
+        },
+        {
+          "name": "BBC News",
+          "url": "https://www.bbc.com/news",
+          "wcagLevel": "AA",
+          "criticalElements": ["live updates", "video news", "audio", "related stories"],
+          "expectedIssues": ["Live content", "Media players", "Breaking news alerts"]
+        }
+      ]
+    },
+    {
+      "name": "SaaS Platforms",
+      "sites": [
+        {
+          "name": "Salesforce",
+          "url": "https://www.salesforce.com",
+          "wcagLevel": "AA",
+          "criticalElements": ["CRM interface", "reports", "dashboards", "workflows"],
+          "expectedIssues": ["Complex data grids", "Drag-and-drop", "Modal dialogs"]
+        },
+        {
+          "name": "Slack",
+          "url": "https://slack.com",
+          "wcagLevel": "AA",
+          "criticalElements": ["messaging", "channels", "search", "files", "calls"],
+          "expectedIssues": ["Real-time updates", "Keyboard shortcuts", "Rich text editor"]
+        }
+      ]
+    },
+    {
+      "name": "Social Media",
+      "sites": [
+        {
+          "name": "Twitter/X",
+          "url": "https://twitter.com",
+          "wcagLevel": "AA",
+          "criticalElements": ["timeline", "compose tweet", "notifications", "DMs"],
+          "expectedIssues": ["Infinite scroll", "Rich media", "Live updates"]
+        },
+        {
+          "name": "LinkedIn",
+          "url": "https://www.linkedin.com",
+          "wcagLevel": "AA",
+          "criticalElements": ["feed", "profile", "messaging", "job search"],
+          "expectedIssues": ["Complex forms", "Recommendations", "Chat interface"]
+        }
+      ]
+    },
+    {
+      "name": "Travel & Hospitality",
+      "sites": [
+        {
+          "name": "Booking.com",
+          "url": "https://www.booking.com",
+          "wcagLevel": "AA",
+          "criticalElements": ["search", "filters", "booking flow", "date pickers", "maps"],
+          "expectedIssues": ["Date pickers", "Maps", "Multi-step booking"]
+        },
+        {
+          "name": "Airbnb",
+          "url": "https://www.airbnb.com",
+          "wcagLevel": "AA",
+          "criticalElements": ["search", "calendar", "messaging", "reviews", "photos"],
+          "expectedIssues": ["Image galleries", "Interactive maps", "Calendar widgets"]
+        }
+      ]
+    },
+    {
+      "name": "Entertainment & Streaming",
+      "sites": [
+        {
+          "name": "Netflix",
+          "url": "https://www.netflix.com",
+          "wcagLevel": "AA",
+          "criticalElements": ["video player", "browse", "search", "profiles"],
+          "expectedIssues": ["Video player controls", "Auto-play", "Carousels"]
+        },
+        {
+          "name": "YouTube",
+          "url": "https://www.youtube.com",
+          "wcagLevel": "AA",
+          "criticalElements": ["video player", "comments", "subscriptions", "search"],
+          "expectedIssues": ["Captions", "Player controls", "Recommendations"]
+        }
+      ]
+    }
+  ],
+  "testScenarios": [
+    {
+      "name": "Keyboard Navigation",
+      "description": "Full keyboard accessibility without mouse",
+      "steps": [
+        "Navigate entire page using Tab/Shift+Tab",
+        "Activate all interactive elements with Enter/Space",
+        "Access dropdown menus with arrow keys",
+        "Close modals with Escape key",
+        "Verify visible focus indicators"
+      ],
+      "applicableIndustries": ["all"]
+    },
+    {
+      "name": "Screen Reader Compatibility",
+      "description": "Test with NVDA, JAWS, and VoiceOver",
+      "steps": [
+        "Verify heading structure (h1-h6)",
+        "Test ARIA labels and descriptions",
+        "Check landmark regions",
+        "Verify form labels and error messages",
+        "Test dynamic content announcements"
+      ],
+      "applicableIndustries": ["all"]
+    },
+    {
+      "name": "Form Accessibility",
+      "description": "Complex form validation and error handling",
+      "steps": [
+        "Verify all inputs have labels",
+        "Test error message associations",
+        "Check required field indicators",
+        "Test inline validation",
+        "Verify success confirmations"
+      ],
+      "applicableIndustries": ["ecommerce", "financial", "healthcare", "government"]
+    },
+    {
+      "name": "Data Table Accessibility",
+      "description": "Complex data tables with sorting and filtering",
+      "steps": [
+        "Verify table headers (th with scope)",
+        "Test table caption or aria-label",
+        "Check sortable column announcements",
+        "Verify row/column headers association",
+        "Test pagination accessibility"
+      ],
+      "applicableIndustries": ["financial", "saas", "government"]
+    },
+    {
+      "name": "Media Player Controls",
+      "description": "Video and audio player accessibility",
+      "steps": [
+        "Verify play/pause keyboard control",
+        "Test caption/subtitle availability",
+        "Check audio description option",
+        "Verify volume control accessibility",
+        "Test seek controls with keyboard"
+      ],
+      "applicableIndustries": ["media", "education", "entertainment"]
+    },
+    {
+      "name": "Color Contrast",
+      "description": "WCAG AA contrast ratios (4.5:1 text, 3:1 UI)",
+      "steps": [
+        "Test body text contrast",
+        "Verify heading contrast",
+        "Check button/link contrast",
+        "Test focus indicator contrast (3:1)",
+        "Verify disabled state contrast"
+      ],
+      "applicableIndustries": ["all"]
+    },
+    {
+      "name": "Mobile Responsiveness",
+      "description": "Touch target sizes and mobile viewport",
+      "steps": [
+        "Verify touch targets ≥44x44px",
+        "Test portrait/landscape orientation",
+        "Check pinch-to-zoom (up to 200%)",
+        "Verify no horizontal scrolling",
+        "Test mobile navigation patterns"
+      ],
+      "applicableIndustries": ["all"]
+    },
+    {
+      "name": "Interactive Widgets",
+      "description": "Accordions, tabs, modals, tooltips",
+      "steps": [
+        "Verify ARIA roles and states",
+        "Test keyboard interaction patterns",
+        "Check focus management",
+        "Verify screen reader announcements",
+        "Test escape key functionality"
+      ],
+      "applicableIndustries": ["saas", "ecommerce", "education"]
+    },
+    {
+      "name": "Dynamic Content",
+      "description": "Real-time updates and notifications",
+      "steps": [
+        "Verify ARIA live regions",
+        "Test loading state indicators",
+        "Check error notification announcements",
+        "Verify success message timing",
+        "Test focus management on updates"
+      ],
+      "applicableIndustries": ["social", "financial", "healthcare"]
+    },
+    {
+      "name": "Multi-Step Processes",
+      "description": "Checkout, registration, onboarding flows",
+      "steps": [
+        "Verify progress indicators",
+        "Test back/forward navigation",
+        "Check data persistence",
+        "Verify step validation",
+        "Test skip navigation option"
+      ],
+      "applicableIndustries": ["ecommerce", "financial", "travel"]
+    }
+  ],
+  "priorityChecks": {
+    "critical": [
+      "Keyboard navigation works for all interactive elements",
+      "All images have alt text",
+      "Form inputs have associated labels",
+      "Color contrast meets WCAG AA (4.5:1)",
+      "Page has proper heading structure (h1-h6)",
+      "Focus indicators are visible (3:1 contrast)"
+    ],
+    "high": [
+      "ARIA landmarks used correctly",
+      "Error messages are descriptive",
+      "Tables have proper headers",
+      "Modals trap focus appropriately",
+      "Skip navigation link present"
+    ],
+    "medium": [
+      "Link text is descriptive",
+      "Language attribute set",
+      "No time-based content restrictions",
+      "Responsive design works",
+      "No keyboard traps"
+    ]
+  }
+}
