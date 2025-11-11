@@ -1,0 +1,197 @@
+{
+  "musicSites": [
+    {
+      "name": "Spotify Web Player",
+      "url": "https://open.spotify.com",
+      "category": "streaming",
+      "wcagLevel": "AA",
+      "expectedIssues": [
+        "Dynamic content updates",
+        "Complex interactive widgets",
+        "Audio player controls"
+      ],
+      "criticalElements": [
+        "play/pause buttons",
+        "volume controls",
+        "track listings",
+        "search functionality"
+      ]
+    },
+    {
+      "name": "Apple Music Web",
+      "url": "https://music.apple.com",
+      "category": "streaming",
+      "wcagLevel": "AA",
+      "expectedIssues": [
+        "Heavy use of ARIA",
+        "Complex navigation menus",
+        "Media player controls"
+      ],
+      "criticalElements": [
+        "player controls",
+        "library navigation",
+        "search",
+        "album artwork"
+      ]
+    },
+    {
+      "name": "SoundCloud",
+      "url": "https://soundcloud.com",
+      "category": "streaming",
+      "wcagLevel": "AA",
+      "expectedIssues": [
+        "Waveform visualizations",
+        "Infinite scroll",
+        "Embedded players"
+      ],
+      "criticalElements": [
+        "waveform player",
+        "upload interface",
+        "comment system",
+        "social features"
+      ]
+    },
+    {
+      "name": "YouTube Music",
+      "url": "https://music.youtube.com",
+      "category": "streaming",
+      "wcagLevel": "AA",
+      "expectedIssues": [
+        "Video player controls",
+        "Playlist management",
+        "Recommendations feed"
+      ],
+      "criticalElements": [
+        "video player",
+        "playback controls",
+        "queue management",
+        "search"
+      ]
+    },
+    {
+      "name": "Bandcamp",
+      "url": "https://bandcamp.com",
+      "category": "indie",
+      "wcagLevel": "AA",
+      "expectedIssues": [
+        "Custom audio players",
+        "E-commerce integration",
+        "Artist pages"
+      ],
+      "criticalElements": [
+        "embedded players",
+        "purchase buttons",
+        "track listings",
+        "download links"
+      ]
+    },
+    {
+      "name": "Tidal",
+      "url": "https://tidal.com",
+      "category": "streaming",
+      "wcagLevel": "AA",
+      "expectedIssues": [
+        "High-res audio UI",
+        "Exclusive content sections",
+        "Video integration"
+      ],
+      "criticalElements": [
+        "player interface",
+        "quality settings",
+        "navigation",
+        "search"
+      ]
+    },
+    {
+      "name": "Deezer",
+      "url": "https://www.deezer.com",
+      "category": "streaming",
+      "wcagLevel": "AA",
+      "expectedIssues": [
+        "Flow recommendations",
+        "Lyrics display",
+        "Radio features"
+      ],
+      "criticalElements": [
+        "player controls",
+        "flow interface",
+        "lyrics panel",
+        "favorites"
+      ]
+    },
+    {
+      "name": "Audiomack",
+      "url": "https://audiomack.com",
+      "category": "streaming",
+      "wcagLevel": "AA",
+      "expectedIssues": [
+        "Mobile-first design",
+        "Trending charts",
+        "Social sharing"
+      ],
+      "criticalElements": [
+        "player",
+        "upload section",
+        "charts",
+        "profiles"
+      ]
+    }
+  ],
+  "testScenarios": [
+    {
+      "name": "Player Controls Accessibility",
+      "description": "Test keyboard navigation and screen reader support for media players",
+      "steps": [
+        "Navigate to player using keyboard only",
+        "Activate play/pause with Enter/Space",
+        "Adjust volume with arrow keys",
+        "Skip tracks with keyboard shortcuts",
+        "Verify ARIA labels on all controls"
+      ]
+    },
+    {
+      "name": "Search Functionality",
+      "description": "Test search features for WCAG compliance",
+      "steps": [
+        "Locate search input with keyboard",
+        "Verify autocomplete accessibility",
+        "Test search results navigation",
+        "Check result announcement for screen readers",
+        "Verify filter controls accessibility"
+      ]
+    },
+    {
+      "name": "Dynamic Content Updates",
+      "description": "Test real-time updates and notifications",
+      "steps": [
+        "Monitor ARIA live regions",
+        "Test notification announcements",
+        "Verify focus management on updates",
+        "Check loading state indicators",
+        "Test error message accessibility"
+      ]
+    },
+    {
+      "name": "Color Contrast",
+      "description": "Verify color contrast ratios meet WCAG AA standards",
+      "steps": [
+        "Test text on background contrast (4.5:1)",
+        "Verify button contrast (3:1)",
+        "Check focus indicators visibility",
+        "Test dark mode contrast ratios",
+        "Verify disabled state visibility"
+      ]
+    },
+    {
+      "name": "Mobile Responsiveness",
+      "description": "Test mobile viewport accessibility",
+      "steps": [
+        "Test touch target sizes (44x44px minimum)",
+        "Verify orientation support",
+        "Test zoom functionality (200%)",
+        "Check mobile navigation accessibility",
+        "Verify gesture alternatives"
+      ]
+    }
+  ]
+}

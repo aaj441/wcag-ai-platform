@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Railway Nixpacks build script
+
+set -e
+
+echo "🚀 Railway Build Starting..."
+echo "Node version: $(node --version)"
+echo "NPM version: $(npm --version)"
+
+# Install production dependencies
+echo "📦 Installing dependencies..."
+npm ci --only=production
+
+# Build TypeScript
+echo "🔨 Building TypeScript..."
+npm run build
+
+# Verify build output
+if [ ! -d "dist" ]; then
+  echo "❌ Build failed: dist directory not found"
+  exit 1
+fi
+
+echo "✅ Build successful"
+echo "Build size: $(du -sh dist | cut -f1)"
