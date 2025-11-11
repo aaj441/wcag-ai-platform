@@ -1,59 +1,22 @@
 # WCAG AI Platform
 
-> **Production-grade full-stack accessibility platform with consultant approval dashboard**
-
-## 🏛️ Current Implementation Status
-
-### ✅ Implemented Components
-
-#### 1. **WebApp Frontend** (`packages/webapp`) - PRODUCTION READY
-- ✅ Complete consultant approval dashboard
-- ✅ Email draft CRUD operations
-- ✅ Real-time search, filter, and sort
-- ✅ Status workflow management (draft → pending → approved → sent)
-- ✅ Violation display with WCAG criteria
-- ✅ Dark theme UI with Tailwind CSS
-- ✅ Vite + React 18 + TypeScript
-- ✅ Railway deployment ready
-
-#### 2. **REST API Backend** (`packages/api`) - PRODUCTION READY
-- ✅ Express REST API with TypeScript
-- ✅ Complete CRUD endpoints for email drafts
-- ✅ Violation management endpoints
-- ✅ Status transition endpoints (approve/reject/send)
-- ✅ CORS configured
-- ✅ Health check endpoint
-- ✅ Railway deployment ready
-
-### 🚀 Quick Start - Full Stack
-
-**Run complete application locally:**
-
+## Quick Start
 ```bash
-# 1. Install API dependencies
-cd packages/api
+docker-compose up -d
 npm install
-npm run build
-
-# 2. Start API server (Terminal 1)
-npm run dev
-# API runs on http://localhost:3001
-
-# 3. Install Frontend dependencies (Terminal 2)
-cd packages/webapp
-npm install
-
-# 4. Start Frontend
-npm run dev
-# Frontend runs on http://localhost:3000
+npx prisma db push
+npx tsx apps/scanner/src/scripts/validate.ts
 ```
 
-**Access:**
-- Frontend: http://localhost:3000
-- API: http://localhost:3001/api
-- Health Check: http://localhost:3001/health
+## Structure
+- `apps/scanner`: Core scanning service
+- `apps/dashboard`: Dashboard web application (under development)
+- `packages/core`: Confidence scoring engine (MOAT)
+- `packages/db`: Prisma schema
+- `packages/config`: Configuration utilities
+- `packages/utils`: Search helpers
 
-### 📚 Documentation
+> **Master monorepo: combines all previous experimental and production WCAG AI codebases, automated setup per consolidation protocol.**
 
 - **[Full Stack Guide](FULL_STACK_GUIDE.md)** - Complete setup and deployment guide
 - **[Frontend README](packages/webapp/README.md)** - Frontend documentation
