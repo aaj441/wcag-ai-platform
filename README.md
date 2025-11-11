@@ -1,6 +1,31 @@
 # WCAG AI Platform
 
+## 🎯 Now 100% Consultant Ready!
+
+Transform your technical platform into a revenue-generating consulting business. Everything you need to start signing clients is included.
+
+**New:** [Consultant Quick Start Guide](CONSULTANT_QUICKSTART.md) | [Business Playbook](CONSULTANT_BUSINESS_GUIDE.md)
+
+---
+
 ## Quick Start
+
+### For Consultants (Start Earning)
+```bash
+# 1. Verify you're ready
+./scripts/consultant-readiness-check.sh
+
+# 2. Start the API
+cd packages/api && npm install && npm run dev
+
+# 3. See it in action
+./scripts/demo-client-workflow.sh
+
+# 4. Follow the business guide
+# See CONSULTANT_BUSINESS_GUIDE.md for complete playbook to $10K MRR
+```
+
+### For Developers (Technical Setup)
 ```bash
 docker-compose up -d
 npm install
@@ -8,61 +33,125 @@ npx prisma db push
 npx tsx apps/scanner/src/scripts/validate.ts
 ```
 
-## Structure
-- `apps/scanner`: Core scanning service
-- `apps/dashboard`: Dashboard web application (under development)
-- `packages/core`: Confidence scoring engine (MOAT)
-- `packages/db`: Prisma schema
-- `packages/config`: Configuration utilities
-- `packages/utils`: Search helpers
+---
 
-> **Master monorepo: combines all previous experimental and production WCAG AI codebases, automated setup per consolidation protocol.**
+## 💼 Consultant Features (NEW!)
 
-- **[Full Stack Guide](FULL_STACK_GUIDE.md)** - Complete setup and deployment guide
+### Client Onboarding
+Automatically onboard clients with tier-based pricing:
+- **Basic ($299)**: One-time scan, detailed report
+- **Pro ($499/mo)**: 10 scans/month, ongoing monitoring
+- **Enterprise ($999/mo)**: Unlimited scans, dedicated support
+
+### White-Label Reports
+Generate professional PDF/HTML reports with client branding in seconds.
+
+### Automated Proposals
+Create consulting proposals with one API call - includes ROI calculations and tier recommendations.
+
+### SLA Monitoring
+Track scan performance and ensure compliance with automatic breach detection.
+
+**[See Full Feature List →](CONSULTANT_QUICKSTART.md)**
+
+---
+
+## 📚 Documentation
+
+### For Consultants
+- **[Consultant Quick Start](CONSULTANT_QUICKSTART.md)** - Get started in 30 minutes
+- **[Business Playbook](CONSULTANT_BUSINESS_GUIDE.md)** - Complete guide to $10K MRR
+- **[Marketing Site Setup](consultant-site/README.md)** - Deploy your consulting website
+- **[Legal Templates](consultant-site/legal/README.md)** - ToS and Privacy Policy
+
+### For Developers
+- **[Full Stack Guide](FULL_STACK_GUIDE.md)** - Complete setup and deployment
 - **[Frontend README](packages/webapp/README.md)** - Frontend documentation
 - **[API README](packages/api/README.md)** - Backend API documentation
 - **[Implementation Summary](IMPLEMENTATION_SUMMARY.md)** - Technical details
 
 ---
 
-## 🏗️ Complete Repository Structure
+## 🏗️ Repository Structure
 
 ```
 /
-├── README.md                    # This file
-├── FULL_STACK_GUIDE.md         # Full stack setup guide
-├── IMPLEMENTATION_SUMMARY.md    # Technical summary
-├── packages/
-│   ├── api/                    # ✅ REST API Backend (READY)
-│   │   ├── src/
-│   │   │   ├── routes/        # API endpoints
-│   │   │   ├── data/          # Data store
-│   │   │   ├── types.ts       # TypeScript types
-│   │   │   └── server.ts      # Express server
-│   │   ├── package.json
-│   │   ├── tsconfig.json
-│   │   └── README.md
-│   │
-│   └── webapp/                 # ✅ Frontend Dashboard (READY)
-│       ├── src/
-│       │   ├── components/    # React components
-│       │   ├── services/      # API client
-│       │   ├── config/        # Configuration
-│       │   ├── utils/         # Helper functions
-│       │   └── types/         # TypeScript types
-│       ├── index.html
-│       ├── vite.config.ts
-│       ├── server.js          # Production server
-│       ├── package.json
-│       └── README.md
+├── README.md                           # This file
+├── CONSULTANT_BUSINESS_GUIDE.md        # 💼 Complete business playbook (NEW!)
+├── CONSULTANT_QUICKSTART.md            # 🚀 Quick start for consultants (NEW!)
+├── FULL_STACK_GUIDE.md                 # Full stack setup guide
+├── IMPLEMENTATION_SUMMARY.md           # Technical summary
 │
-└── docs/
-    └── AUTOMATION_CHECKLIST.md
+├── packages/
+│   ├── api/                            # ✅ REST API Backend (READY)
+│   │   ├── src/
+│   │   │   ├── routes/                # API endpoints
+│   │   │   │   ├── drafts.ts         # Email draft management
+│   │   │   │   ├── violations.ts     # WCAG violations
+│   │   │   │   ├── clients.ts        # 💼 Client onboarding (NEW!)
+│   │   │   │   ├── sla.ts            # 📊 SLA monitoring (NEW!)
+│   │   │   │   ├── reports.ts        # 📄 Report generation (NEW!)
+│   │   │   │   └── proposals.ts      # 💰 Proposal generator (NEW!)
+│   │   │   ├── services/              # Business logic
+│   │   │   │   ├── reportGenerator.ts   # White-label reports (NEW!)
+│   │   │   │   ├── slaMonitor.ts       # SLA tracking (NEW!)
+│   │   │   │   └── proposalGenerator.ts # Proposals (NEW!)
+│   │   │   ├── data/                  # Data store
+│   │   │   ├── types.ts               # TypeScript types
+│   │   │   └── server.ts              # Express server
+│   │   └── package.json
+│   │
+│   └── webapp/                         # ✅ Frontend Dashboard (READY)
+│       ├── src/
+│       │   ├── components/            # React components
+│       │   ├── services/              # API client
+│       │   └── types/                 # TypeScript types
+│       └── package.json
+│
+├── consultant-site/                    # 💼 Marketing Site Setup (NEW!)
+│   ├── README.md                       # Setup guide
+│   ├── .env.example                    # Configuration template
+│   └── legal/                          # Legal documents
+│       └── README.md                   # ToS/Privacy templates
+│
+├── scripts/                            # Automation scripts
+│   ├── consultant-readiness-check.sh   # ✅ Verify setup (NEW!)
+│   └── demo-client-workflow.sh         # 🎯 Demo workflow (NEW!)
+│
+└── deployment/                         # Production deployment
+    ├── scripts/
+    └── terraform/
 ```
 
 ---
 
 ## 🎯 Features
+
+### 💼 Consultant Business Layer (NEW!)
+
+**Client Management:**
+- Automated onboarding with tier-based pricing
+- Multi-tenant support ready for Stripe/Clerk
+- Scan quota tracking and management
+- Client portal ready
+
+**Professional Reports:**
+- White-labeled PDF/HTML compliance reports
+- Executive summary with compliance scoring
+- Detailed violation breakdown
+- Customizable client branding
+
+**Automated Proposals:**
+- Dynamic proposal generation based on scan data
+- ROI calculations and business metrics
+- Three-tier pricing recommendations
+- HTML and Markdown formats
+
+**SLA Monitoring:**
+- Real-time scan performance tracking
+- Automatic breach detection and notifications
+- Statistics and analytics dashboards
+- Ready for PagerDuty integration
 
 ### Consultant Approval Dashboard
 
@@ -105,6 +194,27 @@ draft → pending_review → approved → sent
 **Violations:**
 - `GET /api/violations` - List all violations
 - `GET /api/violations/stats` - Get statistics
+
+**Clients (NEW!):**
+- `POST /api/clients/onboard` - Onboard new client
+- `GET /api/clients` - List all clients
+- `GET /api/clients/:id` - Get client by ID
+- `PATCH /api/clients/:id/scans` - Update scan count
+
+**SLA Monitoring (NEW!):**
+- `GET /api/sla/report` - Get SLA compliance report
+- `GET /api/sla/statistics` - Get overall statistics
+- `GET /api/sla/customer/:id` - Get customer scans
+- `POST /api/sla/scan/register` - Register scan for tracking
+- `POST /api/sla/scan/:id/complete` - Mark scan complete
+
+**Reports (NEW!):**
+- `POST /api/reports/generate` - Generate white-label report
+- `POST /api/reports/draft/:id` - Generate report from draft
+
+**Proposals (NEW!):**
+- `POST /api/proposals/generate` - Generate consulting proposal
+- `POST /api/proposals/recommend-tier` - Get tier recommendation
 
 **System:**
 - `GET /health` - Health check

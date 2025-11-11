@@ -8,6 +8,10 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import draftsRouter from './routes/drafts';
 import violationsRouter from './routes/violations';
+import clientsRouter from './routes/clients';
+import slaRouter from './routes/sla';
+import reportsRouter from './routes/reports';
+import proposalsRouter from './routes/proposals';
 
 // Load environment variables
 dotenv.config();
@@ -53,6 +57,10 @@ app.get('/health', (req: Request, res: Response) => {
 // API routes
 app.use('/api/drafts', draftsRouter);
 app.use('/api/violations', violationsRouter);
+app.use('/api/clients', clientsRouter);
+app.use('/api/sla', slaRouter);
+app.use('/api/reports', reportsRouter);
+app.use('/api/proposals', proposalsRouter);
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {
@@ -63,6 +71,10 @@ app.get('/', (req: Request, res: Response) => {
       health: '/health',
       drafts: '/api/drafts',
       violations: '/api/violations',
+      clients: '/api/clients',
+      sla: '/api/sla',
+      reports: '/api/reports',
+      proposals: '/api/proposals',
     },
     documentation: 'https://github.com/aaj441/wcag-ai-platform',
   });
