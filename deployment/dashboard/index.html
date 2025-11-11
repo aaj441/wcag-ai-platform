@@ -442,7 +442,7 @@
 
         const match = line.match(/^([a-z_]+)(?:\{([^}]*)\})?\s+([\d.]+|NaN)/);
         if (match) {
-          const [, name, labels, value] = match;
+          const [, name, , value] = match;
           metrics[name] = parseFloat(value) || 0;
         }
       }
@@ -453,7 +453,6 @@
     function updateDashboard(health, metrics) {
       // Health Status
       const healthStatus = document.getElementById('health-status');
-      const statusIndicator = healthStatus.querySelector('.status-indicator');
 
       if (health.status === 'ok' || health.status === 'healthy') {
         healthStatus.innerHTML = '<span class="status-indicator healthy"></span>Healthy';
