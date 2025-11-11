@@ -41,7 +41,8 @@
     "@aws-sdk/client-s3": "^3.478.0",
     "@pollyjs/core": "^6.0.6",
     "@pollyjs/adapter-node-http": "^6.0.6",
-    "@pollyjs/persister-fs": "^6.0.6"
+    "@pollyjs/persister-fs": "^6.0.6",
+    "@prisma/client": "^5.7.1"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
@@ -49,6 +50,7 @@
     "@types/node": "^20.10.0",
     "@types/uuid": "^9.0.7",
     "tsx": "^4.7.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "prisma": "^5.7.1"
   }
 }
