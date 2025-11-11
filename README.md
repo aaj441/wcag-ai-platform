@@ -16,7 +16,3 @@ npx tsx apps/scanner/src/scripts/validate.ts
 - `packages/config`: Configuration utilities
 - `packages/utils`: Search helpers
 
-## Product Validation Protocol
-1. Send 5 emails
-2. Track replies
-3. If ≥4 replies, scale. Else pivot.
