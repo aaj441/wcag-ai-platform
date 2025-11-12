@@ -1,35 +1,25 @@
 /**
  * Client Management API Routes
  * Handles client onboarding, management, and multi-tenant operations
+ * NOW USES PRISMA DATABASE (Production-Ready)
  */
 
 import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
+import { prisma } from '../lib/prisma';
+import crypto from 'crypto';
 
 const router = Router();
 
-// In-memory client store (replace with database in production)
-interface Client {
-  id: string;
-  email: string;
-  company: string;
-  tier: 'basic' | 'pro' | 'enterprise';
-  scansRemaining: number;
-  status: 'active' | 'inactive' | 'suspended';
-  createdAt: Date;
-  subscriptionId?: string;
-  stripeCustomerId?: string;
+// Generate API Key
+function generateApiKey(): string {
+  return `wcagaii_${crypto.randomBytes(24).toString('hex')}`;
 }
 
-const clients: Client[] = [];
-
-/**
- * POST /api/clients/onboard
- * Automated client onboarding flow
- */
+// POST /api/clients/onboard - Create new client
 router.post('/onboard', async (req: Request, res: Response) => {
   try {
-    const { email, company, tier = 'basic' } = req.body;
+    const { email, company, tier = 'free' } = req.body;
 
     // Validation
     if (!email || !company) {
@@ -39,102 +29,76 @@ router.post('/onboard', async (req: Request, res: Response) => {
       });
     }
 
-    if (!['basic', 'pro', 'enterprise'].includes(tier)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid tier. Must be basic, pro, or enterprise'
-      });
-    }
+    // Check if client already exists
+    const existingClient = await prisma.client.findUnique({
+      where: { email }
+    });
 
-    // Check for existing client
-    const existingClient = clients.find(c => c.email === email);
     if (existingClient) {
       return res.status(409).json({
         success: false,
-        error: 'Client already exists with this email'
+        error: 'Client with this email already exists'
       });
     }
 
     // Determine scans based on tier
-    const scansRemaining = tier === 'basic' ? 1 : tier === 'pro' ? 10 : 9999;
+    const scansRemaining = tier === 'enterprise' ? 1000 : tier === 'pro' ? 100 : tier === 'starter' ? 20 : 5;
 
-    // Create new client
-    const client: Client = {
-      id: uuidv4(),
-      email,
-      company,
-      tier,
-      scansRemaining,
-      status: 'active',
-      createdAt: new Date(),
-      // These would be populated by Stripe/Clerk in production
-      subscriptionId: `sub_${uuidv4().substring(0, 8)}`,
-      stripeCustomerId: `cus_${uuidv4().substring(0, 8)}`
-    };
-
-    clients.push(client);
-
-    // TODO: In production, this would:
-    // 1. Create Clerk user with limited permissions
-    // 2. Create Stripe customer + subscription
-    // 3. Create isolated database schema (multi-tenant)
-    // 4. Send welcome email with magic link
-    // 5. Create PagerDuty service for this client
-
-    res.status(201).json({
-      success: true,
-      data: client,
-      message: 'Client onboarded successfully'
+    // Create client with Prisma
+    const client = await prisma.client.create({
+      data: {
+        email,
+        company,
+        tier,
+        scansRemaining,
+        apiKey: generateApiKey(),
+        status: 'active'
+      }
     });
+
+    // TODO Phase 4: Send welcome email via SendGrid
+
+    return res.status(201).json({ success: true, client });
   } catch (error) {
-    console.error('Client onboarding error:', error);
-    res.status(500).json({
+    console.error('Error onboarding client:', error);
+    return res.status(500).json({
       success: false,
       error: 'Failed to onboard client'
     });
   }
 });
 
-/**
- * GET /api/clients
- * List all clients
- */
+// GET /api/clients - List all clients
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const { tier, status } = req.query;
-
-    let filteredClients = [...clients];
-
-    if (tier) {
-      filteredClients = filteredClients.filter(c => c.tier === tier);
-    }
-
-    if (status) {
-      filteredClients = filteredClients.filter(c => c.status === status);
-    }
-
-    res.json({
-      success: true,
-      data: filteredClients,
-      total: filteredClients.length
+    const clients = await prisma.client.findMany({
+      orderBy: { createdAt: 'desc' }
     });
+
+    return res.json({ success: true, clients });
   } catch (error) {
     console.error('Error fetching clients:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to fetch clients'
     });
   }
 });
 
-/**
- * GET /api/clients/:id
- * Get client by ID
- */
+// GET /api/clients/:id - Get client by ID
 router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const client = clients.find(c => c.id === id);
+
+    const client = await prisma.client.findUnique({
+      where: { id },
+      include: {
+        scans: {
+          orderBy: { createdAt: 'desc' },
+          take: 10
+        }
+      }
+    });
 
     if (!client) {
       return res.status(404).json({
@@ -143,56 +107,37 @@ router.get('/:id', async (req: Request, res: Response) => {
       });
     }
 
-    res.json({
-      success: true,
-      data: client
-    });
+    return res.json({ success: true, client });
   } catch (error) {
     console.error('Error fetching client:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to fetch client'
     });
   }
 });
 
-/**
- * PATCH /api/clients/:id/scans
- * Update client scan count
- */
-router.patch('/:id/scans', async (req: Request, res: Response) => {
+// PATCH /api/clients/:id - Update client
+router.patch('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { scansRemaining } = req.body;
+    const { tier, status, scansRemaining } = req.body;
 
-    const client = clients.find(c => c.id === id);
-
-    if (!client) {
-      return res.status(404).json({
-        success: false,
-        error: 'Client not found'
-      });
-    }
-
-    if (typeof scansRemaining !== 'number' || scansRemaining < 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid scansRemaining value'
-      });
-    }
-
-    client.scansRemaining = scansRemaining;
-
-    res.json({
-      success: true,
-      data: client,
-      message: 'Client scan count updated'
+    const updatedClient = await prisma.client.update({
+      where: { id },
+      data: {
+        ...(tier && { tier }),
+        ...(status && { status }),
+        ...(scansRemaining !== undefined && { scansRemaining })
+      }
     });
+
+    return res.json({ success: true, client: updatedClient });
   } catch (error) {
-    console.error('Error updating client scans:', error);
-    res.status(500).json({
+    console.error('Error updating client:', error);
+    return res.status(500).json({
       success: false,
-      error: 'Failed to update client scans'
+      error: 'Failed to update client'
     });
   }
 });
