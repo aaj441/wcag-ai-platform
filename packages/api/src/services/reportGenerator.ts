@@ -17,7 +17,7 @@ export interface ScanReport {
   id: string;
   url: string;
   complianceScore: number;
-  violations: Violation[];
+  violations: LegacyViolation[];
   createdAt: Date;
   workerId?: string;
   signature?: string;
