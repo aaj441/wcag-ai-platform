@@ -46,6 +46,13 @@ router.post('/store', (req: Request, res: Response) => {
       } as ApiResponse);
     }
 
+    // Validate complianceScore range
+    if (typeof complianceScore !== 'number' || complianceScore < 0 || complianceScore > 100) {
+      return res.status(400).json({
+        success: false,
+        error: 'complianceScore must be a number between 0 and 100'
+      } as ApiResponse);
+    }
     // Calculate violation counts
     const criticalCount = violations.filter((v: any) => v.severity === 'critical').length;
     const highCount = violations.filter((v: any) => v.severity === 'high').length;
