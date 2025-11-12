@@ -85,6 +85,8 @@ WCAG AI Platform Team`,
     status: 'pending_review',
     notes: 'High-priority prospect. Company has 50+ employees.',
     tags: ['high-value', 'tech-sector'],
+    keywords: ['wcag-1.4.3', 'wcag-1.1.1', 'aa', 'a', 'critical', 'high', 'contrast', 'color', 'button', 'img', 'alternative', 'low-vision', 'blind-users'],
+    keywordTags: ['contrast', 'alternative', 'color-contrast', 'missing-alt-text'],
   },
   {
     id: 'draft2',
@@ -109,6 +111,8 @@ WCAG Team`,
     updatedAt: new Date('2025-11-09T14:30:00'),
     status: 'draft',
     tags: ['design-agency'],
+    keywords: ['wcag-3.3.2', 'a', 'medium', 'form', 'input', 'label', 'cognitive-disability'],
+    keywordTags: ['forms', 'form-accessibility'],
   },
 ];
 
