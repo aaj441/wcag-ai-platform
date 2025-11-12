@@ -3,10 +3,10 @@
  * Production would use PostgreSQL/MongoDB
  */
 
-import { EmailDraft, Violation } from '../types';
+import { EmailDraft, LegacyViolation } from '../types';
 
 // Mock violations database
-export const violationsDB: Violation[] = [
+export const violationsDB: LegacyViolation[] = [
   {
     id: 'v1',
     url: 'https://example-client.com/homepage',
@@ -152,6 +152,6 @@ export function deleteDraft(id: string): boolean {
   return true;
 }
 
-export function getAllViolations(): Violation[] {
+export function getAllViolations(): LegacyViolation[] {
   return [...violationsDB];
 }

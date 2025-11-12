@@ -251,7 +251,7 @@ router.get('/scan/:scanId', authMiddleware, async (req, res) => {
     // Get fixes for these violations
     const fixes = await prisma.fix.findMany({
       where: {
-        violationId: { in: violations.map((v) => v.id) },
+        violationId: { in: violations.map((v: any) => v.id) },
       },
       include: { applications: true },
     });
@@ -259,11 +259,11 @@ router.get('/scan/:scanId', authMiddleware, async (req, res) => {
     const stats = {
       totalViolations: violations.length,
       fixesGenerated: fixes.length,
-      fixesApproved: fixes.filter((f) => f.reviewStatus === 'approved').length,
-      fixesApplied: fixes.filter((f) => f.applications.length > 0).length,
+      fixesApproved: fixes.filter((f: any) => f.reviewStatus === 'approved').length,
+      fixesApplied: fixes.filter((f: any) => f.applications.length > 0).length,
       averageConfidence:
         fixes.length > 0
-          ? (fixes.reduce((sum, f) => sum + f.confidenceScore, 0) / fixes.length).toFixed(2)
+          ? (fixes.reduce((sum: number, f: any) => sum + f.confidenceScore, 0) / fixes.length).toFixed(2)
           : '0.00',
     };
 

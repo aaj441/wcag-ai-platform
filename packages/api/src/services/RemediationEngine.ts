@@ -224,14 +224,14 @@ export class RemediationEngine {
       where: { tenantId },
     });
 
-    const successfulApps = applications.filter((a) => a.success && a.verificationStatus === 'verified');
+    const successfulApps = applications.filter((a: any) => a.success && a.verificationStatus === 'verified');
 
     return {
       totalFixes: fixes.length,
-      approvedFixes: fixes.filter((f) => f.reviewStatus === 'approved').length,
+      approvedFixes: fixes.filter((f: any) => f.reviewStatus === 'approved').length,
       averageConfidence:
         fixes.length > 0
-          ? (fixes.reduce((sum, f) => sum + f.confidenceScore, 0) / fixes.length).toFixed(2)
+          ? (fixes.reduce((sum: number, f: any) => sum + f.confidenceScore, 0) / fixes.length).toFixed(2)
           : '0.00',
       totalApplications: applications.length,
       successfulApplications: successfulApps.length,
@@ -239,7 +239,7 @@ export class RemediationEngine {
         applications.length > 0
           ? ((successfulApps.length / applications.length) * 100).toFixed(1) + '%'
           : '0%',
-      totalGenerationCost: fixes.reduce((sum, f) => sum + f.generationCost, 0).toFixed(2),
+      totalGenerationCost: fixes.reduce((sum: number, f: any) => sum + f.generationCost, 0).toFixed(2),
     };
   }
 

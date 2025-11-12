@@ -133,17 +133,17 @@ router.get('/', authMiddleware, ensureTenantAccess, async (req, res) => {
     const stats = {
       total: allLeads.length,
       byStatus: {
-        new: allLeads.filter((l) => l.status === 'new').length,
-        contacted: allLeads.filter((l) => l.status === 'contacted').length,
-        interested: allLeads.filter((l) => l.status === 'interested').length,
-        qualified: allLeads.filter((l) => l.status === 'qualified').length,
-        won: allLeads.filter((l) => l.status === 'won').length,
-        lost: allLeads.filter((l) => l.status === 'lost').length,
+        new: allLeads.filter((l: any) => l.status === 'new').length,
+        contacted: allLeads.filter((l: any) => l.status === 'contacted').length,
+        interested: allLeads.filter((l: any) => l.status === 'interested').length,
+        qualified: allLeads.filter((l: any) => l.status === 'qualified').length,
+        won: allLeads.filter((l: any) => l.status === 'won').length,
+        lost: allLeads.filter((l: any) => l.status === 'lost').length,
       },
       byPriority: {
-        high: allLeads.filter((l) => l.priorityTier === 'high').length,
-        medium: allLeads.filter((l) => l.priorityTier === 'medium').length,
-        low: allLeads.filter((l) => l.priorityTier === 'low').length,
+        high: allLeads.filter((l: any) => l.priorityTier === 'high').length,
+        medium: allLeads.filter((l: any) => l.priorityTier === 'medium').length,
+        low: allLeads.filter((l: any) => l.priorityTier === 'low').length,
       },
     };
 

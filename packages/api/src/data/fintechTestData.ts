@@ -3,13 +3,13 @@
  * Testing WCAG compliance for banking, payments, and financial platforms
  */
 
-import { EmailDraft, Violation, Consultant } from '../types';
+import { EmailDraft, LegacyViolation, ConsultantProfile } from '../types';
 
 // ============================================================================
 // FINTECH-SPECIFIC WCAG VIOLATIONS
 // ============================================================================
 
-export const fintechViolations: Violation[] = [
+export const fintechViolations: LegacyViolation[] = [
   {
     id: 'fintech-v1',
     url: 'https://payment-processor.com/checkout',
@@ -498,7 +498,7 @@ WCAG AI Platform Team`,
 // FINTECH CONSULTANTS
 // ============================================================================
 
-export const fintechConsultants: Consultant[] = [
+export const fintechConsultants: any[] = [
   {
     id: 'fc1',
     name: 'Sarah Chen',

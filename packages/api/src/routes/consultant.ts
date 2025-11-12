@@ -142,7 +142,7 @@ router.post("/scans/:scanId/score-confidence", async (req: Request, res: Respons
     log.info("Starting confidence scoring", { scanId, violationCount: scan.violations.length });
 
     const confidenceResult = await confidenceScorer.scoreViolations(
-      scan.violations.map((v) => ({
+      scan.violations.map((v: any) => ({
         wcagCriteria: v.wcagCriteria,
         description: v.description,
         elementSelector: v.elementSelector || undefined,
@@ -382,7 +382,7 @@ router.get("/stats", async (req: Request, res: Response) => {
     });
     const avgConfidence =
       scans.length > 0
-        ? scans.reduce((sum, s) => sum + s.aiConfidenceScore, 0) / scans.length
+        ? scans.reduce((sum: number, s: any) => sum + s.aiConfidenceScore, 0) / scans.length
         : 0;
 
     res.json({
