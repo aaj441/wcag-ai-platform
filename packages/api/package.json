@@ -42,7 +42,11 @@
     "@pollyjs/core": "^6.0.6",
     "@pollyjs/adapter-node-http": "^6.0.6",
     "@pollyjs/persister-fs": "^6.0.6",
-    "@prisma/client": "^5.7.1"
+    "@prisma/client": "^5.7.1",
+    "@clerk/express": "^1.0.0",
+    "stripe": "^14.9.0",
+    "@sendgrid/mail": "^8.1.0",
+    "@sentry/node": "^7.91.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

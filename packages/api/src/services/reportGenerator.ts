@@ -3,7 +3,7 @@
  * Generates professional WCAG compliance reports with client branding
  */
 
-import { Violation, EmailDraft } from '../types';
+import { LegacyViolation } from '../types';
 
 export interface ClientBrand {
   companyName: string;
@@ -16,7 +16,7 @@ export interface ScanReport {
   id: string;
   url: string;
   complianceScore: number;
-  violations: Violation[];
+  violations: LegacyViolation[];
   createdAt: Date;
   workerId?: string;
   signature?: string;

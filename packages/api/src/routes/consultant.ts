@@ -159,8 +159,12 @@ router.post("/scans/:scanId/score-confidence", async (req: Request, res: Respons
         confidenceDetails: {
           falsePositiveRisk: confidenceResult.falsePositiveRisk,
           recommendedAction: confidenceResult.recommendedAction,
-          violations: confidenceResult.violations,
-        },
+          violations: confidenceResult.violations.map(v => ({
+            wcagCriteria: v.wcagCriteria,
+            confidence: v.confidence,
+            reasoning: v.reasoning
+          })),
+        } as any,
       },
       include: { violations: true },
     });
