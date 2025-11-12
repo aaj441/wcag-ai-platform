@@ -159,7 +159,7 @@ router.post("/scans/:scanId/score-confidence", async (req: Request, res: Respons
         confidenceDetails: {
           falsePositiveRisk: confidenceResult.falsePositiveRisk,
           recommendedAction: confidenceResult.recommendedAction,
-          violations: confidenceResult.violations,
+          violations: confidenceResult.violations as any, // Prisma JSON type compatibility
         },
       },
       include: { violations: true },
