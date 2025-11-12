@@ -43,6 +43,8 @@ export interface EmailDraft {
   approvedBy?: string;
   approvedAt?: Date;
   tags?: string[];
+  keywords?: string[]; // Auto-extracted accessibility keywords from violations
+  keywordTags?: string[]; // Manually added keyword tags for filtering/search
 }
 
 export interface Consultant {
@@ -83,6 +85,7 @@ export interface DashboardState {
   error: string | null;
   filterStatus: EmailStatus | 'all';
   searchQuery: string;
+  keywordFilter: string; // Comma-separated keywords for filtering
   sortBy: 'date' | 'priority' | 'severity';
   sortOrder: 'asc' | 'desc';
 }

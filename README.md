@@ -1,493 +1,300 @@
 # WCAG AI Platform
 
-## 🎯 Now 100% Consultant Ready!
+## 🚀 **AI-Powered WCAG-Compliant Website Development**
 
-Transform your technical platform into a revenue-generating consulting business. Everything you need to start signing clients is included.
+**Transform your web development business into an accessibility-first powerhouse.** Build fully WCAG-compliant websites from scratch using AI-powered code generation, automated accessibility testing, and turnkey deployment.
 
-**New:** [Consultant Quick Start Guide](CONSULTANT_QUICKSTART.md) | [Business Playbook](CONSULTANT_BUSINESS_GUIDE.md)
+**💰** [Consultant Quick Start Guide](CONSULTANT_QUICKSTART.md) | [Business Playbook](CONSULTANT_BUSINESS_GUIDE.md)
 
 ---
 
-## Quick Start
+## **🎯 What Is This?**
 
-### For Consultants (Start Earning)
+The WCAG AI Platform is a **complete AI-powered website development system** that generates WCAG 2.1 AA/AAA compliant websites on-demand for SMB clients. Instead of scanning existing sites for violations, we **build accessible sites from the ground up** using AI code generation.
+
+**Think:** "AI Website Builder" + "Built-in WCAG Compliance" + "Consulting Business in a Box"
+
+### **The New Business Model:**
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  1. CLIENT ORDERS WCAG-COMPLIANT WEBSITE                     │
+│     - SMB client needs: restaurant, law firm, retail, etc.   │
+│     - Tier selection: Basic ($2,999), Pro ($4,999), Ent ($9,999) │
+│     - Provides: business info, branding, content             │
+└──────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌──────────────────────────────────────────────────────────────┐
+│  2. AI GENERATES COMPLIANT WEBSITE CODE                      │
+│     - Claude/GPT generates semantic HTML, ARIA, CSS          │
+│     - Automated WCAG validation during generation            │
+│     - Responsive design with accessibility features          │
+│     - You review & approve before delivery                   │
+└──────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌──────────────────────────────────────────────────────────────┐
+│  3. DEPLOY & DELIVER                                         │
+│     - One-click deploy to Vercel/Netlify                     │
+│     - Client receives: compliant site + VPAT report          │
+│     - Optional: $299-$999/mo maintenance packages            │
+└──────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## **⚙️ How It Works**
+
+### **The 3-Part System:**
+
+```
+packages/
+├── api/                  # Backend - AI generation engine
+│   ├── AI code generation (Claude, GPT-4)
+│   ├── WCAG validation engine
+│   ├── Client onboarding & billing
+│   └── Runs on: http://localhost:3001
+│
+├── webapp/               # Frontend - Consultant dashboard
+│   ├── Project request interface
+│   ├── Code review & approval UI
+│   ├── Client portal
+│   └── Runs on: http://localhost:3000
+│
+└── generated-sites/      # Output - Client websites
+    ├── Fully compliant HTML/CSS/JS
+    ├── VPAT documentation
+    └── Ready for deployment
+```
+
+### **Development Workflow:**
+
+1. **Client submits project request** → Business type, industry, content needs
+2. **AI generates site architecture** → Semantic HTML, ARIA labels, accessible forms
+3. **Auto-validation** → WCAG 2.1 AA compliance verified
+4. **Consultant reviews** → Approve/edit generated code
+5. **Deploy** → Push to production, deliver to client
+6. **Billing** → Charge $2,999-$9,999 per project + optional maintenance
+
+---
+
+## **🚀 Quick Start**
+
+### **For Consultants (Start Earning):**
+
 ```bash
 # 1. Verify you're ready
 ./scripts/consultant-readiness-check.sh
 
-# 2. Start the API
-cd packages/api && npm install && npm run dev
-
-# 3. See it in action
-./scripts/demo-client-workflow.sh
-
-# 4. Follow the business guide
-# See CONSULTANT_BUSINESS_GUIDE.md for complete playbook to $10K MRR
-```
-
-### For Developers (Technical Setup)
-```bash
-docker-compose up -d
+# 2. Verify your environment
+node --version  # Should be v18+
 npm install
-npx prisma db push
-npx tsx apps/scanner/src/scripts/validate.ts
-```
 
----
+# 3. Set up AI API keys
+cd packages/api
+cp .env.example .env
+# Add your ANTHROPIC_API_KEY or OPENAI_API_KEY
 
-## 💼 Consultant Features (NEW!)
-
-### Client Onboarding
-Automatically onboard clients with tier-based pricing:
-- **Basic ($299)**: One-time scan, detailed report
-- **Pro ($499/mo)**: 10 scans/month, ongoing monitoring
-- **Enterprise ($999/mo)**: Unlimited scans, dedicated support
-
-### White-Label Reports
-Generate professional PDF/HTML reports with client branding in seconds.
-
-### Automated Proposals
-Create consulting proposals with one API call - includes ROI calculations and tier recommendations.
-
-### SLA Monitoring
-Track scan performance and ensure compliance with automatic breach detection.
-
-**[See Full Feature List →](CONSULTANT_QUICKSTART.md)**
-
----
-
-## 📚 Documentation
-
-### For Consultants
-- **[Consultant Quick Start](CONSULTANT_QUICKSTART.md)** - Get started in 30 minutes
-- **[Business Playbook](CONSULTANT_BUSINESS_GUIDE.md)** - Complete guide to $10K MRR
-- **[Marketing Site Setup](consultant-site/README.md)** - Deploy your consulting website
-- **[Legal Templates](consultant-site/legal/README.md)** - ToS and Privacy Policy
-
-### For Developers
-- **[Full Stack Guide](FULL_STACK_GUIDE.md)** - Complete setup and deployment
-- **[Frontend README](packages/webapp/README.md)** - Frontend documentation
-- **[API README](packages/api/README.md)** - Backend API documentation
-- **[Implementation Summary](IMPLEMENTATION_SUMMARY.md)** - Technical details
-
----
-
-## 🏗️ Repository Structure
-
-```
-/
-├── README.md                           # This file
-├── CONSULTANT_BUSINESS_GUIDE.md        # 💼 Complete business playbook (NEW!)
-├── CONSULTANT_QUICKSTART.md            # 🚀 Quick start for consultants (NEW!)
-├── FULL_STACK_GUIDE.md                 # Full stack setup guide
-├── IMPLEMENTATION_SUMMARY.md           # Technical summary
-│
-├── packages/
-│   ├── api/                            # ✅ REST API Backend (READY)
-│   │   ├── src/
-│   │   │   ├── routes/                # API endpoints
-│   │   │   │   ├── drafts.ts         # Email draft management
-│   │   │   │   ├── violations.ts     # WCAG violations
-│   │   │   │   ├── clients.ts        # 💼 Client onboarding (NEW!)
-│   │   │   │   ├── sla.ts            # 📊 SLA monitoring (NEW!)
-│   │   │   │   ├── reports.ts        # 📄 Report generation (NEW!)
-│   │   │   │   └── proposals.ts      # 💰 Proposal generator (NEW!)
-│   │   │   ├── services/              # Business logic
-│   │   │   │   ├── reportGenerator.ts   # White-label reports (NEW!)
-│   │   │   │   ├── slaMonitor.ts       # SLA tracking (NEW!)
-│   │   │   │   └── proposalGenerator.ts # Proposals (NEW!)
-│   │   │   ├── data/                  # Data store
-│   │   │   ├── types.ts               # TypeScript types
-│   │   │   └── server.ts              # Express server
-│   │   └── package.json
-│   │
-│   └── webapp/                         # ✅ Frontend Dashboard (READY)
-│       ├── src/
-│       │   ├── components/            # React components
-│       │   ├── services/              # API client
-│       │   └── types/                 # TypeScript types
-│       └── package.json
-│
-├── consultant-site/                    # 💼 Marketing Site Setup (NEW!)
-│   ├── README.md                       # Setup guide
-│   ├── .env.example                    # Configuration template
-│   └── legal/                          # Legal documents
-│       └── README.md                   # ToS/Privacy templates
-│
-├── scripts/                            # Automation scripts
-│   ├── consultant-readiness-check.sh   # ✅ Verify setup (NEW!)
-│   └── demo-client-workflow.sh         # 🎯 Demo workflow (NEW!)
-│
-└── deployment/                         # Production deployment
-    ├── scripts/
-    └── terraform/
-```
-
----
-
-## 🎯 Features
-
-### 💼 Consultant Business Layer (NEW!)
-
-**Client Management:**
-- Automated onboarding with tier-based pricing
-- Multi-tenant support ready for Stripe/Clerk
-- Scan quota tracking and management
-- Client portal ready
-
-**Professional Reports:**
-- White-labeled PDF/HTML compliance reports
-- Executive summary with compliance scoring
-- Detailed violation breakdown
-- Customizable client branding
-
-**Automated Proposals:**
-- Dynamic proposal generation based on scan data
-- ROI calculations and business metrics
-- Three-tier pricing recommendations
-- HTML and Markdown formats
-
-**SLA Monitoring:**
-- Real-time scan performance tracking
-- Automatic breach detection and notifications
-- Statistics and analytics dashboards
-- Ready for PagerDuty integration
-
-### Consultant Approval Dashboard
-
-**Email Draft Management:**
-- Create, read, update, delete email drafts
-- Search across recipient, subject, company, body
-- Filter by status (draft, pending_review, approved, sent, rejected)
-- Sort by date, priority, or severity
-- Inline editing with validation
-- Toast notifications for all actions
-
-**Violation Display:**
-- 6 comprehensive WCAG violations with real examples
-- Expandable technical details
-- Code snippets with copy-to-clipboard
-- Screenshot display
-- WCAG criteria links to W3C documentation
-- Severity badges (Critical, High, Medium, Low)
-- Impact analysis for affected users
-
-**Workflow:**
-```
-draft → pending_review → approved → sent
-              ↓
-          rejected
-```
-
-### REST API Endpoints
-
-**Drafts:**
-- `GET /api/drafts` - List all drafts (with filters)
-- `GET /api/drafts/:id` - Get draft by ID
-- `POST /api/drafts` - Create new draft
-- `PUT /api/drafts/:id` - Update draft
-- `PATCH /api/drafts/:id/approve` - Approve draft
-- `PATCH /api/drafts/:id/reject` - Reject draft
-- `PATCH /api/drafts/:id/send` - Mark as sent
-- `DELETE /api/drafts/:id` - Delete draft
-
-**Violations:**
-- `GET /api/violations` - List all violations
-- `GET /api/violations/stats` - Get statistics
-
-**Clients (NEW!):**
-- `POST /api/clients/onboard` - Onboard new client
-- `GET /api/clients` - List all clients
-- `GET /api/clients/:id` - Get client by ID
-- `PATCH /api/clients/:id/scans` - Update scan count
-
-**SLA Monitoring (NEW!):**
-- `GET /api/sla/report` - Get SLA compliance report
-- `GET /api/sla/statistics` - Get overall statistics
-- `GET /api/sla/customer/:id` - Get customer scans
-- `POST /api/sla/scan/register` - Register scan for tracking
-- `POST /api/sla/scan/:id/complete` - Mark scan complete
-
-**Reports (NEW!):**
-- `POST /api/reports/generate` - Generate white-label report
-- `POST /api/reports/draft/:id` - Generate report from draft
-
-**Proposals (NEW!):**
-- `POST /api/proposals/generate` - Generate consulting proposal
-- `POST /api/proposals/recommend-tier` - Get tier recommendation
-
-**System:**
-- `GET /health` - Health check
-
----
-
-## 🚢 Railway Deployment
-
-### Backend API
-
-**Configuration:**
-```toml
-[build]
-builder = "nixpacks"
-buildCommand = "npm install && npm run build"
-
-[deploy]
-startCommand = "npm start"
-restartPolicyType = "on-failure"
-```
-
-**Environment Variables:**
-- `PORT` (auto-provided by Railway)
-- `NODE_ENV=production`
-- `CORS_ORIGIN=https://your-frontend.railway.app`
-
-### Frontend
-
-**Configuration:**
-```toml
-[build]
-buildCommand = "npm install && npm run build"
-
-[deploy]
-startCommand = "npm start"
-```
-
-**Environment Variables:**
-- `VITE_API_URL=https://your-api.railway.app/api`
-- `NODE_ENV=production`
-
----
-
-## 🧪 Testing E2E Flow
-
-### 1. Start Full Stack
-
-```bash
-# Terminal 1: API
+# 4. Start the platform
+# Terminal 1 (Backend):
 cd packages/api && npm run dev
 
-# Terminal 2: Frontend
+# Terminal 2 (Frontend):
 cd packages/webapp && npm run dev
+
+# 5. Open http://localhost:3000 - Start building sites!
 ```
 
-### 2. Test API
+### **For Developers (Technical Setup):**
 
 ```bash
-# Health check
-curl http://localhost:3001/health
-
-# Get all drafts
-curl http://localhost:3001/api/drafts
-
-# Approve draft
-curl -X PATCH http://localhost:3001/api/drafts/draft1/approve \
-  -H "Content-Type: application/json" \
-  -d '{"approvedBy":"test@wcag.com"}'
-```
-
-### 3. Test Frontend
-
-1. Open http://localhost:3000
-2. Select a draft from the list
-3. Click "Edit" to modify content
-4. Click "Save Changes"
-5. Click "Approve" for pending drafts
-6. Click "Mark as Sent" for approved drafts
-7. Verify notifications appear for each action
-
----
-
-## 📦 Tech Stack
-
-**Frontend:**
-- React 18
-- TypeScript 5
-- Vite 5
-- Tailwind CSS
-- Express (production server)
-
-**Backend:**
-- Express 4
-- TypeScript 5
-- CORS
-- In-memory store (migrate to PostgreSQL/MongoDB)
-
-**Build & Deploy:**
-- Railway (recommended)
-- Vercel (alternative for frontend)
-- GitHub Actions (CI/CD ready)
-
----
-
-## 📈 Performance
-
-**Frontend:**
-- Bundle size: 171 KB total (gzipped: 55 KB)
-- First load: < 1 second
-- Build time: ~1 second
-
-**Backend:**
-- Response time: < 10ms (in-memory)
-- Handles 100+ concurrent requests
-
----
-
-## 🔒 Security
-
-- ✅ CORS configured for production
-- ✅ Input validation on all endpoints
-- ✅ Error messages sanitized
-- ✅ No secrets in code
-- ✅ Environment variables for configuration
-
----
-
-## 📝 Validation Checklist
-
-**Backend:**
-- [x] All endpoints return correct responses
-- [x] CRUD operations work
-- [x] Workflow transitions function
-- [x] TypeScript compiles
-- [x] Server starts on $PORT
-- [x] CORS configured
-
-**Frontend:**
-- [x] Dashboard loads without errors
-- [x] All features work (search, filter, edit, approve)
-- [x] Notifications appear
-- [x] TypeScript compiles
-- [x] Vite build succeeds
-- [x] Production server serves correctly
-
-**Integration:**
-- [x] Frontend connects to backend
-- [x] API requests succeed
-- [x] Data flows correctly
-- [x] Error handling works
-- [x] State updates reflect API changes
-
----
-
-## 🎯 Future Roadmap
-
-### Planned Components (Not Yet Implemented)
-
-#### 1. Core
-- Shared WCAG rules engine
-- Accessibility checks, criteria parsing
-
-#### 2. Scanner & Crawler
-- Multi-domain crawling
-- Puppeteer/Playwright integration
-- Headless scan workflows
-
-#### 3. Overlay
-- Live site accessibility overlay
-- Color-coded violation highlights
-
-#### 4. Reporting
-- PDF/Excel/Markdown generation
-- Custom branded templates
-- Historical scan reports
-
-#### 5. CLI
-- Terminal tools for bulk scans
-- Command-line interface
-
-#### 6. Agent/AI Orchestration
-- AI-powered fix suggestions
-- Automated PR creation
-- Integration with Claude, Copilot
-
----
-
-## 🆘 Troubleshooting
-
-### API won't start
-
-```bash
-# Check port availability
-lsof -i :3001
-
-# Kill existing process
-kill -9 <PID>
-
-# Or use different port
-PORT=3002 npm run dev
-```
-
-### Frontend can't connect to API
-
-```bash
-# Verify API is running
-curl http://localhost:3001/health
-
-# Check .env.local
-cat packages/webapp/.env.local
-# Should have: VITE_API_URL=http://localhost:3001/api
-```
-
-### Build failures
-
-```bash
-# Clean install
-rm -rf node_modules package-lock.json
+# Install dependencies
 npm install
-npm run build
+cd packages/api && npm install
+cd ../webapp && npm install
+
+# Set up database
+npx prisma db push
+
+# Configure AI services
+echo "ANTHROPIC_API_KEY=your_key_here" >> packages/api/.env
+echo "OPENAI_API_KEY=your_key_here" >> packages/api/.env
+
+# Run validation suite
+npm run test:wcag
 ```
 
 ---
 
-## 📚 Resources
+## **🏆 Consultant Features (NEW!)**
 
-- [Full Stack Guide](FULL_STACK_GUIDE.md)
-- [Frontend Documentation](packages/webapp/README.md)
-- [API Documentation](packages/api/README.md)
-- [Railway Docs](https://docs.railway.app)
-- [WCAG Guidelines](https://www.w3.org/WAI/WCAG21/quickref/)
+### **AI Website Generation**
+Generate complete, WCAG-compliant websites from simple business requirements:
+- **Input:** Business type, industry, content needs
+- **Output:** Full HTML/CSS/JS site with WCAG 2.1 AA compliance
+- **Time:** 5-15 minutes per site generation
 
----
+### **Tiered Pricing Model**
+- **Basic ($2,999):** Single-page site, WCAG AA, basic VPAT
+- **Pro ($4,999):** Multi-page site, WCAG AAA, full VPAT, SEO optimization  
+- **Enterprise ($9,999):** Complex site, custom features, ongoing support
 
-## ✅ Current Status
+### **Maintenance Packages (Recurring Revenue)**
+- **Basic Maintenance ($299/mo):** Content updates, hosting, monthly audits
+- **Pro Maintenance ($499/mo):** Priority support, quarterly redesigns
+- **Enterprise ($999/mo):** Dedicated support, unlimited changes
 
-| Component | Status | Lines of Code | Tests |
-|-----------|--------|--------------|-------|
-| Frontend Dashboard | ✅ Production Ready | 2,500+ | ✅ Manual |
-| Backend API | ✅ Production Ready | 600+ | ✅ Manual |
-| Railway Config | ✅ Ready | - | ✅ Tested |
-| Documentation | ✅ Complete | 1,000+ | - |
-| **Total** | **✅ Deployable** | **4,100+** | - |
+### **White-Label Reports**
+Generate professional VPAT (Voluntary Product Accessibility Template) reports:
+- Client-branded compliance documentation
+- Section 508 conformance validation
+- ADA Title III legal compliance checklist
 
----
-
-## 🏆 Architecture Principles
-
-Built with **Masonic principles**:
-- **Foundation**: Solid type systems and domain models
-- **Pillars**: Configuration constants supporting the structure
-- **Tools**: Utilities serving all components
-- **Hierarchy**: Clear component separation
-- **Craftsmanship**: Every line written with precision
-- **Excellence**: Production-grade code quality
+### **Automated Proposals**
+AI generates custom proposals for prospects:
+- Industry-specific value propositions
+- Compliance risk analysis
+- ROI projections for accessibility investment
 
 ---
 
-## 📞 Support
+## **📊 Business Metrics Dashboard**
 
-- GitHub Issues: https://github.com/aaj441/wcag-ai-platform/issues
-- Pull Requests: https://github.com/aaj441/wcag-ai-platform/pulls
+Track your consulting revenue in real-time:
+
+```bash
+# View your consultant stats
+curl http://localhost:3001/api/consultant/metrics
+
+# Output:
+{
+  "totalProjects": 12,
+  "monthlyRevenue": 47988,
+  "activeClients": 8,
+  "avgProjectValue": 3999,
+  "maintenanceRevenue": 3592
+}
+```
 
 ---
 
-## 📄 License
+## **🎬 Demo Workflow**
 
-MIT or Apache 2.0 (choose and document)
+Run the end-to-end demo to see the full client journey:
+
+```bash
+./scripts/demo-client-workflow.sh
+
+# This will:
+# 1. Create a demo client project ("Joe's Pizza Shop")
+# 2. Generate WCAG-compliant site with AI
+# 3. Validate compliance (WCAG 2.1 AA)
+# 4. Generate VPAT report
+# 5. Show deployment preview
+# 6. Calculate project billing
+```
 
 ---
 
-**Built with craftsmanship** ⚒️
-**Architected with precision** 🏛️
-**Deployed with confidence** 🚀
+## **📚 Documentation**
 
-∴ ∵ ∴
+| Guide | Description |
+|-------|-------------|
+| [Consultant Quickstart](CONSULTANT_QUICKSTART.md) | Get your first client site built in 30 minutes |
+| [Business Playbook](CONSULTANT_BUSINESS_GUIDE.md) | Complete sales & marketing strategy |
+| [Architecture](WCAGAI_Architecture_Flow.md) | Technical platform architecture |
+| [Deployment](DEPLOYMENT_AUDIT_RAILWAY_VERCEL.md) | Production deployment guide |
+| [Testing](END_TO_END_TESTING_GUIDE.md) | Automated WCAG testing suite |
+
+---
+
+## **🛠️ Technology Stack**
+
+### **AI Generation:**
+- **Anthropic Claude 3.5 Sonnet** - Primary code generation
+- **OpenAI GPT-4** - Fallback & content generation
+- **Prompt engineering** - Optimized for WCAG compliance
+
+### **Validation:**
+- **axe-core** - Automated accessibility testing
+- **Pa11y** - CI/CD integration for ongoing validation
+- **Lighthouse** - Performance + accessibility audits
+
+### **Backend:**
+- **Node.js + Express** - API server
+- **Prisma ORM** - Database management
+- **PostgreSQL** - Production database
+
+### **Frontend:**
+- **React + Next.js** - Consultant dashboard
+- **Tailwind CSS** - Styling framework
+- **Radix UI** - Accessible component library
+
+### **Deployment:**
+- **Vercel** - Production hosting (primary)
+- **Railway** - Alternative deployment option
+- **GitHub Actions** - CI/CD pipelines
+
+---
+
+## **💰 Revenue Opportunities**
+
+### **Per-Project Model:**
+- **Avg Project Value:** $3,999
+- **Projects/Month:** 5-10 (manageable solo)
+- **Monthly Revenue:** $19,995-$39,990
+
+### **Maintenance Model (Recurring):**
+- **Avg Client:** $399/mo maintenance
+- **Target:** 20 maintenance clients
+- **Monthly Recurring:** $7,980
+
+### **Combined Model:**
+- **New Projects:** $29,993/mo
+- **Maintenance:** $7,980/mo
+- **Total Monthly:** **$37,973**
+
+**Annual Revenue Potential:** **$455,676**
+
+---
+
+## **🎯 Next Steps**
+
+### **Today:**
+1. Run `./scripts/consultant-readiness-check.sh`
+2. Configure AI API keys (Claude or GPT-4)
+3. Generate your first demo site
+4. Review the Business Playbook
+
+### **This Week:**
+1. Set up your consultant profile
+2. Configure Stripe for billing
+3. Deploy to production (Vercel)
+4. Run first real client project
+
+### **This Month:**
+1. Sign first 3 clients
+2. Build project portfolio
+3. Set up maintenance packages
+4. Refine your sales process
+
+---
+
+## **📞 Support & Community**
+
+- **Issues:** [GitHub Issues](https://github.com/aaj441/wcag-ai-platform/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/aaj441/wcag-ai-platform/discussions)
+- **Documentation:** [Full Docs](docs/)
+
+---
+
+## **📄 License**
+
+MIT License - See [LICENSE](LICENSE) for details.
+
+---
+
+**Built with ❤️ for accessibility consultants who want to scale their business with AI.**
+
+**Ready to sign your first client?** → Start with [CONSULTANT_QUICKSTART.md](CONSULTANT_QUICKSTART.md)

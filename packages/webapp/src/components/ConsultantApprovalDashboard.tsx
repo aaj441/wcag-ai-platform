@@ -29,6 +29,7 @@ export const ConsultantApprovalDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<EmailStatus | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [keywordFilter, setKeywordFilter] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'priority' | 'severity'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -64,6 +65,21 @@ export const ConsultantApprovalDashboard: React.FC = () => {
       result = result.filter(d => d.status === filterStatus);
     }
 
+    // Keyword filter
+    if (keywordFilter.trim()) {
+      const keywords = keywordFilter.toLowerCase().split(',').map(k => k.trim()).filter(k => k);
+      result = result.filter(d => {
+        const draftKeywords = [
+          ...(d.keywords || []),
+          ...(d.keywordTags || []),
+        ].map(k => k.toLowerCase());
+        
+        return keywords.some(k => 
+          draftKeywords.some(dk => dk.includes(k))
+        );
+      });
+    }
+
     // Search
     result = searchDrafts(result, searchQuery);
 
@@ -71,7 +87,7 @@ export const ConsultantApprovalDashboard: React.FC = () => {
     result = sortDrafts(result, sortBy, sortOrder);
 
     return result;
-  }, [drafts, filterStatus, searchQuery, sortBy, sortOrder]);
+  }, [drafts, filterStatus, keywordFilter, searchQuery, sortBy, sortOrder]);
 
   const stats = useMemo(() => {
     return {
@@ -293,6 +309,14 @@ export const ConsultantApprovalDashboard: React.FC = () => {
                 className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-600"
               />
 
+              <input
+                type="text"
+                placeholder="Filter by keywords (e.g., alt text, color contrast, keyboard)..."
+                value={keywordFilter}
+                onChange={(e) => setKeywordFilter(e.target.value)}
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-600"
+              />
+
               <div className="flex space-x-2">
                 <select
                   value={filterStatus}
@@ -376,6 +400,21 @@ export const ConsultantApprovalDashboard: React.FC = () => {
                               #{tag}
                             </span>
                           ))}
+                        </div>
+                      )}
+
+                      {draft.keywords && draft.keywords.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {draft.keywords.slice(0, 3).map(keyword => (
+                            <span key={keyword} className="px-2 py-0.5 rounded text-xs bg-blue-900/30 text-blue-300 border border-blue-800">
+                              🔑 {keyword}
+                            </span>
+                          ))}
+                          {draft.keywords.length > 3 && (
+                            <span className="px-2 py-0.5 rounded text-xs text-gray-400">
+                              +{draft.keywords.length - 3} more
+                            </span>
+                          )}
                         </div>
                       )}
                     </button>
@@ -528,6 +567,33 @@ export const ConsultantApprovalDashboard: React.FC = () => {
                         ) : (
                           <div className="text-gray-400 text-sm italic">{selectedDraft.notes}</div>
                         )}
+                      </div>
+                    )}
+
+                    {/* Keywords Display */}
+                    {(selectedDraft.keywords && selectedDraft.keywords.length > 0) && (
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-400 mb-2">Auto-Extracted Keywords:</label>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedDraft.keywords.map(keyword => (
+                            <span key={keyword} className="px-3 py-1.5 rounded-lg text-sm bg-blue-900/30 text-blue-300 border border-blue-800">
+                              🔑 {keyword}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {(selectedDraft.keywordTags && selectedDraft.keywordTags.length > 0) && (
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-400 mb-2">Manual Keyword Tags:</label>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedDraft.keywordTags.map(tag => (
+                            <span key={tag} className="px-3 py-1.5 rounded-lg text-sm bg-purple-900/30 text-purple-300 border border-purple-800">
+                              🏷️ {tag}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     )}
 
