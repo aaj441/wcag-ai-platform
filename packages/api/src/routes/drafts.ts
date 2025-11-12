@@ -5,6 +5,9 @@
 import { Router, Request, Response } from 'express';
 import { getAllDrafts, getDraftById, createDraft, updateDraft, deleteDraft } from '../data/store';
 import { ApiResponse, EmailDraft } from '../types';
+import { extractKeywordsFromViolations } from '../services/keywordExtractor';
+import { processAlertsForDraft, getAlertsForDraft } from '../services/alertService';
+import { buildTemplateContext, substituteTemplateVariables, generateSubject, generateEmailBody } from '../services/templateService';
 
 const router = Router();
 
@@ -14,7 +17,7 @@ const router = Router();
  */
 router.get('/', (req: Request, res: Response) => {
   try {
-    const { status, search } = req.query;
+    const { status, search, keyword, tag, violationType } = req.query;
     let drafts = getAllDrafts();
 
     // Filter by status
@@ -30,6 +33,31 @@ router.get('/', (req: Request, res: Response) => {
         d.subject.toLowerCase().includes(searchLower) ||
         d.company?.toLowerCase().includes(searchLower) ||
         d.body.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Keyword filter
+    if (keyword && typeof keyword === 'string') {
+      const keywordLower = keyword.toLowerCase();
+      drafts = drafts.filter(d => 
+        d.keywords?.some(k => k.toLowerCase().includes(keywordLower))
+      );
+    }
+
+    // Tag filter
+    if (tag && typeof tag === 'string') {
+      const tagLower = tag.toLowerCase();
+      drafts = drafts.filter(d => 
+        d.keywordTags?.some(t => t.toLowerCase().includes(tagLower)) ||
+        d.tags?.some(t => t.toLowerCase().includes(tagLower))
+      );
+    }
+
+    // Violation type filter
+    if (violationType && typeof violationType === 'string') {
+      const typeLower = violationType.toLowerCase();
+      drafts = drafts.filter(d => 
+        d.keywordTags?.some(t => t.toLowerCase().includes(typeLower))
       );
     }
 
@@ -86,7 +114,7 @@ router.get('/:id', (req: Request, res: Response) => {
  */
 router.post('/', (req: Request, res: Response) => {
   try {
-    const { recipient, subject, body, violations, recipientName, company, tags, notes } = req.body;
+    const { recipient, subject, body, violations, recipientName, company, tags, notes, useTemplate } = req.body;
 
     // Validation
     if (!recipient || !subject || !body) {
@@ -97,22 +125,49 @@ router.post('/', (req: Request, res: Response) => {
       return res.status(400).json(response);
     }
 
+    // Extract keywords and tags from violations if present
+    let keywords: string[] = [];
+    let keywordTags: string[] = [];
+    let processedSubject = subject;
+    let processedBody = body;
+
+    if (violations && violations.length > 0) {
+      const extracted = extractKeywordsFromViolations(violations);
+      keywords = extracted.allKeywords;
+      keywordTags = extracted.allTags;
+
+      // Apply template substitution if requested
+      if (useTemplate) {
+        const context = buildTemplateContext(violations, recipientName, company);
+        processedSubject = substituteTemplateVariables(subject, context);
+        processedBody = substituteTemplateVariables(body, context);
+      }
+    }
+
     const newDraft = createDraft({
       recipient,
       recipientName,
       company,
-      subject,
-      body,
+      subject: processedSubject,
+      body: processedBody,
       violations: violations || [],
       status: 'draft',
       tags,
       notes,
+      keywords,
+      keywordTags,
     });
 
-    const response: ApiResponse<EmailDraft> = {
+    // Process alerts for the new draft
+    const alerts = processAlertsForDraft(newDraft);
+
+    const response: ApiResponse<EmailDraft & { alerts?: any[] }> = {
       success: true,
-      data: newDraft,
-      message: 'Draft created successfully',
+      data: {
+        ...newDraft,
+        alerts: alerts.length > 0 ? alerts : undefined,
+      },
+      message: `Draft created successfully${alerts.length > 0 ? ` with ${alerts.length} alert(s)` : ''}`,
     };
 
     res.status(201).json(response);
@@ -300,6 +355,132 @@ router.delete('/:id', (req: Request, res: Response) => {
     const response: ApiResponse = {
       success: false,
       error: 'Failed to delete draft',
+    };
+    res.status(500).json(response);
+  }
+});
+
+/**
+ * GET /api/drafts/:id/keywords
+ * Get extracted keywords for a specific draft
+ */
+router.get('/:id/keywords', (req: Request, res: Response) => {
+  try {
+    const draft = getDraftById(req.params.id);
+
+    if (!draft) {
+      const response: ApiResponse = {
+        success: false,
+        error: 'Draft not found',
+      };
+      return res.status(404).json(response);
+    }
+
+    const response: ApiResponse<{
+      keywords: string[];
+      keywordTags: string[];
+      violations: number;
+    }> = {
+      success: true,
+      data: {
+        keywords: draft.keywords || [],
+        keywordTags: draft.keywordTags || [],
+        violations: draft.violations.length,
+      },
+    };
+
+    res.json(response);
+  } catch (error) {
+    const response: ApiResponse = {
+      success: false,
+      error: 'Failed to retrieve keywords',
+    };
+    res.status(500).json(response);
+  }
+});
+
+/**
+ * GET /api/drafts/:id/alerts
+ * Get alerts for a specific draft
+ */
+router.get('/:id/alerts', (req: Request, res: Response) => {
+  try {
+    const draft = getDraftById(req.params.id);
+
+    if (!draft) {
+      const response: ApiResponse = {
+        success: false,
+        error: 'Draft not found',
+      };
+      return res.status(404).json(response);
+    }
+
+    const alerts = getAlertsForDraft(req.params.id);
+
+    const response: ApiResponse<typeof alerts> = {
+      success: true,
+      data: alerts,
+      message: `Found ${alerts.length} alert(s)`,
+    };
+
+    res.json(response);
+  } catch (error) {
+    const response: ApiResponse = {
+      success: false,
+      error: 'Failed to retrieve alerts',
+    };
+    res.status(500).json(response);
+  }
+});
+
+/**
+ * POST /api/drafts/:id/regenerate
+ * Regenerate draft content using templates
+ */
+router.post('/:id/regenerate', (req: Request, res: Response) => {
+  try {
+    const draft = getDraftById(req.params.id);
+
+    if (!draft) {
+      const response: ApiResponse = {
+        success: false,
+        error: 'Draft not found',
+      };
+      return res.status(404).json(response);
+    }
+
+    const { subjectTemplate, bodyTemplate } = req.body;
+
+    const newSubject = subjectTemplate 
+      ? substituteTemplateVariables(
+          subjectTemplate, 
+          buildTemplateContext(draft.violations, draft.recipientName, draft.company)
+        )
+      : generateSubject(null, draft.violations, draft.company);
+
+    const newBody = bodyTemplate
+      ? substituteTemplateVariables(
+          bodyTemplate,
+          buildTemplateContext(draft.violations, draft.recipientName, draft.company)
+        )
+      : generateEmailBody(null, draft.violations, draft.recipientName, draft.company);
+
+    const updatedDraft = updateDraft(req.params.id, {
+      subject: newSubject,
+      body: newBody,
+    });
+
+    const response: ApiResponse<EmailDraft> = {
+      success: true,
+      data: updatedDraft!,
+      message: 'Draft regenerated successfully',
+    };
+
+    res.json(response);
+  } catch (error) {
+    const response: ApiResponse = {
+      success: false,
+      error: 'Failed to regenerate draft',
     };
     res.status(500).json(response);
   }

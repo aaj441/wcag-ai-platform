@@ -62,6 +62,8 @@ export interface EmailDraft {
   approvedBy?: string;
   approvedAt?: Date;
   tags?: string[];
+  keywords?: string[];
+  keywordTags?: string[];
 }
 
 export interface ConsultantProfile {
