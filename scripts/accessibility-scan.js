@@ -10,7 +10,7 @@
  *   node scripts/accessibility-scan.js <url> --output json
  * 
  * Requirements:
- *   npm install axe-core puppeteer
+ *   npm install axe-core puppeteer node-fetch
  */
 
 const puppeteer = require('puppeteer');

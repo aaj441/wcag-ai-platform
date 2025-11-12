@@ -10,7 +10,7 @@
  *   node scripts/pa11y-scan.js <url> --standard WCAG2AAA
  * 
  * Requirements:
- *   npm install pa11y
+ *   npm install pa11y node-fetch
  */
 
 const pa11y = require('pa11y');
