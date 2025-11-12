@@ -15,6 +15,10 @@ model Scan {
   id                  String   @id @default(cuid())
   websiteUrl          String   @db.VarChar(2048)
 
+  // Multi-Tenant Relation (Optional - for paid clients)
+  clientId          String?   @db.VarChar(255)
+  client            Client?   @relation(fields: [clientId], references: [id])
+
   // Raw scan results (WCAG violations found)
   scanResults         String   @db.Text
 
@@ -43,6 +47,7 @@ model Scan {
   @@index([approvalStatus])
   @@index([aiConfidenceScore])
   @@index([createdAt])
+  @@index([clientId])
 }
 
 // WCAG Violation Details
@@ -124,4 +129,38 @@ model Consultant {
 
   @@index([email])
   @@index([isActive])
+}
+
+// Multi-Tenant Client Management
+model Client {
+  id                String    @id @default(cuid())
+  
+  // Identity
+  email             String    @unique @db.VarChar(255)
+  company           String    @db.VarChar(255)
+  
+  // Subscription & Billing
+  tier              String    @default("free") @db.VarChar(50) // free, starter, pro, enterprise
+  scansRemaining    Int       @default(5) // Decremented with each scan
+  subscriptionId    String?   @db.VarChar(255) // Stripe subscription ID
+  stripeCustomerId  String?   @unique @db.VarChar(255)
+  
+  // Status
+  status            String    @default("active") @db.VarChar(50) // active, suspended, cancelled
+  
+  // API Access
+  apiKey            String?   @unique @db.VarChar(255)
+  
+  // Metadata
+  metadata          Json      @default("{}")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // Relations
+  scans             Scan[]
+  
+  @@index([email])
+  @@index([stripeCustomerId])
+  @@index([apiKey])
+  @@index([status])
 }
