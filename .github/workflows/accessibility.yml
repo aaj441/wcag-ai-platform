@@ -98,13 +98,17 @@ jobs:
           API_URL: http://localhost:3001
         run: |
           if [ -f axe-results.json ]; then
+            # Use jq to properly escape JSON values
+            COMMIT_SHA=$(echo "${{ github.sha }}" | jq -R .)
+            BRANCH=$(echo "${{ github.ref_name }}" | jq -R .)
+            
             curl -X POST http://localhost:3001/api/evidence/ci-scan \
               -H "Content-Type: application/json" \
               -d @- <<EOF
           {
             "prNumber": ${{ github.event.pull_request.number || 0 }},
-            "commitSha": "${{ github.sha }}",
-            "branch": "${{ github.ref_name }}",
+            "commitSha": ${COMMIT_SHA},
+            "branch": ${BRANCH},
             "passed": $([ "${{ steps.parse-results.outputs.critical }}" -eq 0 ] && echo "true" || echo "false"),
             "complianceScore": ${{ steps.parse-results.outputs.score }},
             "violations": $(cat axe-results.json | jq '.violations'),

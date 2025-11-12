@@ -201,7 +201,7 @@ export interface EvidenceRecord {
   lowCount: number;
   scanType: 'manual' | 'automated' | 'ci-cd';
   scanTool: string;
-  violations: Violation[];
+  violations: Violation[]; // Uses same structure as LegacyViolation from backend
   screenshotUrl?: string;
   reportUrl?: string;
   clientId?: string;

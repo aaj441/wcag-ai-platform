@@ -14,8 +14,6 @@
  */
 
 const pa11y = require('pa11y');
-const fs = require('fs');
-const path = require('path');
 
 // Configuration
 const CONFIG = {

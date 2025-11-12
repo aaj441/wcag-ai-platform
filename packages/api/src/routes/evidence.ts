@@ -113,8 +113,26 @@ router.get('/', (req: Request, res: Response) => {
     if (clientId) filters.clientId = clientId as string;
     if (projectId) filters.projectId = projectId as string;
     if (scanType) filters.scanType = scanType as string;
-    if (startDate) filters.startDate = new Date(startDate as string);
-    if (endDate) filters.endDate = new Date(endDate as string);
+    if (startDate) {
+      const parsedStartDate = new Date(startDate as string);
+      if (isNaN(parsedStartDate.getTime())) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid startDate format'
+        } as ApiResponse);
+      }
+      filters.startDate = parsedStartDate;
+    }
+    if (endDate) {
+      const parsedEndDate = new Date(endDate as string);
+      if (isNaN(parsedEndDate.getTime())) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid endDate format'
+        } as ApiResponse);
+      }
+      filters.endDate = parsedEndDate;
+    }
     if (minComplianceScore) filters.minComplianceScore = parseInt(minComplianceScore as string);
     if (maxComplianceScore) filters.maxComplianceScore = parseInt(maxComplianceScore as string);
 

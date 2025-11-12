@@ -20,7 +20,6 @@ export const EvidenceVaultDashboard: React.FC = () => {
   const [selectedPeriod, setSelectedPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'quarterly'>('monthly');
   const [filterScanType, setFilterScanType] = useState<'all' | 'manual' | 'automated' | 'ci-cd'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedRecord, setSelectedRecord] = useState<EvidenceRecord | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   // ============================================================================
@@ -50,6 +49,7 @@ export const EvidenceVaultDashboard: React.FC = () => {
       const reports = await apiService.getQuarterlyReports();
       setQuarterlyReports(reports);
 
+      // Only show success notification if all data loads without errors
       addNotification('success', 'Evidence vault data loaded successfully');
     } catch (error) {
       addNotification('error', 'Failed to load evidence vault data');
@@ -91,12 +91,18 @@ export const EvidenceVaultDashboard: React.FC = () => {
       read: false,
     };
     setNotifications(prev => [notification, ...prev]);
-
-    // Auto-remove after 5 seconds
-    setTimeout(() => {
-      setNotifications(prev => prev.filter(n => n.id !== notification.id));
-    }, 5000);
   }
+
+  // Auto-remove notifications after 5 seconds
+  useEffect(() => {
+    const timers = notifications.map(notification => 
+      setTimeout(() => {
+        setNotifications(prev => prev.filter(n => n.id !== notification.id));
+      }, 5000)
+    );
+    
+    return () => timers.forEach(timer => clearTimeout(timer));
+  }, [notifications]);
 
   async function handleDeleteEvidence(id: string) {
     if (!confirm('Are you sure you want to delete this evidence record?')) {
@@ -115,6 +121,12 @@ export const EvidenceVaultDashboard: React.FC = () => {
   async function handleGenerateQuarterlyReport() {
     const quarter = prompt('Enter quarter (e.g., Q1-2024):');
     if (!quarter) return;
+
+    const quarterPattern = /^Q[1-4]-\d{4}$/;
+    if (!quarterPattern.test(quarter)) {
+      addNotification('error', 'Invalid quarter format. Use Q1-2024 format.');
+      return;
+    }
 
     try {
       const report = await apiService.generateQuarterlyReport(quarter);

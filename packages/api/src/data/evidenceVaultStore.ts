@@ -26,6 +26,8 @@ export function storeEvidence(record: Omit<EvidenceRecord, 'id' | 'timestamp'>):
   evidenceRecords.push(newRecord);
 
   // Auto-cleanup expired records
+  // Note: In production, move cleanup to a scheduled background task
+  // to avoid race conditions with concurrent requests
   cleanupExpiredEvidence();
 
   return newRecord;
