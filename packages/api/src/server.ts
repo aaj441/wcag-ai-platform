@@ -11,6 +11,7 @@ import violationsRouter from './routes/violations';
 import leadsRouter from './routes/leads';
 import consultantRouter from './routes/consultant';
 import fixesRouter from './routes/fixes';
+import screenshotRouter from './routes/screenshot';
 
 // Load environment variables
 dotenv.config();
@@ -59,6 +60,7 @@ app.use('/api/violations', violationsRouter);
 app.use('/api/leads', leadsRouter);
 app.use('/api/consultant', consultantRouter);
 app.use('/api/fixes', fixesRouter);
+app.use('/api/screenshot', screenshotRouter);
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {
@@ -72,6 +74,7 @@ app.get('/', (req: Request, res: Response) => {
       leads: '/api/leads',
       consultant: '/api/consultant',
       fixes: '/api/fixes',
+      screenshot: '/api/screenshot',
     },
     documentation: 'https://github.com/aaj441/wcag-ai-platform',
   });
