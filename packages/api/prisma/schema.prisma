@@ -338,3 +338,194 @@ model FixTemplate {
   @@index([wcagCriteria])
   @@index([isActive])
 }
+
+// ============================================================================
+// NATIONWIDE DEMOGRAPHIC TARGETING SYSTEM
+// ============================================================================
+
+// Metropolitan Area Configuration (350+ US metros)
+model Metro {
+  id                    String   @id @default(cuid())
+  metroId               String   @unique @db.VarChar(100) // e.g., "denver-co", "nyc-ny"
+  name                  String   @db.VarChar(255) // "Denver, CO"
+  state                 String   @db.VarChar(2)
+  population            Int
+  businessCount         Int      @default(0) // Estimated total businesses
+  adaLawsuitTrend       String   @default("stable") // increasing, stable, decreasing
+  regionalHooks         String[] // ["Colorado tech boom", "Denver small business growth"]
+  dataSourcesAvailable  String[] // ["Chamber", "BBB", "LinkedIn", "ZocDoc"]
+
+  // Relationships
+  industries            IndustryProfile[]
+  prospects             Prospect[]
+
+  // Metadata
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([state])
+  @@index([population])
+  @@index([adaLawsuitTrend])
+}
+
+// Industry Vertical Profile per Metro
+model IndustryProfile {
+  id                    String   @id @default(cuid())
+  metroId               String
+  metro                 Metro    @relation(fields: [metroId], references: [id], onDelete: Cascade)
+
+  verticalId            String   @db.VarChar(100) // "medical", "legal", "financial"
+  name                  String   @db.VarChar(255) // "Medical & Dental"
+  subCategories         String[] // ["dental", "orthopedic", "pediatric"]
+  estimatedProspectsInMetro Int
+  adaRiskLevel          String   @default("medium") // critical, high, medium, low
+  typicalRevenue        String?  // "$1M-$5M"
+  typicalEmployeeCount  Int      @default(0)
+  recentLawsuitCount    Int      @default(0) // past 24 months
+  searchQueries         String[] // Google search patterns
+  keyDirectories        String[] // ZocDoc, HealthGrades, etc
+
+  // Relationship
+  prospects             Prospect[]
+
+  // Metadata
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([metroId, verticalId])
+  @@index([metroId])
+  @@index([adaRiskLevel])
+}
+
+// Prospect (Target Company)
+model Prospect {
+  id                    String   @id @default(cuid())
+  metroId               String
+  metro                 Metro    @relation(fields: [metroId], references: [id], onDelete: Cascade)
+
+  industryId            String
+  industry              IndustryProfile @relation(fields: [industryId], references: [id], onDelete: Cascade)
+
+  // Business Info
+  businessName          String   @db.VarChar(500)
+  industry              String   @db.VarChar(100)
+  website               String   @unique @db.VarChar(2048)
+  ownerName             String?  @db.VarChar(255)
+  email                 String?  @db.VarChar(255)
+  phone                 String?  @db.VarChar(20)
+  address               String?  @db.VarChar(500)
+  city                  String   @db.VarChar(100)
+
+  // Business Intelligence
+  revenue               String?  // "$1M-$5M"
+  employeeCount         Int?
+  foundedYear           Int?
+  websiteLastUpdated    DateTime?
+
+  // Compliance & Scanning
+  complianceScore       Int      @default(0) // 0-100
+  violationCount        Int      @default(0)
+  redFlags              String[] // ["non-responsive", "no-alt-text", "outdated-copyright"]
+  lastScanned           DateTime?
+  audit                 AccessibilityAudit?
+
+  // Risk & Scoring
+  riskScore             Int      @default(50) // 1-100 (lawsuit probability)
+  priority              Int      @default(2) // 1 = highest, 3 = lowest
+  suggestedHook         String?  // "lawsuit-risk", "peer-pressure", "trust", "compliance"
+
+  // Outreach
+  emailsSent            Int      @default(0)
+  lastContacted         DateTime?
+  responseStatus        String?  // "no_response", "interested", "not_interested", "converted"
+  outreachEmails        OutreachEmail[]
+
+  // Metadata
+  dataSource            String   @default("auto-discovery") // "auto-discovery", "manual", "import"
+  sourceUrl             String?  @db.VarChar(2048)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([metroId])
+  @@index([industryId])
+  @@index([priority])
+  @@index([riskScore])
+  @@index([complianceScore])
+  @@index([responseStatus])
+  @@index([city])
+}
+
+// Accessibility Audit Results
+model AccessibilityAudit {
+  id                    String   @id @default(cuid())
+  prospectId            String   @unique
+  prospect              Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+
+  // Scan Results
+  violations            Json     // Array of violations from axe-core
+  redFlags              String[]
+  accessibilityScore    Int
+  wcagLevel             String?  // "A", "AA", "AAA"
+
+  // Device Testing
+  mobileResponsive      Boolean  @default(false)
+  viewportMeta          Boolean  @default(false)
+  hasHttps              Boolean  @default(false)
+
+  // Performance
+  pageLoadTime          Int?     // milliseconds
+  lighthouseScore       Int?     // 0-100
+
+  // Screenshots
+  beforeScreenshot      String?  @db.VarChar(2048) // S3 URL
+  afterScreenshot       String?  @db.VarChar(2048) // S3 URL
+
+  // Metadata
+  scannedAt             DateTime @default(now())
+  scanStatus            String   @default("completed") // "pending", "in_progress", "completed", "failed"
+  scanError             String?  @db.Text
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([prospectId])
+  @@index([scannedAt])
+}
+
+// Outreach Email Tracking
+model OutreachEmail {
+  id                    String   @id @default(cuid())
+  prospectId            String
+  prospect              Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+
+  // Email Content
+  subject               String   @db.VarChar(500)
+  body                  String   @db.Text
+  hook                  String   @db.VarChar(100) // "lawsuit-risk", "peer-pressure", etc
+  localReferences       String[] // ["Colorado tech boom mention"]
+
+  // Delivery
+  status                String   @default("draft") // "draft", "scheduled", "sent", "bounced", "opened", "clicked"
+  scheduledFor          DateTime?
+  sentAt                DateTime?
+  bouncedAt             DateTime?
+
+  // Engagement
+  openCount             Int      @default(0)
+  clickCount            Int      @default(0)
+  responseReceived      Boolean  @default(false)
+  responseReceivedAt    DateTime?
+
+  // Tracking
+  trackingId            String?  @unique @db.VarChar(255)
+  emailProvider         String?  @db.VarChar(50) // "sendgrid", "mailgun", etc
+
+  // Metadata
+  generatedBy           String?  // Template ID or manual
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([prospectId])
+  @@index([status])
+  @@index([sentAt])
+}
