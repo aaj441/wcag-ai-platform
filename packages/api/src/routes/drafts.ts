@@ -6,6 +6,7 @@ import { Router, Request, Response } from 'express';
 import { getAllDrafts, getDraftById, createDraft, updateDraft, deleteDraft } from '../data/store';
 import { ApiResponse, EmailDraft } from '../types';
 import { autoTagDraft } from '../services/keywordExtractor';
+import { generateAlertsForDraft, getDraftsNeedingAttention, getAlertStats } from '../services/keywordAlerting';
 
 const router = Router();
 
@@ -343,6 +344,66 @@ router.delete('/:id', (req: Request, res: Response) => {
     const response: ApiResponse = {
       success: false,
       error: 'Failed to delete draft',
+    };
+    res.status(500).json(response);
+  }
+});
+
+/**
+ * GET /api/drafts/:id/alerts
+ * Get keyword-based alerts for a specific draft
+ */
+router.get('/:id/alerts', (req: Request, res: Response) => {
+  try {
+    const draft = getDraftById(req.params.id);
+
+    if (!draft) {
+      const response: ApiResponse = {
+        success: false,
+        error: 'Draft not found',
+      };
+      return res.status(404).json(response);
+    }
+
+    const alerts = generateAlertsForDraft(draft);
+    const stats = getAlertStats(alerts);
+
+    const response: ApiResponse = {
+      success: true,
+      data: { alerts, stats },
+      message: `Generated ${alerts.length} alert(s) for draft`,
+    };
+
+    res.json(response);
+  } catch (error) {
+    const response: ApiResponse = {
+      success: false,
+      error: 'Failed to generate alerts',
+    };
+    res.status(500).json(response);
+  }
+});
+
+/**
+ * GET /api/drafts/alerts/attention
+ * Get all drafts that need attention based on keywords
+ */
+router.get('/alerts/attention', (req: Request, res: Response) => {
+  try {
+    const allDrafts = getAllDrafts();
+    const draftsNeedingAttention = getDraftsNeedingAttention(allDrafts);
+
+    const response: ApiResponse<EmailDraft[]> = {
+      success: true,
+      data: draftsNeedingAttention,
+      message: `Found ${draftsNeedingAttention.length} draft(s) needing attention`,
+    };
+
+    res.json(response);
+  } catch (error) {
+    const response: ApiResponse = {
+      success: false,
+      error: 'Failed to get drafts needing attention',
     };
     res.status(500).json(response);
   }
