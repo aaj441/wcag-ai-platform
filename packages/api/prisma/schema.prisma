@@ -71,6 +71,9 @@ model Violation {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  // Relations
+  fix             Fix?
+
   @@index([scanId])
   @@index([wcagCriteria])
   @@index([aiConfidence])
@@ -226,4 +229,112 @@ model KeywordSearch {
   createdAt       DateTime @default(now())
 
   @@index([tenantId, createdAt])
+}
+
+// AI-Generated Fix for WCAG Violation
+model Fix {
+  id              String   @id @default(cuid())
+  tenantId        String
+  violationId     String
+  violation       Violation @relation(fields: [violationId], references: [id], onDelete: Cascade)
+
+  // Fix Details
+  wcagCriteria    String   @db.VarChar(10)  // e.g., "1.4.3" (color contrast)
+  issueType       String   @db.VarChar(100) // "missing_alt_text", "low_contrast", "missing_aria", etc
+
+  // Generated Code
+  codeLanguage    String   @default("html") // html, css, javascript, react, vue
+  originalCode    String?  @db.Text        // Original problematic code
+  fixedCode       String   @db.Text        // AI-generated fixed code
+  explanation     String   @db.Text        // Why this fix works
+
+  // Quality & Confidence
+  confidenceScore Float    @default(0.0)   // 0.0-1.0: How confident is the fix correct?
+  reviewStatus    String   @default("pending") // pending, approved, rejected, applied
+
+  // Human Review
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  reviewNotes     String?  @db.Text
+
+  // GitHub Integration (Phase 2)
+  githubBranchName String?
+  githubPRUrl     String?
+  githubCommitSha String?
+
+  // Metadata
+  generatedBy     String   @default("gpt-4") // Model used for generation
+  generationCost  Float    @default(0.0)    // USD cost of generation
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  applications    FixApplication[]
+
+  @@unique([violationId])
+  @@index([tenantId, reviewStatus])
+  @@index([wcagCriteria])
+  @@index([confidenceScore])
+}
+
+// Track when a fix is applied
+model FixApplication {
+  id              String   @id @default(cuid())
+  tenantId        String
+  fixId           String
+  fix             Fix      @relation(fields: [fixId], references: [id], onDelete: Cascade)
+
+  // Application Details
+  appliedBy       String   // User email
+  appliedAt       DateTime @default(now())
+
+  // Where it was applied
+  repository      String?  // GitHub repo URL
+  filePath        String?  // Path in repo
+  branch          String?  // Git branch
+
+  // Outcome
+  success         Boolean  @default(true)
+  errorMessage    String?  @db.Text
+
+  // Verification
+  verificationStatus String @default("pending") // pending, verified, failed
+  verifiedAt      DateTime?
+
+  metadata        Json     @default("{}")
+
+  @@index([tenantId, appliedAt])
+  @@index([fixId])
+}
+
+// Pre-built fix templates for common violations
+model FixTemplate {
+  id              String   @id @default(cuid())
+
+  // Violation this template fixes
+  wcagCriteria    String   @db.VarChar(10)
+  issueType       String   @db.VarChar(100) // e.g., "missing_alt_text", "low_contrast"
+
+  // Template Info
+  name            String   @db.VarChar(255)
+  description     String   @db.Text
+
+  // Code Templates
+  codeLanguages   String[] // ["html", "css", "javascript", "react"]
+  templates       Json     // { "html": "...", "css": "...", etc }
+
+  // Context & Examples
+  examples        Json     // Before/after examples
+  testCases       Json?    // How to verify the fix works
+
+  // Usage
+  usageCount      Int      @default(0)
+  successRate     Float    @default(0.0) // 0-1, from actual applications
+
+  // Maintenance
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([wcagCriteria])
+  @@index([isActive])
 }
