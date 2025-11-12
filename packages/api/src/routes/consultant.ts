@@ -160,7 +160,7 @@ router.post("/scans/:scanId/score-confidence", async (req: Request, res: Respons
           falsePositiveRisk: confidenceResult.falsePositiveRisk,
           recommendedAction: confidenceResult.recommendedAction,
           violations: confidenceResult.violations,
-        },
+        } as any,
       },
       include: { violations: true },
     });

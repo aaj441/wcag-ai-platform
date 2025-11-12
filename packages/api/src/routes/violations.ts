@@ -4,7 +4,7 @@
 
 import { Router, Request, Response } from 'express';
 import { getAllViolations } from '../data/store';
-import { ApiResponse, Violation } from '../types';
+import { ApiResponse, LegacyViolation } from '../types';
 
 const router = Router();
 
@@ -27,7 +27,7 @@ router.get('/', (req: Request, res: Response) => {
       violations = violations.filter(v => v.wcagLevel === wcagLevel);
     }
 
-    const response: ApiResponse<Violation[]> = {
+    const response: ApiResponse<LegacyViolation[]> = {
       success: true,
       data: violations,
       message: `Retrieved ${violations.length} violation(s)`,
