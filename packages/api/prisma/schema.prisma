@@ -125,3 +125,105 @@ model Consultant {
   @@index([email])
   @@index([isActive])
 }
+
+// Company Database (Global lead source)
+model Company {
+  id              String   @id @default(cuid())
+  tenantId        String?  // NULL = global database, can be assigned to tenant
+
+  // Identity
+  name            String
+  website         String   @unique @db.VarChar(2048)
+  domain          String   @unique @db.VarChar(255)
+
+  // Company Info
+  industry        String   @db.VarChar(255)
+  description     String?  @db.Text
+  yearsInBusiness Int?
+  employeeCount   Int?     // 1, 10, 50, 100, 500, 1000, 5000, 10000+
+  revenue         String?  @db.VarChar(50) // "1M-10M", "10M-50M", etc
+
+  // Contact Info
+  contactEmail    String?  @db.VarChar(255)
+  contactPhone    String?  @db.VarChar(20)
+  linkedinUrl     String?  @db.VarChar(2048)
+  crunchbaseUrl   String?  @db.VarChar(2048)
+
+  // Sourcing
+  source          String   @db.VarChar(50)  // "apollo", "hunter", "manual", "web_scrape"
+  sourceId        String?  @db.VarChar(255) // ID from source (e.g., Apollo contact ID)
+
+  // Verification
+  verified        Boolean  @default(false)
+  verifiedAt      DateTime?
+
+  // Metadata
+  metadata        Json     @default("{}")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  leads           Lead[]
+
+  @@index([tenantId])
+  @@index([industry])
+  @@index([employeeCount])
+  @@index([domain])
+}
+
+// Lead (Prospect from keyword search)
+model Lead {
+  id              String   @id @default(cuid())
+  tenantId        String
+  companyId       String
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Lead Info
+  name            String   @db.VarChar(255)
+  email           String   @db.VarChar(255)
+  title           String?  @db.VarChar(255)
+  phone           String?  @db.VarChar(20)
+  linkedinUrl     String?  @db.VarChar(2048)
+
+  // Relevance
+  keywordMatches  String[] // ["fintech", "accessibility"]
+  relevanceScore  Float    @default(0.0)  // 0.0-1.0
+  priorityTier    String   @default("medium")  // low, medium, high
+
+  // Status
+  status          String   @default("new")  // new, contacted, interested, qualified, won, lost
+  lastContacted   DateTime?
+  nextFollowUp    DateTime?
+
+  // Notes & Tags
+  notes           String?  @db.Text
+  tags            String[]
+
+  // Outcomes
+  scansRequested  Int      @default(0)
+  conversionDate  DateTime?
+
+  // Metadata
+  metadata        Json     @default("{}")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([tenantId, email])
+  @@index([tenantId, status])
+  @@index([tenantId, relevanceScore])
+  @@index([tenantId, createdAt])
+}
+
+// Keyword Search History (for analytics)
+model KeywordSearch {
+  id              String   @id @default(cuid())
+  tenantId        String
+
+  keywords        String[]
+  resultsCount    Int
+  leadsCreated    Int
+
+  createdAt       DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+}
