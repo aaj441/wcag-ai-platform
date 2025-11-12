@@ -3,8 +3,8 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { getAllViolations } from '../data/store';
-import { ApiResponse, Violation } from '../types';
+import { prisma } from '../lib/prisma';
+import { ApiResponse } from '../types';
 
 const router = Router();
 
@@ -12,22 +12,36 @@ const router = Router();
  * GET /api/violations
  * Get all violations with optional filtering
  */
-router.get('/', (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
-    const { severity, wcagLevel } = req.query;
-    let violations = getAllViolations();
+    const { severity, scanId } = req.query;
+    
+    const where: any = {};
 
     // Filter by severity
     if (severity) {
-      violations = violations.filter(v => v.severity === severity);
+      where.severity = severity;
     }
 
-    // Filter by WCAG level
-    if (wcagLevel) {
-      violations = violations.filter(v => v.wcagLevel === wcagLevel);
+    // Filter by scan
+    if (scanId && typeof scanId === 'string') {
+      where.scanId = scanId;
     }
 
-    const response: ApiResponse<Violation[]> = {
+    const violations = await prisma.violation.findMany({
+      where,
+      include: {
+        scan: {
+          select: {
+            websiteUrl: true,
+            createdAt: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const response: ApiResponse<typeof violations> = {
       success: true,
       data: violations,
       message: `Retrieved ${violations.length} violation(s)`,
@@ -35,6 +49,7 @@ router.get('/', (req: Request, res: Response) => {
 
     res.json(response);
   } catch (error) {
+    console.error('Error fetching violations:', error);
     const response: ApiResponse = {
       success: false,
       error: 'Failed to retrieve violations',
@@ -47,9 +62,9 @@ router.get('/', (req: Request, res: Response) => {
  * GET /api/violations/stats
  * Get violation statistics
  */
-router.get('/stats', (req: Request, res: Response) => {
+router.get('/stats', async (req: Request, res: Response) => {
   try {
-    const violations = getAllViolations();
+    const violations = await prisma.violation.findMany();
 
     const stats = {
       total: violations.length,
@@ -58,11 +73,6 @@ router.get('/stats', (req: Request, res: Response) => {
         high: violations.filter(v => v.severity === 'high').length,
         medium: violations.filter(v => v.severity === 'medium').length,
         low: violations.filter(v => v.severity === 'low').length,
-      },
-      byLevel: {
-        A: violations.filter(v => v.wcagLevel === 'A').length,
-        AA: violations.filter(v => v.wcagLevel === 'AA').length,
-        AAA: violations.filter(v => v.wcagLevel === 'AAA').length,
       },
     };
 
@@ -73,6 +83,7 @@ router.get('/stats', (req: Request, res: Response) => {
 
     res.json(response);
   } catch (error) {
+    console.error('Error fetching violation stats:', error);
     const response: ApiResponse = {
       success: false,
       error: 'Failed to retrieve statistics',

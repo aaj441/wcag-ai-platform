@@ -3,11 +3,11 @@
  * Specialized dataset for financial services testing
  */
 
-import { EmailDraft, Violation } from '../types';
+import { EmailDraft, LegacyViolation } from '../types';
 import { fintechViolations, fintechEmailDrafts, fintechConsultants } from './fintechTestData';
 
 // Fintech violations database
-export const violationsDB: Violation[] = [...fintechViolations];
+export const violationsDB: LegacyViolation[] = [...fintechViolations];
 
 // Fintech email drafts database
 export const emailDraftsDB: EmailDraft[] = [...fintechEmailDrafts];
@@ -55,11 +55,11 @@ export function deleteDraft(id: string): boolean {
   return true;
 }
 
-export function getAllViolations(): Violation[] {
+export function getAllViolations(): LegacyViolation[] {
   return [...violationsDB];
 }
 
-export function getViolationsByCompany(company: string): Violation[] {
+export function getViolationsByCompany(company: string): LegacyViolation[] {
   // Filter violations by company in URL or pageTitle
   return violationsDB.filter(v =>
     v.url.toLowerCase().includes(company.toLowerCase()) ||

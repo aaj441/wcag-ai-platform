@@ -10,6 +10,8 @@ import {
   ClientBrand,
   ScanReport
 } from '../services/reportGenerator';
+import { prisma } from '../lib/prisma';
+import { prismaToLegacyViolation } from '../utils/violationAdapter';
 import { getAllDrafts } from '../data/fintechStore';
 
 const router = Router();
@@ -29,20 +31,38 @@ router.post('/generate', async (req: Request, res: Response) => {
       });
     }
 
-    // Mock scan data (in production, fetch from database)
-    const mockScan: ScanReport = {
-      id: scanId,
-      url: 'https://example.com',
-      complianceScore: 75,
-      violations: [], // Would be populated from actual data
-      createdAt: new Date(),
-      workerId: 'worker-123',
-      signature: 'abc123def456',
+    // Fetch scan from database
+    const scan = await prisma.scan.findUnique({
+      where: { id: scanId },
+      include: {
+        violations: true,
+        client: true
+      }
+    });
+
+    if (!scan) {
+      return res.status(404).json({
+        success: false,
+        error: 'Scan not found'
+      });
+    }
+
+    // Convert Prisma violations to legacy format for report generation
+    const legacyViolations = scan.violations.map(v => 
+      prismaToLegacyViolation(v, scan.websiteUrl)
+    );
+
+    const scanReport: ScanReport = {
+      id: scan.id,
+      url: scan.websiteUrl,
+      complianceScore: calculateComplianceScore(legacyViolations),
+      violations: legacyViolations,
+      createdAt: scan.createdAt,
       aiRemediationPlan: 'Fix critical issues first, then address high-priority items.'
     };
 
     const brand: ClientBrand = clientBrand || {
-      companyName: 'Client Company',
+      companyName: scan.client?.company || 'Client Company',
       primaryColor: '#2563eb',
       secondaryColor: '#64748b'
     };
@@ -51,10 +71,10 @@ router.post('/generate', async (req: Request, res: Response) => {
     let contentType: string;
 
     if (format === 'markdown') {
-      report = generateMarkdownReport(mockScan, brand);
+      report = generateMarkdownReport(scanReport, brand);
       contentType = 'text/markdown';
     } else {
-      report = generateHTMLReport(mockScan, brand);
+      report = generateHTMLReport(scanReport, brand);
       contentType = 'text/html';
     }
 
