@@ -104,3 +104,98 @@ export interface Consultant {
   lastContacted?: Date;
   responseRate?: number;
 }
+
+/**
+ * Evidence Vault - Store scan evidence for compliance tracking and legal defense
+ */
+export interface EvidenceRecord {
+  id: string;
+  scanId: string;
+  url: string;
+  timestamp: Date;
+  complianceScore: number;
+  violationsCount: number;
+  criticalCount: number;
+  highCount: number;
+  mediumCount: number;
+  lowCount: number;
+  scanType: 'manual' | 'automated' | 'ci-cd';
+  scanTool: string; // 'axe-core' | 'pa11y' | 'lighthouse' | 'manual'
+  violations: LegacyViolation[];
+  screenshotUrl?: string;
+  reportUrl?: string;
+  clientId?: string;
+  projectId?: string;
+  retentionDays: number; // Default 90 days
+  tags?: string[];
+  metadata?: Record<string, any>;
+}
+
+/**
+ * Compliance Metrics - Aggregate data for dashboard
+ */
+export interface ComplianceMetrics {
+  period: 'daily' | 'weekly' | 'monthly' | 'quarterly';
+  startDate: Date;
+  endDate: Date;
+  totalScans: number;
+  averageComplianceScore: number;
+  totalViolations: number;
+  violationsByType: {
+    critical: number;
+    high: number;
+    medium: number;
+    low: number;
+  };
+  trendData: Array<{
+    date: Date;
+    complianceScore: number;
+    violationsCount: number;
+  }>;
+  topViolations: Array<{
+    wcagCriteria: string;
+    count: number;
+    severity: ViolationSeverity;
+  }>;
+  scanCoverage: {
+    totalUrls: number;
+    scannedUrls: number;
+    coveragePercentage: number;
+  };
+}
+
+/**
+ * Quarterly Report Data
+ */
+export interface QuarterlyReport {
+  id: string;
+  quarter: string; // e.g., "Q1-2024"
+  clientId?: string;
+  generatedAt: Date;
+  metrics: ComplianceMetrics;
+  executiveSummary: string;
+  evidenceRecords: EvidenceRecord[];
+  recommendations: string[];
+  legalDefenseDocumentation: {
+    complianceEfforts: string[];
+    remediationActions: string[];
+    ongoingMonitoring: string[];
+  };
+}
+
+/**
+ * CI/CD Scan Result
+ */
+export interface CIScanResult {
+  id: string;
+  prNumber?: number;
+  commitSha: string;
+  branch: string;
+  timestamp: Date;
+  passed: boolean;
+  complianceScore: number;
+  violations: LegacyViolation[];
+  criticalBlockers: number;
+  scanDurationMs: number;
+  tool: string;
+}
