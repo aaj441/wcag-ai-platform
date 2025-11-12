@@ -28,6 +28,9 @@ export interface Violation {
   priority: number;
 }
 
+// Alias for backend compatibility - identical to backend's LegacyViolation type
+export type LegacyViolation = Violation;
+
 export interface EmailDraft {
   id: string;
   recipient: string;
@@ -201,7 +204,7 @@ export interface EvidenceRecord {
   lowCount: number;
   scanType: 'manual' | 'automated' | 'ci-cd';
   scanTool: string;
-  violations: Violation[]; // Uses same structure as LegacyViolation from backend
+  violations: LegacyViolation[]; // Matches backend LegacyViolation type
   screenshotUrl?: string;
   reportUrl?: string;
   clientId?: string;
