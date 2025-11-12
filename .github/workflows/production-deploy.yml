@@ -70,7 +70,6 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: ./packages/api/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -114,7 +113,6 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: ./packages/webapp/package-lock.json
 
       - name: Install dependencies
         run: npm ci
