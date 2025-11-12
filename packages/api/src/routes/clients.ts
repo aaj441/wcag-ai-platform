@@ -5,6 +5,7 @@
 
 import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
+import { sendOnboardingEmail } from '../services/emailService';
 import crypto from 'crypto';
 
 const router = Router();
@@ -70,6 +71,13 @@ router.post('/onboard', async (req: Request, res: Response) => {
     // 2. Create Stripe customer + subscription
     // 3. Send welcome email with API key
     // 4. Trigger onboarding email via SendGrid
+
+    // Send onboarding email
+    const emailSent = await sendOnboardingEmail(email, company, apiKey, tier);
+    
+    if (!emailSent) {
+      console.warn('Failed to send onboarding email, but client was created');
+    }
 
     res.status(201).json({
       success: true,

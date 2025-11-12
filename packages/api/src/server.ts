@@ -6,12 +6,14 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { initSentry, addSentryErrorHandler } from './services/sentry';
 import draftsRouter from './routes/drafts';
 import violationsRouter from './routes/violations';
 import clientsRouter from './routes/clients';
 import slaRouter from './routes/sla';
 import reportsRouter from './routes/reports';
 import proposalsRouter from './routes/proposals';
+import webhooksRouter from './routes/webhooks';
 
 // Load environment variables
 dotenv.config();
@@ -19,6 +21,11 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
+
+// ============================================================================
+// SENTRY INITIALIZATION (Must be first)
+// ============================================================================
+initSentry(app);
 
 // ============================================================================
 // MIDDLEWARE
@@ -30,7 +37,8 @@ app.use(cors({
   credentials: true,
 }));
 
-// Body parsing
+// Body parsing (except for webhooks which need raw body)
+app.use('/api/webhooks', express.raw({ type: 'application/json' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -44,14 +52,29 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // ROUTES
 // ============================================================================
 
-// Health check
-app.get('/health', (req: Request, res: Response) => {
-  res.json({
-    success: true,
-    message: 'WCAG AI Platform API is running',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
-  });
+// Health check with database connectivity
+app.get('/health', async (req: Request, res: Response) => {
+  try {
+    // Check database connectivity
+    const { prisma } = await import('./lib/prisma');
+    await prisma.$queryRaw`SELECT 1`;
+
+    res.json({
+      success: true,
+      message: 'WCAG AI Platform API is running',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      database: 'connected'
+    });
+  } catch (error) {
+    res.status(503).json({
+      success: false,
+      message: 'Service degraded',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      database: 'disconnected'
+    });
+  }
 });
 
 // API routes
@@ -61,6 +84,7 @@ app.use('/api/clients', clientsRouter);
 app.use('/api/sla', slaRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/proposals', proposalsRouter);
+app.use('/api/webhooks', webhooksRouter);
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {
@@ -75,6 +99,7 @@ app.get('/', (req: Request, res: Response) => {
       sla: '/api/sla',
       reports: '/api/reports',
       proposals: '/api/proposals',
+      webhooks: '/api/webhooks',
     },
     documentation: 'https://github.com/aaj441/wcag-ai-platform',
   });
@@ -83,6 +108,9 @@ app.get('/', (req: Request, res: Response) => {
 // ============================================================================
 // ERROR HANDLING
 // ============================================================================
+
+// Sentry error handler (must be before other error handlers)
+addSentryErrorHandler(app);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
