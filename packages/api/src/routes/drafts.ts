@@ -5,6 +5,7 @@
 import { Router, Request, Response } from 'express';
 import { getAllDrafts, getDraftById, createDraft, updateDraft, deleteDraft } from '../data/store';
 import { ApiResponse, EmailDraft } from '../types';
+import { autoTagDraft } from '../services/keywordExtractor';
 
 const router = Router();
 
@@ -14,7 +15,7 @@ const router = Router();
  */
 router.get('/', (req: Request, res: Response) => {
   try {
-    const { status, search } = req.query;
+    const { status, search, keywords } = req.query;
     let drafts = getAllDrafts();
 
     // Filter by status
@@ -22,15 +23,39 @@ router.get('/', (req: Request, res: Response) => {
       drafts = drafts.filter(d => d.status === status);
     }
 
-    // Search filter
+    // Keyword filter
+    if (keywords && typeof keywords === 'string') {
+      const keywordList = keywords.split(',').map(k => k.trim().toLowerCase());
+      drafts = drafts.filter(d => {
+        const draftKeywords = [
+          ...(d.keywords || []),
+          ...(d.keywordTags || []),
+        ].map(k => k.toLowerCase());
+        
+        return keywordList.some(k => 
+          draftKeywords.some(dk => dk.includes(k))
+        );
+      });
+    }
+
+    // Search filter (now includes keyword search)
     if (search && typeof search === 'string') {
       const searchLower = search.toLowerCase();
-      drafts = drafts.filter(d =>
-        d.recipient.toLowerCase().includes(searchLower) ||
-        d.subject.toLowerCase().includes(searchLower) ||
-        d.company?.toLowerCase().includes(searchLower) ||
-        d.body.toLowerCase().includes(searchLower)
-      );
+      drafts = drafts.filter(d => {
+        const keywordMatch = (d.keywords || []).some(k => 
+          k.toLowerCase().includes(searchLower)
+        ) || (d.keywordTags || []).some(k => 
+          k.toLowerCase().includes(searchLower)
+        );
+        
+        return (
+          d.recipient.toLowerCase().includes(searchLower) ||
+          d.subject.toLowerCase().includes(searchLower) ||
+          d.company?.toLowerCase().includes(searchLower) ||
+          d.body.toLowerCase().includes(searchLower) ||
+          keywordMatch
+        );
+      });
     }
 
     const response: ApiResponse<EmailDraft[]> = {
@@ -86,7 +111,7 @@ router.get('/:id', (req: Request, res: Response) => {
  */
 router.post('/', (req: Request, res: Response) => {
   try {
-    const { recipient, subject, body, violations, recipientName, company, tags, notes } = req.body;
+    const { recipient, subject, body, violations, recipientName, company, tags, notes, keywordTags } = req.body;
 
     // Validation
     if (!recipient || !subject || !body) {
@@ -97,16 +122,22 @@ router.post('/', (req: Request, res: Response) => {
       return res.status(400).json(response);
     }
 
+    // Auto-extract keywords from violations and body
+    const violationList = violations || [];
+    const { keywords } = autoTagDraft(violationList, body);
+
     const newDraft = createDraft({
       recipient,
       recipientName,
       company,
       subject,
       body,
-      violations: violations || [],
+      violations: violationList,
       status: 'draft',
       tags,
       notes,
+      keywords,
+      keywordTags: keywordTags || [],
     });
 
     const response: ApiResponse<EmailDraft> = {
@@ -132,6 +163,18 @@ router.post('/', (req: Request, res: Response) => {
 router.put('/:id', (req: Request, res: Response) => {
   try {
     const updates = req.body;
+    
+    // If violations or body are updated, re-extract keywords
+    if (updates.violations || updates.body) {
+      const currentDraft = getDraftById(req.params.id);
+      if (currentDraft) {
+        const violations = updates.violations || currentDraft.violations;
+        const body = updates.body || currentDraft.body;
+        const { keywords } = autoTagDraft(violations, body);
+        updates.keywords = keywords;
+      }
+    }
+    
     const updatedDraft = updateDraft(req.params.id, updates);
 
     if (!updatedDraft) {

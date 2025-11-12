@@ -3,10 +3,10 @@
  * Production would use PostgreSQL/MongoDB
  */
 
-import { EmailDraft, Violation } from '../types';
+import { EmailDraft, LegacyViolation } from '../types';
 
 // Mock violations database
-export const violationsDB: Violation[] = [
+export const violationsDB: LegacyViolation[] = [
   {
     id: 'v1',
     url: 'https://example-client.com/homepage',
@@ -85,6 +85,8 @@ WCAG AI Platform Team`,
     status: 'pending_review',
     notes: 'High-priority prospect. Company has 50+ employees.',
     tags: ['high-value', 'tech-sector'],
+    keywords: ['color contrast', 'text readability', 'visual', 'contrast ratio', 'alt text', 'non-text content', 'images', 'alternative text', 'screen reader', 'critical', 'high', 'WCAG AA', 'WCAG A', 'WCAG 1.4.3', 'WCAG 1.1.1', 'button', 'navigation', 'compliance'],
+    keywordTags: ['high-priority', 'legal-risk'],
   },
   {
     id: 'draft2',
@@ -109,6 +111,8 @@ WCAG Team`,
     updatedAt: new Date('2025-11-09T14:30:00'),
     status: 'draft',
     tags: ['design-agency'],
+    keywords: ['labels', 'instructions', 'form', 'input', 'medium', 'WCAG A', 'WCAG 3.3.2', 'accessibility'],
+    keywordTags: ['form-issues'],
   },
 ];
 
@@ -152,6 +156,6 @@ export function deleteDraft(id: string): boolean {
   return true;
 }
 
-export function getAllViolations(): Violation[] {
+export function getAllViolations(): LegacyViolation[] {
   return [...violationsDB];
 }
