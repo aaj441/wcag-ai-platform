@@ -93,7 +93,7 @@ router.get('/search-by-icp', async (req: Request, res: Response) => {
         estimatedTAM: icp.estimatedTAM,
         estimatedSOM: icp.estimatedSOM,
       },
-      businesses: businesses.map((b) => ({
+      businesses: businesses.map((b: any) => ({
         id: b.id,
         name: b.name,
         website: b.website,
@@ -186,15 +186,15 @@ router.post('/geographic-cluster', async (req: Request, res: Response) => {
     // Calculate market opportunity summary
     const summary = {
       totalICPs: icpProfiles.length,
-      totalTAM: icpProfiles.reduce((sum, icp) => sum + icp.estimatedTAM, 0),
-      totalSOM: icpProfiles.reduce((sum, icp) => sum + icp.estimatedSOM, 0),
-      totalProspects: icpProfiles.reduce((sum, icp) => sum + icp.targetBusinesses.length, 0),
+      totalTAM: icpProfiles.reduce((sum: number, icp: any) => sum + icp.estimatedTAM, 0),
+      totalSOM: icpProfiles.reduce((sum: number, icp: any) => sum + icp.estimatedSOM, 0),
+      totalProspects: icpProfiles.reduce((sum: number, icp: any) => sum + icp.targetBusinesses.length, 0),
     };
 
     return res.json({
       success: true,
       summary,
-      icpProfiles: icpProfiles.map((icp) => ({
+      icpProfiles: icpProfiles.map((icp: any) => ({
         id: icp.id,
         name: icp.name,
         industry: icp.industry.name,
@@ -243,7 +243,7 @@ router.get('/decision-makers', async (req: Request, res: Response) => {
     return res.json({
       success: true,
       count: decisionMakers.length,
-      decisionMakers: decisionMakers.map((dm) => ({
+      decisionMakers: decisionMakers.map((dm: any) => ({
         id: dm.id,
         title: dm.title,
         role: dm.role,
@@ -355,7 +355,7 @@ router.post('/find-contacts', async (req: Request, res: Response) => {
         motivations: JSON.parse(dm.motivations),
         preferredChannel: dm.preferredOutreachChannel,
       },
-      contacts: contacts.map((c) => ({
+      contacts: contacts.map((c: any) => ({
         id: c.id,
         name: `${c.firstName} ${c.lastName}`,
         email: c.email,
@@ -416,19 +416,19 @@ router.get('/market-analysis', async (req: Request, res: Response) => {
 
     const analysis = {
       totalICPs: icps.length,
-      totalTAM: icps.reduce((sum, icp) => sum + icp.estimatedTAM, 0),
-      totalSOM: icps.reduce((sum, icp) => sum + icp.estimatedSOM, 0),
-      totalProspects: icps.reduce((sum, icp) => sum + icp._count.targetBusinesses, 0),
-      averageClosingRate: (icps.reduce((sum, icp) => sum + icp.closingRate, 0) / icps.length).toFixed(2),
+      totalTAM: icps.reduce((sum: number, icp: any) => sum + icp.estimatedTAM, 0),
+      totalSOM: icps.reduce((sum: number, icp: any) => sum + icp.estimatedSOM, 0),
+      totalProspects: icps.reduce((sum: number, icp: any) => sum + icp._count.targetBusinesses, 0),
+      averageClosingRate: (icps.reduce((sum: number, icp: any) => sum + icp.closingRate, 0) / icps.length).toFixed(2),
       averageSalesCycle: Math.round(
-        icps.reduce((sum, icp) => sum + icp.estimatedSalesCycle, 0) / icps.length
+        icps.reduce((sum: number, icp: any) => sum + icp.estimatedSalesCycle, 0) / icps.length
       ),
       byIndustry: {} as any,
       byMetro: {} as any,
     };
 
     // Aggregate by industry
-    icps.forEach((icp) => {
+    icps.forEach((icp: any) => {
       if (!analysis.byIndustry[icp.industry.name]) {
         analysis.byIndustry[icp.industry.name] = {
           tam: 0,
@@ -444,7 +444,7 @@ router.get('/market-analysis', async (req: Request, res: Response) => {
     });
 
     // Aggregate by metro
-    icps.forEach((icp) => {
+    icps.forEach((icp: any) => {
       if (!analysis.byMetro[icp.metropolitanArea.name]) {
         analysis.byMetro[icp.metropolitanArea.name] = {
           tam: 0,
@@ -497,7 +497,7 @@ router.get('/opportunity-score', async (req: Request, res: Response) => {
       take: parseInt(limit as string),
     });
 
-    const scored = icps.map((icp) => ({
+    const scored = icps.map((icp: any) => ({
       id: icp.id,
       name: icp.name,
       industry: icp.industry.name,
@@ -513,7 +513,7 @@ router.get('/opportunity-score', async (req: Request, res: Response) => {
     return res.json({
       success: true,
       opportunities: scored.sort(
-        (a, b) => b.opportunityScore - a.opportunityScore
+        (a: any, b: any) => b.opportunityScore - a.opportunityScore
       ),
     });
   } catch (error) {
