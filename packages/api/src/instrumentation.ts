@@ -42,7 +42,8 @@ export function initializeTracing() {
     ],
   });
 
-  console.log('✅ OpenTelemetry tracing initialized');
+  // Note: Logger not available during instrumentation initialization
+  // console.log('✅ OpenTelemetry tracing initialized');
   return provider;
 }
 

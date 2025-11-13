@@ -25,6 +25,7 @@ export interface Violation {
   screenshot?: string;
   codeSnippet?: string;
   affectedUsers?: string;
+  keywords?: string[];
   priority: number;
 }
 
@@ -36,6 +37,7 @@ export interface EmailDraft {
   subject: string;
   body: string;
   violations: Violation[];
+  keywords?: string[];
   createdAt: Date;
   updatedAt: Date;
   status: EmailStatus;

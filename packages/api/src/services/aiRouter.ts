@@ -42,11 +42,9 @@ class AIRouter {
     }
 
     try {
-      this.ldClient = LaunchDarkly.init(sdkKey, {
-        timeout: 5,
-      });
+      this.ldClient = LaunchDarkly.init(sdkKey);
 
-      await this.ldClient.waitForInitialization({ timeout: 5 });
+      await this.ldClient.waitForInitialization();
       this.ready = true;
       log.info('LaunchDarkly initialized successfully');
     } catch (error) {

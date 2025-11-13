@@ -123,7 +123,7 @@ async function isUrlSafe(urlString: string): Promise<{ safe: boolean; reason?: s
       for (const range of PRIVATE_IP_RANGES) {
         try {
           const [rangeAddr, bits] = ipaddr.parseCIDR(range);
-          if (addr.kind() === rangeAddr.kind() && addr.match(rangeAddr, parseInt(bits))) {
+          if (addr.kind() === rangeAddr.kind() && addr.match(rangeAddr, bits)) {
             return { safe: false, reason: 'Private IP address' };
           }
         } catch {

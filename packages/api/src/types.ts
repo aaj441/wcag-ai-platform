@@ -20,6 +20,7 @@ export interface Violation {
   screenshot?: string;
   codeSnippet?: string;
   affectedUsers?: string;
+  keywords?: string[];
   priority: number;
 }
 
@@ -31,6 +32,7 @@ export interface EmailDraft {
   subject: string;
   body: string;
   violations: Violation[];
+  keywords?: string[];
   createdAt: Date;
   updatedAt: Date;
   status: EmailStatus;
@@ -45,6 +47,20 @@ export interface ApiResponse<T = unknown> {
   data?: T;
   error?: string;
   message?: string;
+  details?: unknown;
+}
+
+// Consultant type (to mirror frontend and support test data)
+export interface Consultant {
+  id: string;
+  name: string;
+  email: string;
+  company: string;
+  website?: string;
+  phone?: string;
+  hubspotContactId?: string;
+  lastContacted?: Date;
+  responseRate?: number;
 }
 
 export interface PaginatedResponse<T> extends ApiResponse<T[]> {

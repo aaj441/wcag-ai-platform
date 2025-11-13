@@ -1,6 +1,244 @@
-# Consultant Approval Dashboard
+# WCAG AI Platform - Web Application
 
-A React TypeScript dashboard for reviewing and approving email drafts about WCAG violations that will be sent to consultants.
+Enterprise-grade React dashboard for WCAG compliance workflow management.
+
+## Features
+
+- 📧 Email Draft Management (Draft → Review → Approved → Sent workflow)
+- 🔍 Accessibility Violation Tracking (WCAG 2.1 A/AA/AAA)
+- 🎨 Dark-themed UI with Tailwind CSS (PostCSS build pipeline)
+- 📊 Real-time Statistics & Filtering
+- 🏷️ Keyword extraction and filtering
+- ⌨️ Full Keyboard Navigation
+- 🔔 Toast Notifications
+
+## Tech Stack
+
+- React 18 (with Hooks)
+- TypeScript
+- Tailwind CSS v3 (Dark Theme, PostCSS pipeline)
+- Vite (Build Tool)
+
+## Quick Start
+
+```bash
+npm install
+npm run dev   # Opens on http://localhost:3000
+```
+
+The dashboard loads with mock data by default. The UI includes:
+- Email draft list with search, status filters, and keyword filters
+- Draft preview and editing
+- Violation cards with WCAG details
+- Status workflow actions (approve, reject, mark sent)
+
+## Scripts
+
+- `npm run dev` - Start development server (port 3000)
+- `npm run build` - Production build to `dist/`
+- `npm run preview` - Preview production build
+- `npm run lint` - Lint TypeScript files
+- `npm run type-check` - Check types without emitting
+- `npm start` - Start production server (Railway/Express)
+
+## Configuration
+
+### Tailwind CSS Setup
+
+The project uses Tailwind CSS via a PostCSS build pipeline:
+- `tailwind.config.cjs` - Tailwind configuration with content paths
+- `postcss.config.cjs` - PostCSS with Tailwind and Autoprefixer
+- `src/index.css` - Tailwind directives (`@tailwind base; components; utilities`)
+
+**Note**: The Tailwind CDN script has been removed from `index.html` to avoid duplicate styles. All Tailwind classes are compiled via PostCSS during build.
+
+Optional: Update Browserslist data to suppress warnings:
+```bash
+npx update-browserslist-db@latest
+```
+
+### API Integration
+
+Set the backend API URL via environment variable:
+
+```bash
+VITE_API_URL=http://localhost:3001/api npm run dev
+```
+
+Or create `.env.local`:
+
+```env
+VITE_API_URL=http://localhost:3001/api
+```
+
+### Mock Data Mode
+
+By default, the app uses mock data for demonstration. To connect to the real API:
+
+1. Start the backend API server: `cd ../api && npm run dev`
+2. Set `VITE_API_URL` to the API endpoint
+3. Ensure CORS is configured in the API (`server.ts`)
+
+## Project Structure
+
+```
+src/
+├── components/       # React components
+│   ├── ConsultantApprovalDashboard.tsx  # Main dashboard (597 lines)
+│   ├── ViolationCard.tsx                # Violation detail card
+│   ├── ViolationReviewCard.tsx          # Review interface
+│   ├── KeywordFilter.tsx                # Keyword search input
+│   └── KeywordBadge.tsx                 # Keyword badge component
+├── services/         # API & Data
+│   ├── api.ts        # Backend API client
+│   ├── mockData.ts   # Demo data with keywords
+│   └── hubspot.ts    # HubSpot integration
+├── types/            # TypeScript types
+│   └── index.ts      # EmailDraft, Violation, Consultant
+├── utils/            # Helpers
+│   └── helpers.ts    # Formatting, validation, search
+├── config/           # Constants
+│   └── constants.ts  # Status workflow, app config
+├── index.css         # Tailwind CSS entry (imported in main.tsx)
+├── App.tsx           # Root component
+└── main.tsx          # Entry point
+```
+
+## Key Components
+
+### ConsultantApprovalDashboard
+
+Main workflow component (597 lines):
+
+- Email draft list with filtering (status, search, keywords)
+- Preview/edit mode
+- Status transitions (approve, reject, mark sent)
+- Violation review cards
+- Toast notifications
+
+**Usage:**
+
+```tsx
+import { ConsultantApprovalDashboard } from './components/ConsultantApprovalDashboard';
+
+function App() {
+  return <ConsultantApprovalDashboard />;
+}
+```
+
+### ViolationCard
+
+Displays individual WCAG violation with severity badge:
+
+```tsx
+<ViolationCard 
+  violation={violation}
+  index={0}
+/>
+```
+
+### KeywordFilter & KeywordBadge
+
+Keyword filtering UI:
+
+```tsx
+<KeywordFilter value={keyword} onChange={setKeyword} />
+<KeywordBadge keyword="contrast" />
+```
+
+## API Endpoints
+
+If using the live API backend:
+
+- `GET /api/drafts` - List email drafts (filter by status, search, keywords)
+- `GET /api/drafts/:id` - Get draft by ID
+- `POST /api/drafts` - Create new draft (auto-extracts keywords)
+- `PUT /api/drafts/:id` - Update draft
+- `PATCH /api/drafts/:id/approve` - Approve draft
+- `PATCH /api/drafts/:id/reject` - Reject draft
+- `PATCH /api/drafts/:id/send` - Mark as sent
+- `DELETE /api/drafts/:id` - Delete draft
+
+- `GET /api/violations` - List violations (filter by severity, wcagLevel)
+- `GET /api/violations/stats` - Aggregated statistics
+
+- `GET /api/keywords` - Aggregate keyword counts
+- `POST /api/keywords/refresh` - Recompute all keywords
+
+## Deployment
+
+### Production Build
+
+```bash
+npm run build
+```
+
+Output: `dist/` folder with optimized static assets
+
+### Environment Variables
+
+For production deployment (Vercel, Netlify, etc.):
+
+```env
+VITE_API_URL=https://your-api-domain.com/api
+HUBSPOT_API_URL=https://api.hubapi.com
+HUBSPOT_API_KEY=your-hubspot-key
+SENDER_EMAIL=your-email@example.com
+```
+
+### Railway Deployment
+
+Railway configuration files:
+- `railway.json` - Railway configuration
+- `railway.toml` - Alternative configuration format
+- `server.js` - Express production server
+
+Railway will automatically:
+1. Run `npm install && npm run build`
+2. Start the server with `npm start` on `$PORT`
+
+Set these in your Railway dashboard:
+- `NODE_ENV=production`
+- `VITE_API_URL` (API backend URL)
+- `HUBSPOT_API_KEY` (optional for HubSpot integration)
+- `SENDER_EMAIL` (optional for email logging)
+
+### Vercel Deployment
+
+1. Connect GitHub repo to Vercel
+2. Set build command: `npm run build`
+3. Set output directory: `dist`
+4. Add environment variable: `VITE_API_URL`
+
+## Browser Support
+
+- Modern browsers (Chrome, Firefox, Safari, Edge)
+- ES2020+ JavaScript
+- No IE11 support
+
+## Accessibility
+
+Built with WCAG 2.1 AA compliance in mind:
+
+- Semantic HTML structure
+- Keyboard navigation support
+- ARIA labels where needed
+- Color contrast ratios meet AA standards
+- Focus indicators on interactive elements
+
+## Dark Theme
+
+All components use Tailwind CSS dark theme classes:
+- Backgrounds: `bg-gray-800`, `bg-gray-900`
+- Borders: `border-gray-700`
+- Text: `text-gray-100`, `text-gray-200`, `text-gray-300`
+- Hover states: `hover:border-gray-600`
+- Severity badges with proper dark variants
+
+## License
+
+MIT
+
 
 ## Features
 

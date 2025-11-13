@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@wcag-ai-platform/webapp": "file:../.."
+  }
+}

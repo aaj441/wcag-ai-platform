@@ -17,6 +17,8 @@ import {
   estimateReadTime,
 } from '../utils/helpers';
 import { ViolationCard } from './ViolationCard';
+import KeywordFilter from './KeywordFilter';
+import KeywordBadge from './KeywordBadge';
 
 export const ConsultantApprovalDashboard: React.FC = () => {
   // ============================================================================
@@ -32,6 +34,7 @@ export const ConsultantApprovalDashboard: React.FC = () => {
   const [sortBy, setSortBy] = useState<'date' | 'priority' | 'severity'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [keywordFilter, setKeywordFilter] = useState('');
 
   // Edit form state
   const [editedSubject, setEditedSubject] = useState('');
@@ -66,6 +69,12 @@ export const ConsultantApprovalDashboard: React.FC = () => {
 
     // Search
     result = searchDrafts(result, searchQuery);
+
+    // Keyword filter
+    if (keywordFilter.trim()) {
+      const k = keywordFilter.toLowerCase();
+      result = result.filter(d => (d.keywords || []).map(s => s.toLowerCase()).includes(k));
+    }
 
     // Sort
     result = sortDrafts(result, sortBy, sortOrder);
@@ -293,6 +302,10 @@ export const ConsultantApprovalDashboard: React.FC = () => {
                 className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-600"
               />
 
+              <div className="mt-2">
+                <KeywordFilter value={keywordFilter} onChange={setKeywordFilter} />
+              </div>
+
               <div className="flex space-x-2">
                 <select
                   value={filterStatus}
@@ -314,6 +327,13 @@ export const ConsultantApprovalDashboard: React.FC = () => {
                   <option value="priority">Priority</option>
                   <option value="severity">Severity</option>
                 </select>
+                <button
+                  onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                  title="Toggle sort order"
+                  className="ml-2 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-100"
+                >
+                  {sortOrder === 'asc' ? '↑' : '↓'}
+                </button>
               </div>
             </div>
 
@@ -375,6 +395,14 @@ export const ConsultantApprovalDashboard: React.FC = () => {
                             <span key={tag} className="px-2 py-0.5 rounded text-xs bg-gray-700 text-gray-300">
                               #{tag}
                             </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {draft.keywords && draft.keywords.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {draft.keywords.slice(0, 3).map(k => (
+                            <KeywordBadge key={k} keyword={k} />
                           ))}
                         </div>
                       )}

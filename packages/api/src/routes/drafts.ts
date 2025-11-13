@@ -5,6 +5,9 @@
 import { Router, Request, Response } from 'express';
 import { getAllDrafts, getDraftById, createDraft, updateDraft, deleteDraft } from '../data/store';
 import { ApiResponse, EmailDraft } from '../types';
+import { CreateEmailDraftSchema, UpdateEmailDraftSchema } from '../validation/schemas';
+import { extractKeywords, combineTexts } from '../utils/keywords';
+import { log } from '../utils/logger';
 
 const router = Router();
 
@@ -31,6 +34,13 @@ router.get('/', (req: Request, res: Response) => {
         d.company?.toLowerCase().includes(searchLower) ||
         d.body.toLowerCase().includes(searchLower)
       );
+    }
+
+    // Keyword filter
+    const { keyword } = req.query;
+    if (keyword && typeof keyword === 'string') {
+      const k = keyword.toLowerCase();
+      drafts = drafts.filter(d => (d.keywords || []).map(s => s.toLowerCase()).includes(k));
     }
 
     const response: ApiResponse<EmailDraft[]> = {
@@ -72,9 +82,10 @@ router.get('/:id', (req: Request, res: Response) => {
 
     res.json(response);
   } catch (error) {
+    log.error('Failed to delete draft', error instanceof Error ? error : undefined, { draftId: req.params.id });
     const response: ApiResponse = {
       success: false,
-      error: 'Failed to retrieve draft',
+      error: 'Failed to delete draft',
     };
     res.status(500).json(response);
   }
@@ -86,16 +97,21 @@ router.get('/:id', (req: Request, res: Response) => {
  */
 router.post('/', (req: Request, res: Response) => {
   try {
-    const { recipient, subject, body, violations, recipientName, company, tags, notes } = req.body;
-
-    // Validation
-    if (!recipient || !subject || !body) {
+    const parseResult = CreateEmailDraftSchema.safeParse(req.body);
+    if (!parseResult.success) {
       const response: ApiResponse = {
         success: false,
-        error: 'Missing required fields: recipient, subject, body',
+        error: 'Validation error',
+        message: parseResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; '),
       };
       return res.status(400).json(response);
     }
+
+    const { recipient, recipientName, company, subject, body, violations, notes, tags } = parseResult.data;
+
+    // Extract keywords from subject + body + violation descriptions
+    const combinedText = combineTexts(subject, body, ...(violations || []).map(v => v.description || ''));
+    const keywords = extractKeywords(combinedText, 15);
 
     const newDraft = createDraft({
       recipient,
@@ -107,7 +123,10 @@ router.post('/', (req: Request, res: Response) => {
       status: 'draft',
       tags,
       notes,
+      keywords,
     });
+
+    log.info('Draft created', { draftId: newDraft.id, recipient });
 
     const response: ApiResponse<EmailDraft> = {
       success: true,
@@ -117,6 +136,7 @@ router.post('/', (req: Request, res: Response) => {
 
     res.status(201).json(response);
   } catch (error) {
+    log.error('Failed to create draft', error as Error);
     const response: ApiResponse = {
       success: false,
       error: 'Failed to create draft',
@@ -127,12 +147,56 @@ router.post('/', (req: Request, res: Response) => {
 
 /**
  * PUT /api/drafts/:id
- * Update an existing draft
+ * Update a draft
  */
 router.put('/:id', (req: Request, res: Response) => {
   try {
-    const updates = req.body;
-    const updatedDraft = updateDraft(req.params.id, updates);
+    // Validate request body with Zod
+    const validationResult = UpdateEmailDraftSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      const errors = validationResult.error.errors.map((err) => ({
+        field: err.path.join('.'),
+        message: err.message,
+      }));
+      const response: ApiResponse = {
+        success: false,
+        error: 'Validation failed',
+        details: errors,
+      };
+      return res.status(400).json(response);
+    }
+
+    const updates = validationResult.data;
+    const existing = getDraftById(req.params.id);
+    if (!existing) {
+      const response: ApiResponse = { success: false, error: 'Draft not found' };
+      return res.status(404).json(response);
+    }
+
+    // Enforce status workflow if status changing
+    const nextStatus = updates.status as EmailDraft['status'] | undefined;
+    if (nextStatus && nextStatus !== existing.status) {
+      const allowed: Record<EmailDraft['status'], EmailDraft['status'][]> = {
+        draft: ['pending_review', 'rejected'],
+        pending_review: ['approved', 'rejected'],
+        approved: ['sent', 'rejected'],
+        sent: [],
+        rejected: [],
+      };
+      const validNext = allowed[existing.status];
+      if (!validNext.includes(nextStatus)) {
+        const response: ApiResponse = {
+          success: false,
+            error: `Invalid status transition: ${existing.status} -> ${nextStatus}`,
+        };
+        return res.status(422).json(response);
+      }
+    }
+
+    const updatedDraft = updateDraft(req.params.id, {
+      ...updates,
+      status: updates.status ?? existing.status,
+    });
 
     if (!updatedDraft) {
       const response: ApiResponse = {
@@ -148,11 +212,14 @@ router.put('/:id', (req: Request, res: Response) => {
       message: 'Draft updated successfully',
     };
 
+    log.info('Draft updated', { draftId: req.params.id, status: updatedDraft.status });
+
     res.json(response);
   } catch (error) {
+    log.error('Failed to create draft', error instanceof Error ? error : undefined, { body: req.body });
     const response: ApiResponse = {
       success: false,
-      error: 'Failed to update draft',
+      error: 'Failed to create draft',
     };
     res.status(500).json(response);
   }
@@ -165,6 +232,18 @@ router.put('/:id', (req: Request, res: Response) => {
 router.patch('/:id/approve', (req: Request, res: Response) => {
   try {
     const { approvedBy } = req.body;
+    const existing = getDraftById(req.params.id);
+    if (!existing) {
+      const response: ApiResponse = {
+        success: false,
+        error: 'Draft not found',
+      };
+      return res.status(404).json(response);
+    }
+    if (!['pending_review'].includes(existing.status)) {
+      const response: ApiResponse = { success: false, error: `Only pending_review drafts can be approved (current: ${existing.status})` };
+      return res.status(422).json(response);
+    }
 
     const updatedDraft = updateDraft(req.params.id, {
       status: 'approved',
@@ -175,9 +254,9 @@ router.patch('/:id/approve', (req: Request, res: Response) => {
     if (!updatedDraft) {
       const response: ApiResponse = {
         success: false,
-        error: 'Draft not found',
+        error: 'Failed to approve draft',
       };
-      return res.status(404).json(response);
+      return res.status(500).json(response);
     }
 
     const response: ApiResponse<EmailDraft> = {
@@ -186,8 +265,11 @@ router.patch('/:id/approve', (req: Request, res: Response) => {
       message: 'Draft approved successfully',
     };
 
+    log.info('Draft approved', { draftId: req.params.id, approvedBy });
+
     res.json(response);
   } catch (error) {
+    log.error('Failed to approve draft', error instanceof Error ? error : undefined, { draftId: req.params.id });
     const response: ApiResponse = {
       success: false,
       error: 'Failed to approve draft',
@@ -202,16 +284,26 @@ router.patch('/:id/approve', (req: Request, res: Response) => {
  */
 router.patch('/:id/reject', (req: Request, res: Response) => {
   try {
-    const updatedDraft = updateDraft(req.params.id, {
-      status: 'rejected',
-    });
-
-    if (!updatedDraft) {
+    const existing = getDraftById(req.params.id);
+    if (!existing) {
       const response: ApiResponse = {
         success: false,
         error: 'Draft not found',
       };
       return res.status(404).json(response);
+    }
+    if (!['draft', 'pending_review', 'approved'].includes(existing.status)) {
+      const response: ApiResponse = { success: false, error: `Cannot reject draft in status ${existing.status}` };
+      return res.status(422).json(response);
+    }
+    const updatedDraft = updateDraft(req.params.id, { status: 'rejected' });
+
+    if (!updatedDraft) {
+      const response: ApiResponse = {
+        success: false,
+        error: 'Failed to reject draft',
+      };
+      return res.status(500).json(response);
     }
 
     const response: ApiResponse<EmailDraft> = {
@@ -220,8 +312,11 @@ router.patch('/:id/reject', (req: Request, res: Response) => {
       message: 'Draft rejected',
     };
 
+    log.info('Draft rejected', { draftId: req.params.id });
+
     res.json(response);
   } catch (error) {
+    log.error('Failed to reject draft', error instanceof Error ? error : undefined, { draftId: req.params.id });
     const response: ApiResponse = {
       success: false,
       error: 'Failed to reject draft',
@@ -258,14 +353,25 @@ router.patch('/:id/send', (req: Request, res: Response) => {
       status: 'sent',
     });
 
+    if (!updatedDraft) {
+      const response: ApiResponse = {
+        success: false,
+        error: 'Failed to mark draft as sent',
+      };
+      return res.status(500).json(response);
+    }
+
     const response: ApiResponse<EmailDraft> = {
       success: true,
-      data: updatedDraft!,
+      data: updatedDraft,
       message: 'Draft marked as sent',
     };
 
+    log.info('Draft sent', { draftId: req.params.id });
+
     res.json(response);
   } catch (error) {
+    log.error('Failed to mark draft as sent', error instanceof Error ? error : undefined, { draftId: req.params.id });
     const response: ApiResponse = {
       success: false,
       error: 'Failed to mark draft as sent',
@@ -295,11 +401,14 @@ router.delete('/:id', (req: Request, res: Response) => {
       message: 'Draft deleted successfully',
     };
 
+    log.info('Draft deleted', { draftId: req.params.id });
+
     res.json(response);
   } catch (error) {
+    log.error('Failed to update draft', error instanceof Error ? error : undefined, { draftId: req.params.id });
     const response: ApiResponse = {
       success: false,
-      error: 'Failed to delete draft',
+      error: 'Failed to update draft',
     };
     res.status(500).json(response);
   }
