@@ -11,13 +11,33 @@ import { sendPaymentConfirmationEmail, sendPaymentFailureEmail } from '../servic
 
 const router = Router();
 
-// Initialize Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2025-10-29.clover'
-});
+// Initialize Stripe (only if API key is provided)
+let stripe: Stripe | null = null;
+if (process.env.STRIPE_SECRET_KEY) {
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: '2025-10-29.clover'
+  });
+}
+
+// Middleware to check if Stripe is configured
+const requireStripe = (req: Request, res: Response, next: any) => {
+  if (!stripe) {
+    return res.status(503).json({
+      success: false,
+      error: 'Stripe billing not configured'
+    });
+  }
+  next();
+};
 
 // Webhook signature verification middleware
 const verifyWebhookSignature = (req: Request, res: Response, next: any) => {
+  if (!stripe) {
+    return res.status(503).json({
+      success: false,
+      error: 'Stripe not configured'
+    });
+  }
   const signature = req.headers['stripe-signature'] as string;
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -30,7 +50,7 @@ const verifyWebhookSignature = (req: Request, res: Response, next: any) => {
   }
 
   try {
-    const event = stripe.webhooks.constructEvent(
+    const event = stripe!.webhooks.constructEvent(
       req.body,
       signature,
       webhookSecret
@@ -48,6 +68,7 @@ const verifyWebhookSignature = (req: Request, res: Response, next: any) => {
 
 // POST /api/billing/webhook - Stripe webhook endpoint
 router.post('/webhook', 
+  requireStripe,
   express.raw({ type: 'application/json' }),
   verifyWebhookSignature,
   async (req: Request, res: Response) => {
@@ -90,7 +111,7 @@ router.post('/webhook',
 );
 
 // POST /api/billing/create-subscription - Create new subscription
-router.post('/create-subscription', async (req: Request, res: Response) => {
+router.post('/create-subscription', requireStripe, async (req: Request, res: Response) => {
   try {
     const { clientId, priceId } = req.body;
 
@@ -116,7 +137,7 @@ router.post('/create-subscription', async (req: Request, res: Response) => {
     // Create or get Stripe customer
     let customerId = client.stripeCustomerId;
     if (!customerId) {
-      const customer = await stripe.customers.create({
+      const customer = await stripe!.customers.create({
         email: client.email,
         metadata: {
           clientId: client.id,
@@ -133,7 +154,7 @@ router.post('/create-subscription', async (req: Request, res: Response) => {
     }
 
     // Create subscription
-    const subscription = await stripe.subscriptions.create({
+    const subscription = await stripe!.subscriptions.create({
       customer: customerId,
       items: [{ price: priceId }],
       metadata: {
