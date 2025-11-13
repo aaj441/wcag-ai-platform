@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import prisma from '../lib/prisma';
 import crypto from 'crypto';
+import { sendWelcomeEmail } from '../services/email';
 
 const router = Router();
 
@@ -53,8 +54,10 @@ router.post('/onboard', async (req: Request, res: Response) => {
       }
     });
 
-    // TODO: Send welcome email (Phase 4)
-    // await emailService.sendWelcome(newClient.email, newClient.apiKey);
+    // Send welcome email (Phase 4)
+    if (newClient.apiKey) {
+      await sendWelcomeEmail(newClient.email, newClient.company, newClient.apiKey);
+    }
 
     return res.status(201).json({
       success: true,

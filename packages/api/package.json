@@ -36,6 +36,9 @@
     "@pollyjs/core": "^6.0.6",
     "@pollyjs/persister-fs": "^6.0.6",
     "@prisma/client": "^5.7.1",
+    "@sendgrid/mail": "^8.1.6",
+    "@sentry/node": "^10.25.0",
+    "@sentry/profiling-node": "^10.25.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
@@ -44,6 +47,7 @@
     "ipaddr.js": "^2.1.0",
     "launchdarkly-node-server-sdk": "^7.0.4",
     "prom-client": "^15.1.0",
+    "stripe": "^19.3.1",
     "uuid": "^9.0.1",
     "winston": "^3.11.0"
   },
