@@ -5,7 +5,7 @@
  * Only includes high-confidence violations (>0.7)
  */
 
-import type { Scan, Violation } from "@prisma/client";
+import type { Scan, Violation } from "../types";
 import { log } from "../utils/logger";
 
 interface ScanForPDF extends Scan {

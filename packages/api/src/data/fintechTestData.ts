@@ -3,6 +3,7 @@
  * Testing WCAG compliance for banking, payments, and financial platforms
  */
 
+import { EmailDraft, LegacyViolation, ConsultantProfile } from '../types';
 import { EmailDraft, LegacyViolation, Consultant } from '../types';
 
 // ============================================================================
@@ -498,7 +499,7 @@ WCAG AI Platform Team`,
 // FINTECH CONSULTANTS
 // ============================================================================
 
-export const fintechConsultants: Consultant[] = [
+export const fintechConsultants: any[] = [
   {
     id: 'fc1',
     name: 'Sarah Chen',

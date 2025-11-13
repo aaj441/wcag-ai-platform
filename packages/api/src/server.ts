@@ -8,6 +8,11 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import draftsRouter from './routes/drafts';
 import violationsRouter from './routes/violations';
+import leadsRouter from './routes/leads';
+import consultantRouter from './routes/consultant';
+import fixesRouter from './routes/fixes';
+import screenshotRouter from './routes/screenshot';
+import demographicsRouter from './routes/demographics';
 import clientsRouter from './routes/clients';
 import slaRouter from './routes/sla';
 import reportsRouter from './routes/reports';
@@ -61,6 +66,11 @@ app.use('/health', healthRouter);
 // API routes
 app.use('/api/drafts', draftsRouter);
 app.use('/api/violations', violationsRouter);
+app.use('/api/leads', leadsRouter);
+app.use('/api/consultant', consultantRouter);
+app.use('/api/fixes', fixesRouter);
+app.use('/api/screenshot', screenshotRouter);
+app.use('/api/demographics', demographicsRouter);
 app.use('/api/clients', clientsRouter);
 app.use('/api/sla', slaRouter);
 app.use('/api/reports', reportsRouter);
@@ -77,6 +87,11 @@ app.get('/', (req: Request, res: Response) => {
       health: '/health',
       drafts: '/api/drafts',
       violations: '/api/violations',
+      leads: '/api/leads',
+      consultant: '/api/consultant',
+      fixes: '/api/fixes',
+      screenshot: '/api/screenshot',
+      demographics: '/api/demographics',
       clients: '/api/clients',
       sla: '/api/sla',
       reports: '/api/reports',

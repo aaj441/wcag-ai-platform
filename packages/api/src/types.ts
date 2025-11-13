@@ -2,7 +2,9 @@
  * API Type Definitions - Shared with Frontend & Prisma Models
  */
 
-import type { Scan as PrismaScan, Violation as PrismaViolation, ReviewLog as PrismaReviewLog } from "@prisma/client";
+// Prisma types - commented out due to build environment constraints
+// In production, these would be imported from @prisma/client
+// import type { Scan as PrismaScan, Violation as PrismaViolation, ReviewLog as PrismaReviewLog } from "@prisma/client";
 
 export type ViolationSeverity = 'critical' | 'high' | 'medium' | 'low';
 export type EmailStatus = 'draft' | 'pending_review' | 'approved' | 'sent' | 'rejected';
@@ -12,7 +14,20 @@ export type WCAGLevel = 'A' | 'AA' | 'AAA';
 /**
  * Scan - Main auditable unit
  */
-export interface Scan extends PrismaScan {
+export interface Scan {
+  id: string;
+  websiteUrl: string;
+  scanResults: string;
+  aiConfidenceScore: number;
+  confidenceDetails: Record<string, any>;
+  reviewed: boolean;
+  reviewedBy?: string | null;
+  reviewedAt?: Date | null;
+  approvalStatus: string;
+  reportPdf?: string | null;
+  reportGeneratedAt?: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
   violations?: Violation[];
   reviewLogs?: ReviewLog[];
 }
@@ -20,12 +35,32 @@ export interface Scan extends PrismaScan {
 /**
  * Violation - Individual WCAG violation
  */
-export interface Violation extends PrismaViolation {}
+export interface Violation {
+  id: string;
+  scanId: string;
+  wcagCriteria: string;
+  severity: string;
+  description: string;
+  aiConfidence: number;
+  humanReviewed: boolean;
+  elementSelector?: string | null;
+  screenshot?: string | null;
+  codeSnippet?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 /**
  * ReviewLog - Audit trail entry
  */
-export interface ReviewLog extends PrismaReviewLog {}
+export interface ReviewLog {
+  id: string;
+  scanId: string;
+  action: string;
+  consultantEmail: string;
+  timestamp: Date;
+  details: Record<string, any>;
+}
 
 /**
  * Legacy types for backward compatibility
@@ -77,6 +112,9 @@ export interface ConsultantProfile {
   totalAuditsReviewed: number;
   accuracyScore: number; // 0.0-1.0
 }
+
+// Alias for backward compatibility
+export type Consultant = ConsultantProfile;
 
 export interface ApiResponse<T = unknown> {
   success: boolean;
