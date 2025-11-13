@@ -191,6 +191,7 @@ model Industry {
 
   // Relations
   targetBusinesses      TargetBusiness[]
+  icpProfiles           IdealCustomerProfile[]
 
   @@index([adariskLevel])
   @@index([techOrientationScore])
@@ -240,6 +241,8 @@ model TargetBusiness {
 
   // Relations
   violations            TargetBusinessViolation[]
+  metadata              TargetBusinessMetadata?
+  contactPersons        ContactPerson[]
 
   @@unique([website])
   @@index([industryId])
@@ -269,4 +272,204 @@ model TargetBusinessViolation {
   @@index([businessId])
   @@index([wcagCriteria])
   @@index([severity])
+}
+
+// ============================================================================
+// METROPOLITAN AREA & ICP MODELS
+// ============================================================================
+
+// Geographic Market Definition
+model MetropolitanArea {
+  id                          String   @id @default(cuid())
+  name                        String   @unique @db.VarChar(255) // "Pittsburgh Metro", "Chicago Metro"
+  marketCode                  String   @unique @db.VarChar(10) // "PIT", "CHI"
+  region                      String   @db.VarChar(50) // Northeast, Midwest, South, West
+
+  // Geographic & Demographic Data
+  population                  Int      // Metropolitan area population
+  avgMedianHouseholdIncome    Int      // For targeting affluent areas
+  businessDensityIndex        Float    // SMBs per 10,000 population
+
+  // Tech & Market Maturity
+  techAdoptionIndex           Float    @default(0.5) // 0-1 scale, how quickly tech is adopted
+  averageWebsiteQuality       Float    @default(0.4) // 0-1 scale, typical website quality
+  averageBusinessMaturity     Float    @default(0.5) // 0-1 scale
+
+  // Market Size Indicators
+  estimatedSmallBusinessCount Int      // Estimated SMBs in metro
+
+  // Metadata
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  // Relations
+  icpProfiles                 IdealCustomerProfile[]
+  targetBusinesses            TargetBusiness[]
+
+  @@index([region])
+  @@index([techAdoptionIndex])
+  @@index([businessDensityIndex])
+}
+
+// Ideal Customer Profile (ICP) - defines perfect target per metro
+model IdealCustomerProfile {
+  id                        String   @id @default(cuid())
+  name                      String   @db.VarChar(255) // "Medical Practice - Pittsburgh"
+  description               String?  @db.Text
+
+  // Relationship to industry and metro
+  industryId                String
+  industry                  Industry @relation(fields: [industryId], references: [id], onDelete: Cascade)
+
+  metropolitanAreaId        String
+  metropolitanArea          MetropolitanArea @relation(fields: [metropolitanAreaId], references: [id], onDelete: Cascade)
+
+  // Company Profile
+  revenueMin                Int      @default(1000000)
+  revenueMax                Int      @default(10000000)
+  employeeCountMin          Int      @default(5)
+  employeeCountMax          Int      @default(100)
+
+  // Tech & Compliance Profile
+  adariskLevel              String   @default("medium") @db.VarChar(50) // low, medium, high
+  techMaturityScore         Float    @default(0.3) // 0-1, how tech-savvy
+  averageWebsiteAgeYears    Float    @default(8.0) // How old are typical websites
+
+  // Sales & Business Metrics
+  estimatedAnnualWcagSpend  Int      @default(0) // Estimated budget for WCAG compliance
+  estimatedSalesCycle       Int      @default(30) // Days to close
+  closingRate               Float    @default(0.15) // Estimated conversion rate
+
+  // Market Opportunity
+  estimatedTAM              Int      @default(0) // Total addressable market (count of ideal customers in metro)
+  estimatedSOM              Int      @default(0) // Serviceable obtainable market (realistic capture)
+
+  // Messaging & Strategy
+  commonPains               String   @db.Text // JSON array: ["ADA lawsuit risk", "outdated website", ...]
+  keyMotivations            String   @db.Text // JSON array: ["compliance", "online bookings", ...]
+  idealMessage              String?  @db.Text // Pitch that resonates
+  competitiveAdvantage      String?  @db.Text
+
+  // Metadata
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  // Relations
+  targetBusinesses          TargetBusiness[]
+
+  @@unique([industryId, metropolitanAreaId])
+  @@index([adariskLevel])
+  @@index([techMaturityScore])
+  @@index([estimatedTAM])
+}
+
+// Decision Maker Personas
+model DecisionMaker {
+  id                        String   @id @default(cuid())
+  title                     String   @unique @db.VarChar(255) // "Practice Owner/DMD", "Operations Manager"
+
+  // Role Definition
+  role                      String   @db.VarChar(50) // owner, operations, marketing, it, finance
+  roleDescription           String?  @db.Text
+  influenceLevel            Int      @default(3) // 1-5, how much they influence purchase
+
+  // Buying Profile
+  decisionMakingAuthority   String   @db.VarChar(50) // sole_decision, key_influencer, implementer, budget_holder
+  typicalDayToDayPain       String?  @db.Text // What frustrates them daily
+
+  // Pain Points & Motivations (JSON arrays)
+  painPoints                String   @db.Text // ["website crashes", "no online bookings", "ADA risk"]
+  motivations               String   @db.Text // ["avoid lawsuits", "increase revenue", "improve reputation"]
+  purchaseDrivers           String   @db.Text // What triggers purchase decision
+
+  // Engagement Profile
+  preferredOutreachChannel  String   @db.VarChar(50) // email, phone, linkedin, in-person
+  bestTimeToReach           String?  @db.VarChar(100) // "Tuesday-Thursday 10am-11am"
+  contentPreference         String   @db.VarChar(50) // technical, business, case_studies, roi
+
+  // Context
+  typicalSalaryRange        String?  @db.VarChar(100) // For understanding budget authority
+  reportingStructure        String?  @db.Text // Who they report to
+
+  // Metadata
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  // Relations
+  contactPersons            ContactPerson[]
+
+  @@index([role])
+  @@index([influenceLevel])
+}
+
+// Real Contact Person at a Business
+model ContactPerson {
+  id                        String   @id @default(cuid())
+  businessId                String
+  targetBusiness            TargetBusiness @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Decision Maker Type
+  decisionMakerId           String
+  decisionMaker             DecisionMaker @relation(fields: [decisionMakerId], references: [id])
+
+  // Personal Information
+  firstName                 String   @db.VarChar(100)
+  lastName                  String   @db.VarChar(100)
+  jobTitle                  String   @db.VarChar(255)
+  email                     String?  @db.VarChar(255)
+  phone                     String?  @db.VarChar(20)
+  linkedinUrl               String?  @db.VarChar(500)
+
+  // Outreach Tracking
+  outreachStatus            String   @default("not_contacted") @db.VarChar(50) // not_contacted, contacted, interested, client
+  outreachAttempts          Int      @default(0)
+  lastContactDate           DateTime?
+  nextFollowUpDate          DateTime?
+
+  // Engagement
+  engagementLevel           Float    @default(0.0) // 0-1 scale
+  responseRate              Float    @default(0.0)
+  notes                     String?  @db.Text
+
+  // Metadata
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  @@unique([businessId, decisionMakerId, email])
+  @@index([businessId])
+  @@index([decisionMakerId])
+  @@index([outreachStatus])
+  @@index([email])
+}
+
+// Update TargetBusiness to link to ICP and Metro
+model TargetBusinessMetadata {
+  id                        String   @id @default(cuid())
+  businessId                String   @unique
+  targetBusiness            TargetBusiness @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Geographic & ICP Link
+  metropolitanAreaId        String
+  metropolitanArea          MetropolitanArea @relation(fields: [metropolitanAreaId], references: [id])
+
+  icpProfileId              String?
+  icpProfile                IdealCustomerProfile? @relation(fields: [icpProfileId], references: [id])
+
+  // ICP Match Score (0-1.0) - how well they fit the ideal profile
+  icpMatchScore             Float    @default(0.0)
+
+  // Decision Makers at this Business
+  contactPersons            ContactPerson[]
+
+  // Key Metrics for Targeting
+  estimatedDecisionCycle    Int?     // Days to close for this specific business
+  buyingSignals             String?  @db.Text // JSON array: ["recently funded", "hired marketing manager", ...]
+
+  // Metadata
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  @@index([metropolitanAreaId])
+  @@index([icpProfileId])
+  @@index([icpMatchScore])
 }
