@@ -97,6 +97,8 @@ export interface EmailDraft {
   approvedBy?: string;
   approvedAt?: Date;
   tags?: string[];
+  keywords?: string[]; // Auto-extracted accessibility keywords from violations
+  keywordTags?: string[]; // Manually added keyword tags for filtering/search
 }
 
 export interface ConsultantProfile {
@@ -128,4 +130,17 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
     total: number;
     totalPages: number;
   };
+}
+
+export interface Consultant {
+  id: string;
+  name: string;
+  email: string;
+  company?: string;
+  role?: string;
+  phone?: string;
+  website?: string;
+  hubspotContactId?: string;
+  lastContacted?: Date;
+  responseRate?: number;
 }

@@ -13,6 +13,14 @@ import consultantRouter from './routes/consultant';
 import fixesRouter from './routes/fixes';
 import screenshotRouter from './routes/screenshot';
 import demographicsRouter from './routes/demographics';
+import clientsRouter from './routes/clients';
+import slaRouter from './routes/sla';
+import reportsRouter from './routes/reports';
+import proposalsRouter from './routes/proposals';
+import targetDemographicsRouter from './routes/targetDemographics';
+import billingRouter from './routes/billing';
+import healthRouter from './routes/health';
+import { initializeSentry, sentryErrorHandler } from './services/monitoring';
 
 // Load environment variables
 dotenv.config();
@@ -20,6 +28,13 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
+
+// ============================================================================
+// MONITORING INITIALIZATION
+// ============================================================================
+
+// Initialize Sentry (must be before other middleware)
+initializeSentry(app);
 
 // ============================================================================
 // MIDDLEWARE
@@ -45,15 +60,8 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // ROUTES
 // ============================================================================
 
-// Health check
-app.get('/health', (req: Request, res: Response) => {
-  res.json({
-    success: true,
-    message: 'WCAG AI Platform API is running',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
-  });
-});
+// Health check routes
+app.use('/health', healthRouter);
 
 // API routes
 app.use('/api/drafts', draftsRouter);
@@ -63,6 +71,12 @@ app.use('/api/consultant', consultantRouter);
 app.use('/api/fixes', fixesRouter);
 app.use('/api/screenshot', screenshotRouter);
 app.use('/api/demographics', demographicsRouter);
+app.use('/api/clients', clientsRouter);
+app.use('/api/sla', slaRouter);
+app.use('/api/reports', reportsRouter);
+app.use('/api/proposals', proposalsRouter);
+app.use('/api/target-demographics', targetDemographicsRouter);
+app.use('/api/billing', billingRouter);
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {
@@ -78,6 +92,11 @@ app.get('/', (req: Request, res: Response) => {
       fixes: '/api/fixes',
       screenshot: '/api/screenshot',
       demographics: '/api/demographics',
+      clients: '/api/clients',
+      sla: '/api/sla',
+      reports: '/api/reports',
+      proposals: '/api/proposals',
+      targetDemographics: '/api/target-demographics',
     },
     documentation: 'https://github.com/aaj441/wcag-ai-platform',
   });
@@ -86,6 +105,9 @@ app.get('/', (req: Request, res: Response) => {
 // ============================================================================
 // ERROR HANDLING
 // ============================================================================
+
+// Sentry error handler (must be before other error handlers)
+app.use(sentryErrorHandler);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

@@ -15,6 +15,10 @@ model Scan {
   id                  String   @id @default(cuid())
   websiteUrl          String   @db.VarChar(2048)
 
+  // Multi-Tenant Relation (Optional - for paid clients)
+  clientId          String?   @db.VarChar(255)
+  client            Client?   @relation(fields: [clientId], references: [id])
+
   // Raw scan results (WCAG violations found)
   scanResults         String   @db.Text
 
@@ -43,6 +47,7 @@ model Scan {
   @@index([approvalStatus])
   @@index([aiConfidenceScore])
   @@index([createdAt])
+  @@index([clientId])
 }
 
 // WCAG Violation Details
@@ -528,4 +533,140 @@ model OutreachEmail {
   @@index([prospectId])
   @@index([status])
   @@index([sentAt])
+// Multi-Tenant Client Management
+model Client {
+  id                String    @id @default(cuid())
+
+  // Identity
+  email             String    @unique @db.VarChar(255)
+  company           String    @db.VarChar(255)
+
+  // Subscription & Billing
+  tier              String    @default("basic") // basic, pro, enterprise
+  scansRemaining    Int       @default(10)
+  subscriptionId    String?   @db.VarChar(255)
+  stripeCustomerId  String?   @db.VarChar(255)
+
+  // Status
+  status            String    @default("active") // active, inactive, suspended
+
+  // API Access
+  apiKey            String?   @unique @db.VarChar(255)
+
+  // Metadata
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  scans             Scan[]
+
+  @@index([email])
+  @@index([stripeCustomerId])
+  @@index([apiKey])
+}
+
+// Target Demographic - Industry Categories
+model Industry {
+  id                    String   @id @default(cuid())
+  name                  String   @unique @db.VarChar(255)
+  description           String?  @db.Text
+
+  // Risk & Characteristics
+  adariskLevel          String   @default("medium") @db.VarChar(50) // low, medium, high
+  typicalRevenueMin     Int      @default(1000000)
+  typicalRevenueMax     Int      @default(10000000)
+  typicalEmployeeMin    Int      @default(5)
+  typicalEmployeeMax    Int      @default(100)
+
+  // Tech Adoption Profile
+  techOrientationScore  Float    @default(0.5) // 0.0 (not tech-oriented) to 1.0 (highly tech-oriented)
+  techAdoptionSpeed     String   @default("slow") @db.VarChar(50) // slow, medium, fast
+  isBlueCollar          Boolean  @default(true)
+
+  // Metadata
+  location              String?  @db.VarChar(255) // Pittsburgh, Ohio, etc.
+  notes                 String?  @db.Text
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  targetBusinesses      TargetBusiness[]
+
+  @@index([adariskLevel])
+  @@index([techOrientationScore])
+  @@index([techAdoptionSpeed])
+  @@index([name])
+}
+
+// Target Demographic - Individual Businesses
+model TargetBusiness {
+  id                    String   @id @default(cuid())
+  name                  String   @db.VarChar(255)
+  website               String?  @db.VarChar(2048)
+
+  // Industry Relation
+  industryId            String
+  industry              Industry @relation(fields: [industryId], references: [id], onDelete: Cascade)
+
+  // Location
+  location              String   @db.VarChar(255)
+  city                  String   @db.VarChar(100)
+  state                 String   @db.VarChar(2)
+
+  // Business Details
+  revenue               Int?
+  employeeCount         Int?
+
+  // Contact Information
+  ownerName             String?  @db.VarChar(255)
+  email                 String?  @db.VarChar(255)
+  phone                 String?  @db.VarChar(20)
+
+  // WCAG Accessibility Status
+  wcagScore             Float?
+  wcagViolationCount    Int      @default(0)
+  lastScanned           DateTime?
+
+  // Targeting & Outreach
+  matchScore            Float    @default(0.0) // 0.0-1.0 how well they match ideal profile
+  outreachStatus        String   @default("not_contacted") @db.VarChar(50) // not_contacted, contacted, interested, client, rejected
+  outreachAttempts      Int      @default(0)
+  lastOutreachDate      DateTime?
+  notes                 String?  @db.Text
+
+  // Metadata
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  violations            TargetBusinessViolation[]
+
+  @@unique([website])
+  @@index([industryId])
+  @@index([city])
+  @@index([wcagScore])
+  @@index([matchScore])
+  @@index([outreachStatus])
+  @@index([createdAt])
+}
+
+// Target Business WCAG Violations
+model TargetBusinessViolation {
+  id                    String   @id @default(cuid())
+  businessId            String
+  business              TargetBusiness @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Violation Details
+  wcagCriteria          String   @db.VarChar(10)
+  severity              String   @db.VarChar(20)
+  description           String   @db.Text
+  count                 Int      @default(1)
+
+  // Metadata
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([businessId])
+  @@index([wcagCriteria])
+  @@index([severity])
 }

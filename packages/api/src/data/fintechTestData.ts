@@ -4,6 +4,7 @@
  */
 
 import { EmailDraft, LegacyViolation, ConsultantProfile } from '../types';
+import { EmailDraft, LegacyViolation, Consultant } from '../types';
 
 // ============================================================================
 // FINTECH-SPECIFIC WCAG VIOLATIONS

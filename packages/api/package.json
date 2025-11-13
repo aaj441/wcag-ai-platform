@@ -8,7 +8,9 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "jest",
-    "lint": "eslint src --ext .ts"
+    "lint": "eslint src --ext .ts",
+    "seed": "tsx prisma/seed.ts",
+    "migrate": "prisma migrate dev"
   },
   "keywords": [
     "wcag",
@@ -20,6 +22,7 @@
   "license": "MIT",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.478.0",
+    "@clerk/clerk-sdk-node": "^4.13.23",
     "@opentelemetry/api": "^1.7.0",
     "@opentelemetry/exporter-jaeger": "^1.19.0",
     "@opentelemetry/instrumentation": "^0.46.0",
@@ -34,6 +37,9 @@
     "@pollyjs/persister-fs": "^6.0.6",
     "@prisma/client": "^5.7.1",
     "axios": "^1.6.2",
+    "@sendgrid/mail": "^8.1.6",
+    "@sentry/node": "^10.25.0",
+    "@sentry/profiling-node": "^10.25.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
@@ -43,6 +49,7 @@
     "launchdarkly-node-server-sdk": "^7.0.4",
     "prom-client": "^15.1.0",
     "puppeteer": "^24.29.1",
+    "stripe": "^19.3.1",
     "uuid": "^9.0.1",
     "winston": "^3.11.0"
   },
