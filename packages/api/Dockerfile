@@ -1,6 +1,7 @@
 # ========================================
 # WCAG AI Platform - API Dockerfile
 # Production-optimized multi-stage build
+# Includes Puppeteer, Redis, and Bull queue
 # ========================================
 
 FROM node:20-alpine AS builder
@@ -9,12 +10,12 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Install build dependencies
-RUN apk add --no-cache python3 make g++
+RUN apk add --no-cache python3 make g++ chromium nss freetype harfbuzz ca-certificates ttf-freefont
 
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
+# Install dependencies and skip Puppeteer download (use system Chromium)
 RUN npm ci --only=production && \
     npm cache clean --force
 
@@ -30,6 +31,18 @@ RUN npm run build
 
 FROM node:20-alpine
 
+# Install runtime dependencies for Puppeteer and browser
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    freetype-dev \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
+    bash \
+    curl
+
 # Security: Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
@@ -43,19 +56,25 @@ COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
 # Copy built application
 COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
 COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
+COPY --from=builder --chown=nodejs:nodejs /app/prisma ./prisma
 
-# Create logs directory
+# Create necessary directories
 RUN mkdir -p logs && chown nodejs:nodejs logs
+
+# Set environment variables for Puppeteer
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+ENV NODE_ENV=production
 
 # Switch to non-root user
 USER nodejs
 
 # Expose port
-EXPOSE 8080
+EXPOSE 3001
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:8080/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+  CMD curl -f http://localhost:3001/health || exit 1
 
 # Start application
 CMD ["node", "dist/server.js"]
