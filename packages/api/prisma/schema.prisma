@@ -371,6 +371,8 @@ model Metro {
   @@index([state])
   @@index([population])
   @@index([adaLawsuitTrend])
+  // Composite index for filtering
+  @@index([state, adaLawsuitTrend])
 }
 
 // Industry Vertical Profile per Metro
@@ -458,6 +460,10 @@ model Prospect {
   @@index([complianceScore])
   @@index([responseStatus])
   @@index([city])
+  // Composite indexes for performance (<5s query requirement)
+  @@index([metroId, priority, riskScore])
+  @@index([metroId, industryId, riskScore])
+  @@index([metroId, complianceScore])
 }
 
 // Accessibility Audit Results

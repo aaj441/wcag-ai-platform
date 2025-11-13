@@ -8,6 +8,7 @@ import { log } from '../utils/logger';
 import { ProspectDiscoveryService } from '../services/ProspectDiscoveryService';
 import { RiskScoringService } from '../services/RiskScoringService';
 import { BatchAuditService } from '../services/BatchAuditService';
+import { CacheService } from '../services/CacheService';
 import { NATIONAL_METROS, INDUSTRY_VERTICALS, getMetroById, searchMetros } from '../data/nationalMetros';
 
 const router = express.Router();
@@ -18,12 +19,19 @@ const router = express.Router();
 
 /**
  * GET /api/demographics/metros
- * List all available metro areas
+ * List all available metro areas (cached for 5 minutes)
  */
 router.get('/metros', (req: Request, res: Response) => {
   try {
     const state = (req.query.state as string)?.toUpperCase();
     const search = req.query.search as string;
+    const cacheKey = `metros:${state || 'all'}:${search || 'all'}`;
+
+    // Check cache
+    const cached = CacheService.get<any>(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
 
     let metros = NATIONAL_METROS;
 
@@ -37,14 +45,19 @@ router.get('/metros', (req: Request, res: Response) => {
       metros = searchMetros(search);
     }
 
-    res.json({
+    const response = {
       success: true,
       data: {
         metros,
         totalCount: metros.length,
         uniqueStates: [...new Set(NATIONAL_METROS.map(m => m.state))],
       },
-    });
+    };
+
+    // Cache for 5 minutes (metros don't change often)
+    CacheService.set(cacheKey, response, 5 * 60 * 1000);
+
+    res.json(response);
   } catch (error) {
     log.error('Failed to list metros', error as Error);
     res.status(500).json({ error: 'Failed to list metros' });
@@ -85,17 +98,30 @@ router.get('/metros/:metroId', (req: Request, res: Response) => {
 
 /**
  * GET /api/demographics/industries
- * List all industry verticals
+ * List all industry verticals (cached for 5 minutes)
  */
 router.get('/industries', (req: Request, res: Response) => {
   try {
-    res.json({
+    const cacheKey = 'industries:all';
+
+    // Check cache
+    const cached = CacheService.get<any>(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+
+    const response = {
       success: true,
       data: {
         industries: INDUSTRY_VERTICALS,
         totalVerticals: INDUSTRY_VERTICALS.length,
       },
-    });
+    };
+
+    // Cache for 5 minutes (industries don't change often)
+    CacheService.set(cacheKey, response, 5 * 60 * 1000);
+
+    res.json(response);
   } catch (error) {
     log.error('Failed to list industries', error as Error);
     res.status(500).json({ error: 'Failed to list industries' });

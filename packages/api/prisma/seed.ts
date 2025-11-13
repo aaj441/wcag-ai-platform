@@ -1,16 +1,84 @@
 /**
  * Database Seed Script
- * Populates target demographics with Pittsburgh-focused industries and sample businesses
+ * Populates nationwide demographic targeting system + Pittsburgh-focused industries
  *
  * Run with: npx ts-node prisma/seed.ts
  */
 
 import { PrismaClient } from '@prisma/client';
+import { NATIONAL_METROS, INDUSTRY_VERTICALS } from '../src/data/nationalMetros';
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log('🌱 Starting database seed...\n');
+
+  // ============================================================================
+  // 0. SEED NATIONWIDE DEMOGRAPHIC TARGETING SYSTEM
+  // ============================================================================
+
+  console.log('🌎 Seeding nationwide metros...');
+
+  // Seed all metros
+  for (const metroData of NATIONAL_METROS) {
+    await prisma.metro.upsert({
+      where: { metroId: metroData.metroId },
+      update: metroData,
+      create: metroData,
+    });
+  }
+
+  console.log(`✅ Seeded ${NATIONAL_METROS.length} metros\n`);
+
+  console.log('🏭 Seeding industry verticals...');
+
+  // Seed industry profiles for each metro (top 10 metros only for performance)
+  const topMetros = await prisma.metro.findMany({
+    take: 10,
+    orderBy: { population: 'desc' },
+  });
+
+  let industryProfileCount = 0;
+
+  for (const metro of topMetros) {
+    for (const vertical of INDUSTRY_VERTICALS) {
+      await prisma.industryProfile.upsert({
+        where: {
+          metroId_verticalId: {
+            metroId: metro.id,
+            verticalId: vertical.verticalId,
+          },
+        },
+        update: {
+          name: vertical.name,
+          subCategories: vertical.subCategories,
+          estimatedProspectsInMetro: vertical.estimatedProspectsInMetro,
+          adaRiskLevel: vertical.adaRiskLevel,
+          typicalRevenue: vertical.typicalRevenue,
+          typicalEmployeeCount: vertical.typicalEmployeeCount,
+          recentLawsuitCount: vertical.recentLawsuitCount,
+          searchQueries: vertical.searchQueries,
+          keyDirectories: vertical.keyDirectories,
+        },
+        create: {
+          metroId: metro.id,
+          verticalId: vertical.verticalId,
+          name: vertical.name,
+          subCategories: vertical.subCategories,
+          estimatedProspectsInMetro: vertical.estimatedProspectsInMetro,
+          adaRiskLevel: vertical.adaRiskLevel,
+          typicalRevenue: vertical.typicalRevenue,
+          typicalEmployeeCount: vertical.typicalEmployeeCount,
+          recentLawsuitCount: vertical.recentLawsuitCount,
+          searchQueries: vertical.searchQueries,
+          keyDirectories: vertical.keyDirectories,
+        },
+      });
+      industryProfileCount++;
+    }
+  }
+
+  console.log(`✅ Created ${industryProfileCount} industry profiles for top ${topMetros.length} metros\n`);
 
   // ============================================================================
   // 1. CREATE INDUSTRIES
@@ -501,12 +569,22 @@ async function main() {
   // ============================================================================
 
   console.log('📊 Seed Summary:');
+  console.log(`   Metros: ${NATIONAL_METROS.length}`);
+  console.log(`   Industry Profiles: ${industryProfileCount}`);
   console.log(`   Industries: ${industries.length}`);
   console.log(`   Businesses: ${businesses.length}`);
   console.log('');
   console.log('🎉 Database seeding complete!');
   console.log('');
-  console.log('API Endpoints:');
+  console.log('🔥 Nationwide Demographic Targeting API Endpoints:');
+  console.log('  - GET /api/demographics/metros');
+  console.log('  - GET /api/demographics/metros/:metroId');
+  console.log('  - GET /api/demographics/industries');
+  console.log('  - POST /api/demographics/discover');
+  console.log('  - POST /api/demographics/batch-audit');
+  console.log('  - POST /api/demographics/score-risk');
+  console.log('');
+  console.log('📍 Legacy Pittsburgh-Focused API Endpoints:');
   console.log('  - GET /api/target-demographics/industries');
   console.log('  - GET /api/target-demographics/businesses');
   console.log('  - POST /api/target-demographics/businesses/search');
