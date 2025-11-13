@@ -1,0 +1,206 @@
+name: Accessibility Scan
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  accessibility:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install root dependencies
+        run: npm install
+      
+      - name: Install API dependencies
+        working-directory: ./packages/api
+        run: npm install
+      
+      - name: Install webapp dependencies
+        working-directory: ./packages/webapp
+        run: npm install
+      
+      - name: Build API
+        working-directory: ./packages/api
+        run: npm run build
+      
+      - name: Build webapp
+        working-directory: ./packages/webapp
+        run: npm run build
+        env:
+          VITE_API_BASE_URL: http://localhost:3001
+      
+      - name: Start API server
+        working-directory: ./packages/api
+        run: |
+          npm start &
+          npx wait-on http://localhost:3001/health --timeout 60000
+        env:
+          PORT: 3001
+          NODE_ENV: test
+      
+      - name: Start webapp server
+        working-directory: ./packages/webapp
+        run: |
+          npm start &
+          npx wait-on http://localhost:3000 --timeout 60000
+        env:
+          PORT: 3000
+      
+      - name: Run axe-core accessibility scan
+        run: node scripts/accessibility-scan.js http://localhost:3000
+        continue-on-error: true
+        id: axe-scan
+      
+      - name: Update evidence vault
+        if: always()
+        run: node scripts/update-evidence-vault.js
+      
+      - name: Upload scan results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accessibility-scan-results-${{ github.run_number }}
+          path: evidence-vault/
+          retention-days: 90
+      
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            try {
+              // Find the latest scan file
+              const scansDir = 'evidence-vault/scans';
+              if (!fs.existsSync(scansDir)) {
+                console.log('No scan results found');
+                return;
+              }
+              
+              const files = fs.readdirSync(scansDir)
+                .filter(f => f.startsWith('scan-') && f.endsWith('.json'))
+                .sort()
+                .reverse();
+              
+              if (files.length === 0) {
+                console.log('No axe-core scan results found');
+                return;
+              }
+              
+              const latestFile = files[0];
+              const results = JSON.parse(fs.readFileSync(path.join(scansDir, latestFile), 'utf8'));
+              
+              const violations = results.violations.length;
+              const critical = results.violations.filter(v => v.impact === 'critical').length;
+              const serious = results.violations.filter(v => v.impact === 'serious').length;
+              const moderate = results.violations.filter(v => v.impact === 'moderate').length;
+              const minor = results.violations.filter(v => v.impact === 'minor').length;
+              const passes = results.passes.length;
+              
+              // Create violation details
+              let violationDetails = '';
+              if (violations > 0) {
+                violationDetails = results.violations.slice(0, 5).map((v, i) => 
+                  `${i + 1}. **${v.id}** (${v.impact})\n   - ${v.description}\n   - Affected elements: ${v.nodes.length}\n   - [Learn more](${v.helpUrl})`
+                ).join('\n\n');
+                
+                if (violations > 5) {
+                  violationDetails += `\n\n_... and ${violations - 5} more violations. See full report in artifacts._`;
+                }
+              }
+              
+              const statusEmoji = critical > 0 ? '❌' : serious > 0 ? '⚠️' : '✅';
+              const statusText = critical > 0 ? 'BLOCKED - Critical violations must be fixed' : 
+                                serious > 0 ? 'WARNING - Serious violations detected' : 
+                                'PASSED - No critical violations';
+              
+              const comment = `## ${statusEmoji} Accessibility Scan Results
+            
+**Status:** ${statusText}
+
+### Summary
+| Category | Count |
+|----------|-------|
+| 🔴 Critical | **${critical}** |
+| 🟠 Serious | **${serious}** |
+| 🟡 Moderate | **${moderate}** |
+| 🟢 Minor | **${minor}** |
+| ✅ Passed | **${passes}** |
+
+### Impact
+- **Total Violations:** ${violations}
+- **Tests Passed:** ${passes}
+
+${critical > 0 ? `
+### ⛔ Action Required
+This PR is **blocked** due to critical accessibility violations. Critical issues must be fixed before merging.
+` : serious > 0 ? `
+### ⚠️ Attention Needed
+This PR has serious accessibility violations. Please review and fix before merging.
+` : `
+### ✅ All Clear
+No critical accessibility violations detected. Great work!
+`}
+
+${violations > 0 ? `
+<details>
+<summary>📋 View Top Violations</summary>
+
+${violationDetails}
+
+</details>
+` : ''}
+
+<details>
+<summary>ℹ️ About This Check</summary>
+
+This automated accessibility scan uses [axe-core](https://github.com/dequelabs/axe-core) to test for WCAG 2.1 Level A and AA compliance.
+
+- **Critical**: Severe accessibility barriers that prevent access
+- **Serious**: Significant barriers that impact many users
+- **Moderate**: Noticeable barriers that affect some users  
+- **Minor**: Minor issues that have minimal impact
+
+Scan results are stored in the Evidence Vault for 90 days.
+
+</details>
+
+---
+📊 **Scan ID:** \`${latestFile}\` | ⏱️ **Runtime:** ${{ github.run_number }} | 🤖 **Powered by axe-core**`;
+              
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+              
+            } catch (error) {
+              console.error('Error creating comment:', error);
+              // Don't fail the workflow if comment creation fails
+            }
+      
+      - name: Check scan status
+        if: always()
+        run: |
+          if [ "${{ steps.axe-scan.outcome }}" == "failure" ]; then
+            echo "❌ Accessibility scan failed - see results above"
+            exit 1
+          else
+            echo "✅ Accessibility scan passed"
+          fi
