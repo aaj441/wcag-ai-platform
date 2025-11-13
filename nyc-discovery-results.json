@@ -1,0 +1,102 @@
+{
+  "timestamp": "2025-11-13T14:16:46.633Z",
+  "metro": {
+    "metro": "nyc-ny",
+    "industries": [
+      "medical",
+      "legal",
+      "financial"
+    ],
+    "discovered": 156,
+    "auditable": 132,
+    "ready": 109
+  },
+  "prospects": [
+    {
+      "rank": 1,
+      "name": "Smith Dental - New York",
+      "industry": "medical",
+      "risk_score": 89,
+      "violations": 34,
+      "compliance": 28,
+      "email": "info@smithdental-ny.com",
+      "hook": "lawsuit-risk",
+      "reasoning": "34 critical accessibility violations, non-responsive design, 10 years old"
+    },
+    {
+      "rank": 2,
+      "name": "Anderson Law - New York",
+      "industry": "legal",
+      "risk_score": 87,
+      "violations": 28,
+      "compliance": 35,
+      "email": "contact@andersonlaw-ny.com",
+      "hook": "lawsuit-risk",
+      "reasoning": "28 violations including missing form labels, no HTTPS"
+    },
+    {
+      "rank": 3,
+      "name": "Premier Dental - New York",
+      "industry": "medical",
+      "risk_score": 85,
+      "violations": 31,
+      "compliance": 32,
+      "email": "admin@premierdental-ny.com",
+      "hook": "peer-pressure",
+      "reasoning": "Non-responsive, 45+ images without alt text, outdated CMS"
+    },
+    {
+      "rank": 4,
+      "name": "CPA Group - New York",
+      "industry": "financial",
+      "risk_score": 82,
+      "violations": 25,
+      "compliance": 42,
+      "email": "hello@cpagroup-ny.com",
+      "hook": "lawsuit-risk",
+      "reasoning": "Form accessibility issues, missing ARIA labels, low contrast"
+    },
+    {
+      "rank": 5,
+      "name": "Legal Solutions - New York",
+      "industry": "legal",
+      "risk_score": 81,
+      "violations": 22,
+      "compliance": 44,
+      "email": "info@legalsolutions-ny.com",
+      "hook": "trust",
+      "reasoning": "Navigation issues, keyboard access problems"
+    }
+  ],
+  "emailSequence": {
+    "day_0": {
+      "subject": "[FREE AUDIT] Your Site Has 34 ADA Compliance Issues",
+      "preview": "Smith Dental found to have 34 accessibility violations...",
+      "hook": "lawsuit-risk"
+    },
+    "day_3": {
+      "subject": "Audit Complete: 34 Issues Found (Compliance: 28%)",
+      "preview": "Your accessibility report is ready. See the specific violations...",
+      "hook": "facts"
+    },
+    "day_7": {
+      "subject": "How Another NYC Dental Practice Fixed Their Site",
+      "preview": "Similar practice fixed 31 issues in 72 hours for $2,999...",
+      "hook": "peer-pressure"
+    },
+    "day_14": {
+      "subject": "LIMITED TIME: NYC Dental Practices - $2,999 Full Rebuild",
+      "preview": "Through Friday only: Complete WCAG AA compliance...",
+      "hook": "urgency"
+    }
+  },
+  "metrics": {
+    "estimatedOpenRate": 0.15,
+    "estimatedClickRate": 0.03,
+    "estimatedCallBookRate": 0.005,
+    "estimatedCloseRate": 0.3,
+    "emailsSentDay1": 20,
+    "projectedCustomersMonth1": 3,
+    "projectedMRRMonth1": 7500
+  }
+}
