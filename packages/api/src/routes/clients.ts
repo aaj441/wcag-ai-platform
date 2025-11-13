@@ -3,14 +3,16 @@ import { v4 as uuidv4 } from 'uuid';
 import prisma from '../lib/prisma';
 import crypto from 'crypto';
 import { sendWelcomeEmail } from '../services/email';
+import OnboardingService from '../services/onboardingService';
+import { log } from '../utils/logger';
 
 const router = Router();
 
 // POST /api/clients/onboard
-// Automated client onboarding flow
+// Complete client onboarding flow with legal documents and initial scan
 router.post('/onboard', async (req: Request, res: Response) => {
   try {
-    const { email, company, tier = 'basic' } = req.body;
+    const { email, company, tier = 'basic', website, websites, contactName, contactPhone, industry } = req.body;
 
     // Validation
     if (!email || !company) {
@@ -32,49 +34,35 @@ router.post('/onboard', async (req: Request, res: Response) => {
       });
     }
 
-    // Generate API key
-    const apiKey = `wcag_${crypto.randomBytes(32).toString('hex')}`;
-
-    // Determine scan limits based on tier
-    const scanLimits = {
-      basic: 10,
-      pro: 100,
-      enterprise: 1000
-    };
-
-    // Create new client
-    const newClient = await prisma.client.create({
-      data: {
-        email,
-        company,
-        tier,
-        scansRemaining: scanLimits[tier as keyof typeof scanLimits] || 10,
-        apiKey,
-        status: 'active'
-      }
+    // Execute complete onboarding workflow
+    const onboardingResult = await OnboardingService.onboardClient({
+      email,
+      company,
+      website,
+      websites,
+      tier: tier as 'basic' | 'pro' | 'enterprise',
+      contactName,
+      contactPhone,
+      industry
     });
 
-    // Send welcome email (Phase 4)
-    if (newClient.apiKey) {
-      await sendWelcomeEmail(newClient.email, newClient.company, newClient.apiKey);
-    }
+    log.info('Client onboarding completed', {
+      clientId: onboardingResult.clientId,
+      company,
+      tier
+    });
 
     return res.status(201).json({
       success: true,
-      client: {
-        id: newClient.id,
-        email: newClient.email,
-        company: newClient.company,
-        tier: newClient.tier,
-        apiKey: newClient.apiKey,
-        scansRemaining: newClient.scansRemaining
-      }
+      ...onboardingResult
     });
   } catch (error) {
-    console.error('Client onboarding error:', error);
-    return res.status(500).json({
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    log.error('Client onboarding error:', error instanceof Error ? error : new Error(String(error)));
+
+    return res.status(400).json({
       success: false,
-      error: 'Failed to onboard client'
+      error: errorMessage || 'Failed to onboard client'
     });
   }
 });
@@ -158,6 +146,77 @@ router.patch('/:id', async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       error: 'Failed to update client'
+    });
+  }
+});
+
+// GET /api/clients/:id/legal-documents
+// Retrieve client's legal documents for review/signing
+router.get('/:id/legal-documents', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const client = await prisma.client.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        company: true,
+        tier: true,
+        createdAt: true
+      }
+    });
+
+    if (!client) {
+      return res.status(404).json({
+        success: false,
+        error: 'Client not found'
+      });
+    }
+
+    // Return links to legal documents
+    const baseUrl = process.env.DASHBOARD_URL || 'https://dashboard.wcag-ai.com';
+
+    return res.json({
+      success: true,
+      client: {
+        id: client.id,
+        email: client.email,
+        company: client.company,
+        tier: client.tier
+      },
+      documents: {
+        serviceAgreement: {
+          title: 'Service Agreement',
+          url: `${baseUrl}/legal/${id}/service-agreement`,
+          required: true,
+          signed: false
+        },
+        liabilityWaiver: {
+          title: 'Liability Waiver',
+          url: `${baseUrl}/legal/${id}/liability-waiver`,
+          required: true,
+          signed: false
+        },
+        sla: {
+          title: 'Service Level Agreement',
+          url: `${baseUrl}/legal/${id}/sla`,
+          required: true,
+          signed: false
+        },
+        accessibilityStatement: {
+          title: 'Accessibility Statement Template',
+          url: `${baseUrl}/legal/${id}/accessibility-statement`,
+          required: false,
+          signed: false
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching legal documents:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch legal documents'
     });
   }
 });
