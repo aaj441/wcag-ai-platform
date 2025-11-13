@@ -87,3 +87,6 @@ evidence-vault/README.md
 !evidence-vault/scans/.gitkeep
 !evidence-vault/attestations/.gitkeep
 !evidence-vault/reports/.gitkeep
+
+# Test files
+test-page.html
