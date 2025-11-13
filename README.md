@@ -203,6 +203,7 @@ Run the end-to-end demo to see the full client journey:
 |-------|-------------|
 | [Consultant Quickstart](CONSULTANT_QUICKSTART.md) | Get your first client site built in 30 minutes |
 | [Business Playbook](CONSULTANT_BUSINESS_GUIDE.md) | Complete sales & marketing strategy |
+| [Content Marketing](content/README.md) | LinkedIn AI Accessibility Teardown templates |
 | [Architecture](WCAGAI_Architecture_Flow.md) | Technical platform architecture |
 | [Deployment](DEPLOYMENT_AUDIT_RAILWAY_VERCEL.md) | Production deployment guide |
 | [Testing](END_TO_END_TESTING_GUIDE.md) | Automated WCAG testing suite |
