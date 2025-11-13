@@ -106,3 +106,42 @@ export interface Consultant {
   lastContacted?: Date;
   responseRate?: number;
 }
+
+// ============================================================================
+// AI REMEDIATION TYPES - Strategic Pivot to Fixer
+// ============================================================================
+
+export type FixType = 'auto' | 'manual' | 'assisted';
+export type FixStatus = 'pending' | 'generated' | 'applied' | 'failed';
+
+export interface FixRequest {
+  violationId: string;
+  type?: FixType;
+  context?: {
+    framework?: string; // e.g., 'react', 'vue', 'vanilla'
+    language?: string; // e.g., 'typescript', 'javascript'
+  };
+}
+
+export interface CodeFix {
+  original: string;
+  fixed: string;
+  explanation: string;
+}
+
+export interface FixResult {
+  id: string;
+  violationId: string;
+  type: FixType;
+  status: FixStatus;
+  codeFix: CodeFix;
+  filesAffected: string[];
+  estimatedEffort: string; // e.g., "5 minutes", "2 hours"
+  confidence: number; // 0.0-1.0
+  instructions: string[];
+  generatedAt: Date;
+  metadata?: {
+    model?: string;
+    tokensUsed?: number;
+  };
+}

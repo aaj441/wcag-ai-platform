@@ -12,6 +12,7 @@ import clientsRouter from './routes/clients';
 import slaRouter from './routes/sla';
 import reportsRouter from './routes/reports';
 import proposalsRouter from './routes/proposals';
+import fixesRouter from './routes/fixes';
 
 // Load environment variables
 dotenv.config();
@@ -61,6 +62,7 @@ app.use('/api/clients', clientsRouter);
 app.use('/api/sla', slaRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/proposals', proposalsRouter);
+app.use('/api/fixes', fixesRouter);
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {
@@ -75,6 +77,7 @@ app.get('/', (req: Request, res: Response) => {
       sla: '/api/sla',
       reports: '/api/reports',
       proposals: '/api/proposals',
+      fixes: '/api/fixes',
     },
     documentation: 'https://github.com/aaj441/wcag-ai-platform',
   });
