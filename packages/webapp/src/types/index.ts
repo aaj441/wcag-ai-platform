@@ -59,6 +59,31 @@ export interface Consultant {
   responseRate?: number;
 }
 
+export type ServiceTierName = 'readiness_audit' | 'continuous_compliance' | 'strategic_partnership';
+
+export interface ServiceTier {
+  id: ServiceTierName;
+  name: string;
+  subtitle: string;
+  type: 'project' | 'retainer';
+  features: string[];
+  outcomes: string[];
+  pricing?: {
+    type: 'project' | 'monthly' | 'custom';
+    value?: number;
+    description?: string;
+  };
+}
+
+export interface OfferSheet {
+  title: string;
+  problemStatement: string;
+  solution: string;
+  tiers: ServiceTier[];
+  outcomes: string[];
+  callToAction: string;
+}
+
 export interface ScanResult {
   id: string;
   url: string;

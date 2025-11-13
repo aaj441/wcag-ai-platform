@@ -157,6 +157,22 @@ class ApiService {
       return false;
     }
   }
+
+  // ============================================================================
+  // OFFER SHEET ENDPOINTS
+  // ============================================================================
+
+  async getOfferSheet(): Promise<ApiResponse<any>> {
+    return this.request('/offer-sheet');
+  }
+
+  async getServiceTiers(): Promise<ApiResponse<any[]>> {
+    return this.request('/offer-sheet/tiers');
+  }
+
+  async getServiceTier(tierId: string): Promise<ApiResponse<any>> {
+    return this.request(`/offer-sheet/tiers/${tierId}`);
+  }
 }
 
 // Export singleton instance
