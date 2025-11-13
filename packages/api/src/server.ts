@@ -12,6 +12,8 @@ import clientsRouter from './routes/clients';
 import slaRouter from './routes/sla';
 import reportsRouter from './routes/reports';
 import proposalsRouter from './routes/proposals';
+import onboardingRouter from './routes/onboarding';
+import { initializeDailyScanScheduler, shutdownDailyScanScheduler } from './services/dailyScanScheduler';
 
 // Load environment variables
 dotenv.config();
@@ -61,6 +63,7 @@ app.use('/api/clients', clientsRouter);
 app.use('/api/sla', slaRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/proposals', proposalsRouter);
+app.use('/api/onboarding', onboardingRouter);
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {
@@ -75,6 +78,7 @@ app.get('/', (req: Request, res: Response) => {
       sla: '/api/sla',
       reports: '/api/reports',
       proposals: '/api/proposals',
+      onboarding: '/api/onboarding',
     },
     documentation: 'https://github.com/aaj441/wcag-ai-platform',
   });
@@ -117,6 +121,22 @@ app.listen(PORT, () => {
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
   console.log(`📚 API Base: http://localhost:${PORT}/api`);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  
+  // Initialize daily scan scheduler
+  initializeDailyScanScheduler();
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully...');
+  shutdownDailyScanScheduler();
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received, shutting down gracefully...');
+  shutdownDailyScanScheduler();
+  process.exit(0);
 });
 
 export default app;
