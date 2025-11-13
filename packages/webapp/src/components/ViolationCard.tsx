@@ -4,9 +4,11 @@
  */
 
 import React, { useState } from 'react';
-import { Violation } from '../types';
+import { Violation, FixResult } from '../types';
 import { SEVERITY_CONFIG, WCAG_CRITERIA_INFO } from '../config/constants';
 import { copyToClipboard } from '../utils/helpers';
+import { apiService } from '../services/api';
+import { FixPreviewModal } from './FixPreviewModal';
 
 interface ViolationCardProps {
   violation: Violation;
@@ -16,6 +18,9 @@ interface ViolationCardProps {
 export const ViolationCard: React.FC<ViolationCardProps> = ({ violation, index }) => {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [generatingFix, setGeneratingFix] = useState(false);
+  const [currentFix, setCurrentFix] = useState<FixResult | null>(null);
+  const [showFixModal, setShowFixModal] = useState(false);
 
   const severityConfig = SEVERITY_CONFIG[violation.severity];
   const wcagInfo = WCAG_CRITERIA_INFO[violation.wcagCriteria];
@@ -28,6 +33,27 @@ export const ViolationCard: React.FC<ViolationCardProps> = ({ violation, index }
         setTimeout(() => setCopied(false), 2000);
       }
     }
+  };
+
+  const handleGenerateFix = async () => {
+    setGeneratingFix(true);
+    try {
+      const fix = await apiService.generateFix(violation.id);
+      if (fix) {
+        setCurrentFix(fix);
+        setShowFixModal(true);
+      }
+    } catch (error) {
+      console.error('Failed to generate fix:', error);
+    } finally {
+      setGeneratingFix(false);
+    }
+  };
+
+  const handleApplyFix = (fix: FixResult) => {
+    // Copy fixed code to clipboard
+    copyToClipboard(fix.codeFix.fixed);
+    alert('Fix code copied to clipboard! Follow the implementation steps to apply it.');
   };
 
   return (
@@ -93,6 +119,30 @@ export const ViolationCard: React.FC<ViolationCardProps> = ({ violation, index }
           <p className="text-sm text-gray-300 leading-relaxed bg-green-900/20 p-3 rounded border border-green-700/30">
             {violation.recommendation}
           </p>
+          
+          {/* AI FIX Button */}
+          <div className="mt-3">
+            <button
+              onClick={handleGenerateFix}
+              disabled={generatingFix}
+              className="w-full px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white rounded-lg transition-all font-semibold flex items-center justify-center space-x-2"
+            >
+              {generatingFix ? (
+                <>
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>Generating Fix...</span>
+                </>
+              ) : (
+                <>
+                  <span>🤖</span>
+                  <span>AI FIX - Generate Code</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Affected Users */}
@@ -161,6 +211,15 @@ export const ViolationCard: React.FC<ViolationCardProps> = ({ violation, index }
           </div>
         )}
       </div>
+
+      {/* Fix Preview Modal */}
+      {showFixModal && (
+        <FixPreviewModal
+          fix={currentFix}
+          onClose={() => setShowFixModal(false)}
+          onApply={handleApplyFix}
+        />
+      )}
     </div>
   );
 };

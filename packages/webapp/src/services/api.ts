@@ -146,6 +146,44 @@ class ApiService {
   }
 
   // ============================================================================
+  // FIX ENDPOINTS - AI-Powered Remediation
+  // ============================================================================
+
+  async generateFix(violationId: string, context?: { framework?: string; language?: string }) {
+    const response = await this.request('/fixes/generate', {
+      method: 'POST',
+      body: JSON.stringify({ violationId, type: 'manual', context }),
+    });
+    return response.data || null;
+  }
+
+  async generateBatchFixes(violationIds: string[]) {
+    const response = await this.request('/fixes/batch', {
+      method: 'POST',
+      body: JSON.stringify({ violationIds }),
+    });
+    return response.data || null;
+  }
+
+  async generateRemediationPlan(filters?: { severity?: string; wcagLevel?: string }) {
+    const response = await this.request('/fixes/plan', {
+      method: 'POST',
+      body: JSON.stringify(filters || {}),
+    });
+    return response.data || null;
+  }
+
+  async getFixRecommendations(violationId: string) {
+    const response = await this.request<{ recommendations: string[] }>(`/fixes/recommendations/${violationId}`);
+    return response.data?.recommendations || [];
+  }
+
+  async getFixStats() {
+    const response = await this.request('/fixes/stats');
+    return response.data || null;
+  }
+
+  // ============================================================================
   // HEALTH CHECK
   // ============================================================================
 
