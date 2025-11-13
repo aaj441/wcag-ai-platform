@@ -205,6 +205,7 @@ Run the end-to-end demo to see the full client journey:
 | [Business Playbook](CONSULTANT_BUSINESS_GUIDE.md) | Complete sales & marketing strategy |
 | [Content Marketing](content/README.md) | LinkedIn AI Accessibility Teardown templates |
 | [Architecture](WCAGAI_Architecture_Flow.md) | Technical platform architecture |
+| [Deployment Harmony Guide](DEPLOYMENT_HARMONY_GUIDE.md) | **NEW:** Unified deployment verification system |
 | [Deployment](DEPLOYMENT_AUDIT_RAILWAY_VERCEL.md) | Production deployment guide |
 | [Testing](END_TO_END_TESTING_GUIDE.md) | Automated WCAG testing suite |
 
@@ -233,9 +234,10 @@ Run the end-to-end demo to see the full client journey:
 - **Radix UI** - Accessible component library
 
 ### **Deployment:**
-- **Vercel** - Production hosting (primary)
-- **Railway** - Alternative deployment option
-- **GitHub Actions** - CI/CD pipelines
+- **Railway** - Backend API hosting with auto-scaling
+- **Vercel** - Frontend hosting with global CDN
+- **GitHub Actions** - CI/CD pipelines with automated verification
+- **Deployment Harmony System** - Unified deployment coordinator with pre/post validation
 
 ---
 
@@ -260,6 +262,54 @@ Run the end-to-end demo to see the full client journey:
 
 ---
 
+## **🚀 Deployment & Verification System**
+
+### **Unified Deployment Harmony**
+
+The platform includes a comprehensive deployment verification system that ensures all changes work together seamlessly:
+
+#### **Verify Harmony Agent**
+Custom GitHub Copilot agent that verifies:
+- ✅ Type consistency between frontend and backend
+- ✅ API contract alignment
+- ✅ Configuration validity
+- ✅ Security implementations
+- ✅ Cross-platform integration
+
+#### **Automated Verification**
+```bash
+# Pre-deployment check
+./deployment/scripts/verify-deployment-harmony.sh --pre-deploy production
+
+# Score: 95%+
+# ✅ 35/37 checks passed
+# Ready for deployment
+```
+
+#### **Unified Deployment Coordinator**
+One command to deploy both Railway (backend) + Vercel (frontend):
+```bash
+# Deploy everything
+./deployment/scripts/deploy-unified.sh production
+
+# Includes:
+# ✓ Pre-deployment validation
+# ✓ Coordinated deployment
+# ✓ Post-deployment verification
+# ✓ Automatic rollback on failure
+```
+
+#### **CI/CD Integration**
+GitHub Actions automatically:
+- Verifies every PR for harmony
+- Runs comprehensive validation
+- Comments results on PRs
+- Prevents broken deployments
+
+**Learn more:** [Deployment Harmony Guide](DEPLOYMENT_HARMONY_GUIDE.md)
+
+---
+
 ## **🎯 Next Steps**
 
 ### **Today:**
@@ -271,8 +321,9 @@ Run the end-to-end demo to see the full client journey:
 ### **This Week:**
 1. Set up your consultant profile
 2. Configure Stripe for billing
-3. Deploy to production (Vercel)
-4. Run first real client project
+3. Verify deployment harmony: `./deployment/scripts/verify-deployment-harmony.sh --pre-deploy production`
+4. Deploy to production: `./deployment/scripts/deploy-unified.sh production`
+5. Run first real client project
 
 ### **This Month:**
 1. Sign first 3 clients
