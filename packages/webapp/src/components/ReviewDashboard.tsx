@@ -5,14 +5,13 @@
  */
 
 import React, { useState, useEffect } from "react";
-import type { Scan, Violation } from "@wcag-ai-platform/api";
 
 interface ReviewDashboardProps {
   scanId?: string;
 }
 
 export function ReviewDashboard({ scanId }: ReviewDashboardProps) {
-  const [scans, setScans] = useState<Scan[]>([]);
+  const [scans, setScans] = useState<any[]>([]);
   const [selectedScan, setSelectedScan] = useState<string | null>(scanId || null);
   const [loading, setLoading] = useState(false);
   const [approvalStatus, setApprovalStatus] = useState("pending");
@@ -130,8 +129,8 @@ export function ReviewDashboard({ scanId }: ReviewDashboardProps) {
           <div className="flex-1 overflow-y-auto space-y-2 mb-4">
             <h3 className="font-bold text-lg">Violations</h3>
             {(selectedScanData.violations || [])
-              .sort((a, b) => (b.aiConfidence || 0) - (a.aiConfidence || 0))
-              .map((v) => (
+              .sort((a: any, b: any) => (b.aiConfidence || 0) - (a.aiConfidence || 0))
+              .map((v: any) => (
                 <div key={v.id} className="bg-white p-3 rounded border">
                   <div className="flex items-start justify-between">
                     <div>

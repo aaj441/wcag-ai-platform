@@ -20,6 +20,6 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true
   },
-  "include": ["src/**/*"],
+  "include": ["vite-env.d.ts", "src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

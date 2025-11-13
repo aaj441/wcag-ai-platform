@@ -31,7 +31,7 @@ export const ConsultantApprovalDashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [keywordFilter, setKeywordFilter] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'priority' | 'severity'>('date');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [sortOrder, _setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   // Edit form state
