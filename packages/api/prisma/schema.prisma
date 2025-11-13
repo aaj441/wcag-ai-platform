@@ -140,19 +140,18 @@ model Client {
   company           String    @db.VarChar(255)
 
   // Subscription & Billing
-  tier              String    @default("free") @db.VarChar(50) // free, starter, pro, enterprise
-  scansRemaining    Int       @default(5) // Decremented with each scan
-  subscriptionId    String?   @db.VarChar(255) // Stripe subscription ID
-  stripeCustomerId  String?   @unique @db.VarChar(255)
+  tier              String    @default("basic") // basic, pro, enterprise
+  scansRemaining    Int       @default(10)
+  subscriptionId    String?   @db.VarChar(255)
+  stripeCustomerId  String?   @db.VarChar(255)
 
   // Status
-  status            String    @default("active") @db.VarChar(50) // active, suspended, cancelled
+  status            String    @default("active") // active, inactive, suspended
 
   // API Access
   apiKey            String?   @unique @db.VarChar(255)
 
   // Metadata
-  metadata          Json      @default("{}")
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -162,7 +161,6 @@ model Client {
   @@index([email])
   @@index([stripeCustomerId])
   @@index([apiKey])
-  @@index([status])
 }
 
 // Target Demographic - Industry Categories
