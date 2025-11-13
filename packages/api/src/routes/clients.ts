@@ -1,25 +1,16 @@
-/**
- * Client Management API Routes
- * Handles client onboarding, management, and multi-tenant operations
- * NOW USES PRISMA DATABASE (Production-Ready)
- */
-
 import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { prisma } from '../lib/prisma';
+import prisma from '../lib/prisma';
 import crypto from 'crypto';
+import { sendWelcomeEmail } from '../services/email';
 
 const router = Router();
 
-// Generate API Key
-function generateApiKey(): string {
-  return `wcagaii_${crypto.randomBytes(24).toString('hex')}`;
-}
-
-// POST /api/clients/onboard - Create new client
+// POST /api/clients/onboard
+// Automated client onboarding flow
 router.post('/onboard', async (req: Request, res: Response) => {
   try {
-    const { email, company, tier = 'free' } = req.body;
+    const { email, company, tier = 'basic' } = req.body;
 
     // Validation
     if (!email || !company) {
@@ -41,26 +32,46 @@ router.post('/onboard', async (req: Request, res: Response) => {
       });
     }
 
-    // Determine scans based on tier
-    const scansRemaining = tier === 'enterprise' ? 1000 : tier === 'pro' ? 100 : tier === 'starter' ? 20 : 5;
+    // Generate API key
+    const apiKey = `wcag_${crypto.randomBytes(32).toString('hex')}`;
 
-    // Create client with Prisma
-    const client = await prisma.client.create({
+    // Determine scan limits based on tier
+    const scanLimits = {
+      basic: 10,
+      pro: 100,
+      enterprise: 1000
+    };
+
+    // Create new client
+    const newClient = await prisma.client.create({
       data: {
         email,
         company,
         tier,
-        scansRemaining,
-        apiKey: generateApiKey(),
+        scansRemaining: scanLimits[tier as keyof typeof scanLimits] || 10,
+        apiKey,
         status: 'active'
       }
     });
 
-    // TODO Phase 4: Send welcome email via SendGrid
+    // Send welcome email (Phase 4)
+    if (newClient.apiKey) {
+      await sendWelcomeEmail(newClient.email, newClient.company, newClient.apiKey);
+    }
 
-    return res.status(201).json({ success: true, client });
+    return res.status(201).json({
+      success: true,
+      client: {
+        id: newClient.id,
+        email: newClient.email,
+        company: newClient.company,
+        tier: newClient.tier,
+        apiKey: newClient.apiKey,
+        scansRemaining: newClient.scansRemaining
+      }
+    });
   } catch (error) {
-    console.error('Error onboarding client:', error);
+    console.error('Client onboarding error:', error);
     return res.status(500).json({
       success: false,
       error: 'Failed to onboard client'
@@ -68,10 +79,19 @@ router.post('/onboard', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/clients - List all clients
+// GET /api/clients
 router.get('/', async (req: Request, res: Response) => {
   try {
     const clients = await prisma.client.findMany({
+      select: {
+        id: true,
+        email: true,
+        company: true,
+        tier: true,
+        scansRemaining: true,
+        status: true,
+        createdAt: true
+      },
       orderBy: { createdAt: 'desc' }
     });
 
@@ -85,7 +105,7 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/clients/:id - Get client by ID
+// GET /api/clients/:id
 router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -117,7 +137,7 @@ router.get('/:id', async (req: Request, res: Response) => {
   }
 });
 
-// PATCH /api/clients/:id - Update client
+// PATCH /api/clients/:id
 router.patch('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
