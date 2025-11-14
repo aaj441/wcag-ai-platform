@@ -113,8 +113,18 @@ export interface ConsultantProfile {
   accuracyScore: number; // 0.0-1.0
 }
 
-// Alias for backward compatibility
-export type Consultant = ConsultantProfile;
+export interface Consultant {
+  id: string;
+  name: string;
+  email: string;
+  company?: string;
+  role?: string;
+  phone?: string;
+  website?: string;
+  hubspotContactId?: string;
+  lastContacted?: Date;
+  responseRate?: number;
+}
 
 export interface ApiResponse<T = unknown> {
   success: boolean;
@@ -130,17 +140,4 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
     total: number;
     totalPages: number;
   };
-}
-
-export interface Consultant {
-  id: string;
-  name: string;
-  email: string;
-  company?: string;
-  role?: string;
-  phone?: string;
-  website?: string;
-  hubspotContactId?: string;
-  lastContacted?: Date;
-  responseRate?: number;
 }
