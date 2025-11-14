@@ -21,6 +21,7 @@ import targetDemographicsRouter from './routes/targetDemographics';
 import billingRouter from './routes/billing';
 import healthRouter from './routes/health';
 import monitoringRouter from './routes/monitoring';
+import transformRouter from './routes/transform';
 import { initializeSentry, sentryErrorHandler } from './services/monitoring';
 import { getScanQueue } from './services/orchestration/ScanQueue';
 import { getPuppeteerService } from './services/orchestration/PuppeteerService';
@@ -84,6 +85,7 @@ app.use('/api/reports', reportsRouter);
 app.use('/api/proposals', proposalsRouter);
 app.use('/api/target-demographics', targetDemographicsRouter);
 app.use('/api/billing', billingRouter);
+app.use('/api/transform', transformRouter);
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {
@@ -105,6 +107,7 @@ app.get('/', (req: Request, res: Response) => {
       reports: '/api/reports',
       proposals: '/api/proposals',
       targetDemographics: '/api/target-demographics',
+      transform: '/api/transform',
     },
     documentation: 'https://github.com/aaj441/wcag-ai-platform',
   });
