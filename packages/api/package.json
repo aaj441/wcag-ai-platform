@@ -11,7 +11,10 @@
     "lint": "eslint src --ext .ts",
     "seed": "tsx prisma/seed.ts",
     "seed-icp": "tsx prisma/seed-icp.ts",
-    "migrate": "prisma migrate dev"
+    "migrate": "prisma migrate dev",
+    "discover:prospects": "tsx ../../../scripts/discover-prospects.ts",
+    "send:emails": "tsx ../../../scripts/send-emails.ts",
+    "metrics:overview": "curl http://localhost:3001/api/business-metrics/overview"
   },
   "keywords": [
     "wcag",

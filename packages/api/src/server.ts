@@ -14,6 +14,7 @@ import reportsRouter from './routes/reports';
 import proposalsRouter from './routes/proposals';
 import targetDemographicsRouter from './routes/targetDemographics';
 import icpTargetingRouter from './routes/icpTargeting';
+import businessMetricsRouter from './routes/businessMetrics';
 
 // Load environment variables
 dotenv.config();
@@ -65,6 +66,7 @@ app.use('/api/reports', reportsRouter);
 app.use('/api/proposals', proposalsRouter);
 app.use('/api/target-demographics', targetDemographicsRouter);
 app.use('/api/icp-targeting', icpTargetingRouter);
+app.use('/api/business-metrics', businessMetricsRouter);
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {
@@ -81,8 +83,10 @@ app.get('/', (req: Request, res: Response) => {
       proposals: '/api/proposals',
       targetDemographics: '/api/target-demographics',
       icpTargeting: '/api/icp-targeting',
+      businessMetrics: '/api/business-metrics',
     },
     documentation: 'https://github.com/aaj441/wcag-ai-platform',
+    businessPlan: '/docs/BUSINESS_PLAN.md',
   });
 });
 
