@@ -22,7 +22,7 @@ router.get('/health', async (req: Request, res: Response) => {
 
     res.status(statusCode).json(report);
   } catch (error) {
-    log.error('Health check failed:', error);
+    log.error('Health check failed:', error instanceof Error ? error : new Error(String(error)));
     res.status(500).json({
       error: error instanceof Error ? error.message : 'Health check failed',
     });
@@ -47,7 +47,7 @@ router.get('/queue/health', async (req: Request, res: Response) => {
         : 'Monitor failed jobs and consider manual intervention',
     });
   } catch (error) {
-    log.error('Queue health check failed:', error);
+    log.error('Queue health check failed:', error instanceof Error ? error : new Error(String(error)));
     res.status(500).json({
       error: error instanceof Error ? error.message : 'Queue health check failed',
     });
@@ -70,7 +70,7 @@ router.get('/queue/stats', async (req: Request, res: Response) => {
         stats.failed < 10 ? '✅ Healthy' : stats.failed < 20 ? '⚠️ Warning' : '🚨 Critical',
     });
   } catch (error) {
-    log.error('Failed to get queue stats:', error);
+    log.error('Failed to get queue stats:', error instanceof Error ? error : new Error(String(error)));
     res.status(500).json({
       error: error instanceof Error ? error.message : 'Failed to get queue stats',
     });
@@ -97,7 +97,7 @@ router.get('/queue/failed', async (req: Request, res: Response) => {
       })),
     });
   } catch (error) {
-    log.error('Failed to get failed jobs:', error);
+    log.error('Failed to get failed jobs:', error instanceof Error ? error : new Error(String(error)));
     res.status(500).json({
       error: error instanceof Error ? error.message : 'Failed to get failed jobs',
     });
@@ -118,7 +118,7 @@ router.post('/queue/retry/:jobId', async (req: Request, res: Response) => {
       message: `Job ${jobId} queued for retry`,
     });
   } catch (error) {
-    log.error('Failed to retry job:', error);
+    log.error('Failed to retry job:', error instanceof Error ? error : new Error(String(error)));
     res.status(400).json({
       error: error instanceof Error ? error.message : 'Failed to retry job',
     });
@@ -145,12 +145,12 @@ router.get('/reliability', async (req: Request, res: Response) => {
       },
       failureAnalysis: {
         reasons: insights.failureReasons,
-        recommendations: this.getFailureRecommendations(insights.failureReasons),
+        recommendations: getFailureRecommendations(insights.failureReasons),
       },
       healthy: parseFloat(insights.successRate) > 90,
     });
   } catch (error) {
-    log.error('Failed to get reliability metrics:', error);
+    log.error('Failed to get reliability metrics:', error instanceof Error ? error : new Error(String(error)));
     res.status(500).json({
       error: error instanceof Error ? error.message : 'Failed to get reliability metrics',
     });
@@ -182,7 +182,7 @@ router.get('/puppeteer', async (req: Request, res: Response) => {
             : '✅ Healthy',
     });
   } catch (error) {
-    log.error('Failed to get Puppeteer metrics:', error);
+    log.error('Failed to get Puppeteer metrics:', error instanceof Error ? error : new Error(String(error)));
     res.status(500).json({
       error: error instanceof Error ? error.message : 'Failed to get Puppeteer metrics',
     });
@@ -205,7 +205,7 @@ router.get('/safety', async (req: Request, res: Response) => {
       safe: metrics.warnings.length === 0,
     });
   } catch (error) {
-    log.error('Failed to get safety metrics:', error);
+    log.error('Failed to get safety metrics:', error instanceof Error ? error : new Error(String(error)));
     res.status(500).json({
       error: error instanceof Error ? error.message : 'Failed to get safety metrics',
     });
@@ -227,7 +227,7 @@ router.get('/rate-limit/:clientId', async (req: Request, res: Response) => {
       allowedToScan: status.remaining > 0,
     });
   } catch (error) {
-    log.error('Failed to get rate limit status:', error);
+    log.error('Failed to get rate limit status:', error instanceof Error ? error : new Error(String(error)));
     res.status(500).json({
       error: error instanceof Error ? error.message : 'Failed to get rate limit status',
     });
@@ -274,7 +274,7 @@ router.get('/dashboard', async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    log.error('Failed to get dashboard:', error);
+    log.error('Failed to get dashboard:', error instanceof Error ? error : new Error(String(error)));
     res.status(500).json({
       error: error instanceof Error ? error.message : 'Failed to get dashboard',
     });
@@ -299,7 +299,7 @@ router.post('/recover', async (req: Request, res: Response) => {
       components: health.components,
     });
   } catch (error) {
-    log.error('Recovery failed:', error);
+    log.error('Recovery failed:', error instanceof Error ? error : new Error(String(error)));
     res.status(500).json({
       error: error instanceof Error ? error.message : 'Recovery failed',
     });

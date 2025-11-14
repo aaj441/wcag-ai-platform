@@ -101,7 +101,7 @@ export class SafetyService {
 
       return allowed;
     } catch (error) {
-      log.error('Failed to check rate limit:', error);
+      log.error('Failed to check rate limit:', error instanceof Error ? error : new Error(String(error)));
       // Don't block on database errors
       return true;
     }

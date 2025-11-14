@@ -757,7 +757,7 @@ router.get('/statistics', async (req: Request, res: Response) => {
           },
           {}
         ),
-        topIndustries: topIndustries.map((ind) => ({
+        topIndustries: topIndustries.map((ind: any) => ({
           id: ind.id,
           name: ind.name,
           businessCount: ind._count.targetBusinesses,

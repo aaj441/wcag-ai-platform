@@ -3,7 +3,6 @@
  * Testing WCAG compliance for banking, payments, and financial platforms
  */
 
-import { EmailDraft, LegacyViolation, ConsultantProfile } from '../types';
 import { EmailDraft, LegacyViolation, Consultant } from '../types';
 
 // ============================================================================

@@ -104,7 +104,7 @@ export class HealthCheckService {
         },
       };
     } catch (error) {
-      log.error('❌ Queue health check failed:', error);
+      log.error('❌ Queue health check failed:', error instanceof Error ? error : new Error(String(error)));
       return {
         status: 'critical',
         message: `Queue error: ${error instanceof Error ? error.message : String(error)}`,
@@ -148,7 +148,7 @@ export class HealthCheckService {
         },
       };
     } catch (error) {
-      log.error('❌ Puppeteer health check failed:', error);
+      log.error('❌ Puppeteer health check failed:', error instanceof Error ? error : new Error(String(error)));
       return {
         status: 'critical',
         message: `Puppeteer error: ${error instanceof Error ? error.message : String(error)}`,
@@ -183,7 +183,7 @@ export class HealthCheckService {
         details: { scanCount },
       };
     } catch (error) {
-      log.error('❌ Database health check failed:', error);
+      log.error('❌ Database health check failed:', error instanceof Error ? error : new Error(String(error)));
       return {
         status: 'critical',
         message: `Database error: ${error instanceof Error ? error.message : String(error)}`,
@@ -220,12 +220,12 @@ export class HealthCheckService {
       }
 
       // Calculate success rate
-      const successful = scans.filter((s) => s.aiConfidenceScore > 0).length;
+      const successful = scans.filter((s: any) => s.aiConfidenceScore > 0).length;
       const successRate = ((successful / scans.length) * 100).toFixed(2);
       report.metrics.successRate = `${successRate}%`;
 
       // Calculate average scan time
-      const totalTime = scans.reduce((sum, s) => {
+      const totalTime = scans.reduce((sum: number, s: any) => {
         const time = s.updatedAt.getTime() - s.createdAt.getTime();
         return sum + time;
       }, 0);
@@ -235,7 +235,7 @@ export class HealthCheckService {
       const usage = process.memoryUsage();
       report.metrics.memoryUsageMB = Math.round(usage.heapUsed / 1024 / 1024);
     } catch (error) {
-      log.error('Failed to calculate metrics:', error);
+      log.error('Failed to calculate metrics:', error instanceof Error ? error : new Error(String(error)));
       report.metrics.successRate = 'error';
       report.metrics.averageScanTime = 0;
     }
@@ -274,7 +274,7 @@ export class HealthCheckService {
                 break;
             }
           } catch (error) {
-            log.error(`❌ Recovery failed for ${component}:`, error);
+            log.error(`❌ Recovery failed for ${component}:`, error instanceof Error ? error : new Error(String(error)));
           }
         }
       }
@@ -310,15 +310,15 @@ export class HealthCheckService {
       },
     });
 
-    const successful = scans.filter((s) => s.aiConfidenceScore > 0).length;
+    const successful = scans.filter((s: any) => s.aiConfidenceScore > 0).length;
     const failed = scans.length - successful;
     const successRate = ((successful / scans.length) * 100).toFixed(2);
     const averageScore =
-      scans.reduce((sum, s) => sum + s.aiConfidenceScore, 0) / scans.length;
+      scans.reduce((sum: number, s: any) => sum + s.aiConfidenceScore, 0) / scans.length;
 
     // Parse failure reasons from scan results
     const failureReasons: Record<string, number> = {};
-    scans.forEach((scan) => {
+    scans.forEach((scan: any) => {
       try {
         const results = typeof scan.scanResults === 'string'
           ? JSON.parse(scan.scanResults)
