@@ -311,6 +311,277 @@
         "Test skip navigation option"
       ],
       "applicableIndustries": ["ecommerce", "financial", "travel"]
+    },
+    {
+      "name": "WCAG 2.2 Focus Appearance",
+      "description": "Enhanced focus indicators (WCAG 2.2)",
+      "steps": [
+        "Verify focus indicator minimum size (CSS outline or border)",
+        "Check focus indicator color contrast (3:1 against adjacent colors)",
+        "Test focus indicator perimeter meets 2px minimum",
+        "Verify focus visible on all interactive elements",
+        "Check focus persistence during interaction"
+      ],
+      "applicableIndustries": ["all"],
+      "wcagVersion": "2.2",
+      "successCriterion": "2.4.11"
+    },
+    {
+      "name": "Dragging Movements Alternative",
+      "description": "WCAG 2.2 single pointer alternatives",
+      "steps": [
+        "Verify drag-and-drop has single-pointer alternative",
+        "Test slider controls with keyboard",
+        "Check map panning with keyboard/buttons",
+        "Verify sortable lists keyboard operation",
+        "Test drawing/sketching alternative methods"
+      ],
+      "applicableIndustries": ["saas", "education", "ecommerce"],
+      "wcagVersion": "2.2",
+      "successCriterion": "2.5.7"
+    },
+    {
+      "name": "Target Size Enhanced",
+      "description": "WCAG 2.2 AA target size (24x24px minimum)",
+      "steps": [
+        "Measure all clickable targets (24x24px minimum)",
+        "Check spacing between adjacent targets",
+        "Verify inline link target size",
+        "Test mobile touch targets (44x44px recommended)",
+        "Verify essential controls meet minimum size"
+      ],
+      "applicableIndustries": ["all"],
+      "wcagVersion": "2.2",
+      "successCriterion": "2.5.8"
+    },
+    {
+      "name": "Consistent Help",
+      "description": "WCAG 2.2 consistent help mechanism",
+      "steps": [
+        "Verify help mechanism in consistent location",
+        "Check help available across all pages",
+        "Test help link order consistency",
+        "Verify chatbot/contact form accessibility",
+        "Check FAQ/documentation accessibility"
+      ],
+      "applicableIndustries": ["all"],
+      "wcagVersion": "2.2",
+      "successCriterion": "3.2.6"
+    },
+    {
+      "name": "Redundant Entry Prevention",
+      "description": "WCAG 2.2 auto-fill and data reuse",
+      "steps": [
+        "Verify autocomplete attributes on forms",
+        "Test previously entered data reuse",
+        "Check session data persistence",
+        "Verify copy/paste functionality",
+        "Test browser autofill compatibility"
+      ],
+      "applicableIndustries": ["ecommerce", "financial", "travel", "government"],
+      "wcagVersion": "2.2",
+      "successCriterion": "3.3.7"
+    },
+    {
+      "name": "Accessible Authentication",
+      "description": "WCAG 2.2 cognitive function test alternatives",
+      "steps": [
+        "Verify no cognitive tests for authentication",
+        "Check password paste functionality",
+        "Test biometric authentication support",
+        "Verify magic link/email authentication",
+        "Check third-party SSO accessibility"
+      ],
+      "applicableIndustries": ["all"],
+      "wcagVersion": "2.2",
+      "successCriterion": "3.3.8"
+    },
+    {
+      "name": "Performance and Load Time",
+      "description": "Perceived performance for assistive tech",
+      "steps": [
+        "Measure Time to Interactive (TTI < 3.8s)",
+        "Check First Contentful Paint (FCP < 1.8s)",
+        "Verify Largest Contentful Paint (LCP < 2.5s)",
+        "Test progressive enhancement loading",
+        "Check skeleton screens/loading states"
+      ],
+      "applicableIndustries": ["all"],
+      "performanceMetrics": {
+        "fcp": "1.8s",
+        "lcp": "2.5s",
+        "tti": "3.8s",
+        "cls": "0.1"
+      }
+    },
+    {
+      "name": "Internationalization (i18n)",
+      "description": "Multi-language and RTL support",
+      "steps": [
+        "Verify lang attribute on html element",
+        "Test language switcher accessibility",
+        "Check RTL layout support (Arabic, Hebrew)",
+        "Verify translated content quality",
+        "Test date/number format localization"
+      ],
+      "applicableIndustries": ["all"],
+      "languages": ["en", "es", "ar", "zh", "fr", "de"]
+    },
+    {
+      "name": "Error Recovery and Undo",
+      "description": "Preventing and recovering from errors",
+      "steps": [
+        "Test undo functionality for critical actions",
+        "Verify confirmation dialogs for destructive actions",
+        "Check data recovery after errors",
+        "Test draft auto-save functionality",
+        "Verify error prevention (e.g., form validation)"
+      ],
+      "applicableIndustries": ["ecommerce", "financial", "saas", "government"],
+      "wcagSuccessCriterion": "3.3.4, 3.3.6"
+    },
+    {
+      "name": "Session Timeout and Re-authentication",
+      "description": "Accessible timeout warnings and extensions",
+      "steps": [
+        "Verify 20-second timeout warning before expiry",
+        "Test timeout extension mechanism",
+        "Check data preservation during re-authentication",
+        "Verify ARIA live region for warnings",
+        "Test keyboard access to timeout controls"
+      ],
+      "applicableIndustries": ["financial", "healthcare", "government"],
+      "wcagSuccessCriterion": "2.2.1"
+    },
+    {
+      "name": "Custom Controls and Widgets",
+      "description": "ARIA patterns for custom components",
+      "steps": [
+        "Verify correct ARIA role implementation",
+        "Test all required ARIA states and properties",
+        "Check keyboard interaction patterns (WAI-ARIA Authoring Practices)",
+        "Verify focus management in composite widgets",
+        "Test with multiple screen readers (NVDA, JAWS, VoiceOver)"
+      ],
+      "applicableIndustries": ["saas", "ecommerce", "financial"],
+      "ariaPatterns": ["combobox", "tree", "grid", "listbox", "menu"]
+    },
+    {
+      "name": "Animation and Motion",
+      "description": "Prefers-reduced-motion and animation control",
+      "steps": [
+        "Verify prefers-reduced-motion media query support",
+        "Test animation pause/stop controls",
+        "Check auto-playing video controls",
+        "Verify parallax scrolling alternatives",
+        "Test carousel/slideshow pause mechanism"
+      ],
+      "applicableIndustries": ["media", "ecommerce", "entertainment"],
+      "wcagSuccessCriterion": "2.2.2, 2.3.3"
+    },
+    {
+      "name": "PDF and Document Accessibility",
+      "description": "Accessible document downloads",
+      "steps": [
+        "Verify PDF tagged structure",
+        "Check PDF reading order",
+        "Test PDF form accessibility",
+        "Verify alternative HTML versions",
+        "Check document metadata (title, language)"
+      ],
+      "applicableIndustries": ["government", "financial", "healthcare", "education"],
+      "documentTypes": ["PDF", "Word", "Excel"]
+    },
+    {
+      "name": "Third-Party Widget Compliance",
+      "description": "Embedded content accessibility",
+      "steps": [
+        "Test chat widget keyboard access",
+        "Verify social media embed accessibility",
+        "Check payment gateway form labels",
+        "Test map embed keyboard navigation",
+        "Verify cookie banner accessibility"
+      ],
+      "applicableIndustries": ["all"],
+      "commonWidgets": ["Intercom", "Stripe", "Google Maps", "Facebook", "CookieBot"]
+    },
+    {
+      "name": "Complex Navigation Patterns",
+      "description": "Mega menus, breadcrumbs, and site search",
+      "steps": [
+        "Test mega menu keyboard navigation",
+        "Verify breadcrumb trail semantics",
+        "Check site search autocomplete accessibility",
+        "Test faceted navigation/filters",
+        "Verify mobile hamburger menu accessibility"
+      ],
+      "applicableIndustries": ["ecommerce", "government", "media"],
+      "navigationTypes": ["mega-menu", "breadcrumb", "faceted-search", "hamburger"]
+    },
+    {
+      "name": "Voice Control and Speech Input",
+      "description": "Voice navigation and dictation support",
+      "steps": [
+        "Verify visible labels match accessible names",
+        "Test voice commands for navigation",
+        "Check speech input for forms",
+        "Verify click targets have unique names",
+        "Test voice-activated modal dismissal"
+      ],
+      "applicableIndustries": ["all"],
+      "voiceTools": ["Dragon NaturallySpeaking", "Voice Control (iOS)", "Voice Access (Android)"]
+    },
+    {
+      "name": "Reading Level and Plain Language",
+      "description": "Content readability and comprehension",
+      "steps": [
+        "Check Flesch Reading Ease score (60-70 target)",
+        "Verify plain language for critical content",
+        "Test supplemental illustrations/icons",
+        "Check glossary for technical terms",
+        "Verify content chunking and white space"
+      ],
+      "applicableIndustries": ["government", "healthcare", "financial", "legal"],
+      "wcagSuccessCriterion": "3.1.5 (AAA)"
+    },
+    {
+      "name": "Cognitive Load Reduction",
+      "description": "Memory, attention, and processing support",
+      "steps": [
+        "Verify clear visual hierarchy",
+        "Test one primary task per page",
+        "Check inline help and tooltips",
+        "Verify step-by-step guidance",
+        "Test progress indicators visibility"
+      ],
+      "applicableIndustries": ["all"],
+      "cognitiveSupports": ["chunking", "clear-labels", "consistent-layout", "inline-help"]
+    },
+    {
+      "name": "Crisis and Emergency Scenarios",
+      "description": "Critical information accessibility",
+      "steps": [
+        "Verify emergency alerts accessibility",
+        "Test alert banner keyboard access",
+        "Check color-independent alert indicators",
+        "Verify emergency contact info prominence",
+        "Test alert dismissal and re-access"
+      ],
+      "applicableIndustries": ["government", "healthcare", "travel"],
+      "alertTypes": ["emergency", "warning", "critical-info"]
+    },
+    {
+      "name": "Print Stylesheet Accessibility",
+      "description": "Accessible printed/PDF output",
+      "steps": [
+        "Verify print stylesheet exists",
+        "Check high-contrast print output",
+        "Test URL display for links",
+        "Verify print-friendly tables",
+        "Check page break positioning"
+      ],
+      "applicableIndustries": ["government", "education", "legal"],
+      "printFeatures": ["high-contrast", "link-urls", "page-breaks"]
     }
   ],
   "priorityChecks": {
@@ -335,6 +606,135 @@
       "No time-based content restrictions",
       "Responsive design works",
       "No keyboard traps"
+    ],
+    "wcag22Additions": [
+      "Focus appearance meets 2.4.11 (3:1 contrast, minimum perimeter)",
+      "Dragging movements have single-pointer alternatives (2.5.7)",
+      "Target size minimum 24x24px for AA compliance (2.5.8)",
+      "Consistent help mechanism across pages (3.2.6)",
+      "Redundant entry prevented via autocomplete (3.3.7)",
+      "Accessible authentication (no cognitive tests) (3.3.8)"
+    ],
+    "performance": [
+      "First Contentful Paint < 1.8 seconds",
+      "Largest Contentful Paint < 2.5 seconds",
+      "Time to Interactive < 3.8 seconds",
+      "Cumulative Layout Shift < 0.1",
+      "Total Blocking Time < 300ms"
+    ],
+    "advanced": [
+      "Prefers-reduced-motion media query support",
+      "Session timeout warnings 20 seconds before expiry",
+      "Voice control labels match visible text",
+      "PDF documents are tagged and accessible",
+      "Third-party widgets are keyboard accessible",
+      "Emergency alerts use multiple indicators (not color alone)",
+      "Print stylesheets provide accessible output",
+      "RTL layout support for international users"
     ]
+  },
+  "edgeCaseSites": [
+    {
+      "name": "Single Page Application (SPA)",
+      "url": "https://app.example.com",
+      "description": "JavaScript-heavy SPA with client-side routing",
+      "challenges": [
+        "Focus management on route changes",
+        "ARIA live regions for dynamic updates",
+        "Browser history and back button",
+        "Loading states and skeleton screens"
+      ]
+    },
+    {
+      "name": "Progressive Web App (PWA)",
+      "url": "https://pwa.example.com",
+      "description": "Offline-first PWA with service workers",
+      "challenges": [
+        "Offline accessibility",
+        "Install prompts accessibility",
+        "Push notification alternatives",
+        "App-like navigation patterns"
+      ]
+    },
+    {
+      "name": "Infinite Scroll Content",
+      "url": "https://infinite.example.com",
+      "description": "Social feed with infinite scrolling",
+      "challenges": [
+        "Keyboard users reaching footer",
+        "Screen reader navigation",
+        "Load more button alternative",
+        "Focus management on new content"
+      ]
+    },
+    {
+      "name": "Complex Data Dashboard",
+      "url": "https://dashboard.example.com",
+      "description": "Real-time data visualization dashboard",
+      "challenges": [
+        "Chart accessibility (text alternatives)",
+        "Data table screen reader support",
+        "Filter/sort keyboard operation",
+        "Real-time update announcements"
+      ]
+    },
+    {
+      "name": "Virtual Reality / 3D Content",
+      "url": "https://vr.example.com",
+      "description": "3D product viewers and VR experiences",
+      "challenges": [
+        "Alternative 2D views",
+        "Keyboard-accessible 3D navigation",
+        "Motion sickness warnings",
+        "Spatial audio descriptions"
+      ]
+    }
+  ],
+  "testingTools": {
+    "automated": [
+      "axe-core (Deque)",
+      "Pa11y",
+      "WAVE (WebAIM)",
+      "Lighthouse (Google)",
+      "IBM Equal Access"
+    ],
+    "screenReaders": [
+      "NVDA (Windows - free)",
+      "JAWS (Windows - commercial)",
+      "VoiceOver (macOS/iOS - built-in)",
+      "TalkBack (Android - built-in)",
+      "Narrator (Windows - built-in)"
+    ],
+    "browserExtensions": [
+      "axe DevTools",
+      "WAVE",
+      "Accessibility Insights",
+      "Landmarks",
+      "HeadingsMap"
+    ],
+    "manualTesting": [
+      "Keyboard-only navigation",
+      "Screen reader testing",
+      "Color contrast analyzer",
+      "Zoom testing (200%, 400%)",
+      "Voice control testing"
+    ]
+  },
+  "complianceReporting": {
+    "formats": ["WCAG-EM", "VPAT", "ACR", "EN 301 549"],
+    "requiredSections": [
+      "Executive Summary",
+      "Conformance Level (A, AA, AAA)",
+      "Success Criteria Report",
+      "Known Issues",
+      "Remediation Plan",
+      "Testing Methodology"
+    ],
+    "auditFrequency": {
+      "critical": "Every deployment",
+      "major": "Quarterly",
+      "minor": "Annually",
+      "full": "Biannually"
+    }
   }
 }
