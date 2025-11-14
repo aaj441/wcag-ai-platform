@@ -4,7 +4,7 @@
  */
 
 import { FixResult, LegacyViolation, ViolationSeverity } from '../types';
-import { generateFix, generateBatchFixes } from './fixGenerator';
+import { generateBatchFixes, AUTO_FIXABLE_CRITERIA } from './fixGenerator';
 import { log } from '../utils/logger';
 
 /**
@@ -13,14 +13,13 @@ import { log } from '../utils/logger';
 interface RemediationPriority {
   severity: ViolationSeverity;
   order: number;
-  autoFixable: boolean;
 }
 
 const PRIORITY_MAP: Record<ViolationSeverity, RemediationPriority> = {
-  critical: { severity: 'critical', order: 1, autoFixable: true },
-  high: { severity: 'high', order: 2, autoFixable: true },
-  medium: { severity: 'medium', order: 3, autoFixable: false },
-  low: { severity: 'low', order: 4, autoFixable: false },
+  critical: { severity: 'critical', order: 1 },
+  high: { severity: 'high', order: 2 },
+  medium: { severity: 'medium', order: 3 },
+  low: { severity: 'low', order: 4 },
 };
 
 /**
@@ -62,16 +61,7 @@ export function prioritizeViolations(violations: LegacyViolation[]): LegacyViola
  * Determine if a violation can be auto-fixed
  */
 export function isAutoFixable(violation: LegacyViolation): boolean {
-  const autoFixableCriteria = [
-    '1.1.1', // Alt text
-    '1.4.3', // Color contrast
-    '2.1.1', // Keyboard access
-    '2.4.4', // Link purpose
-    '3.3.2', // Labels
-    '4.1.2', // Name, Role, Value
-  ];
-  
-  return autoFixableCriteria.includes(violation.wcagCriteria);
+  return AUTO_FIXABLE_CRITERIA.indexOf(violation.wcagCriteria) !== -1;
 }
 
 /**

@@ -8,6 +8,18 @@ import { FixRequest, FixResult, CodeFix, LegacyViolation } from '../types';
 import { log } from '../utils/logger';
 
 /**
+ * List of WCAG criteria that can be automatically fixed
+ */
+export const AUTO_FIXABLE_CRITERIA = [
+  '1.1.1', // Alt text
+  '1.4.3', // Color contrast
+  '2.1.1', // Keyboard access
+  '2.4.4', // Link purpose
+  '3.3.2', // Labels
+  '4.1.2', // Name, Role, Value
+] as const;
+
+/**
  * Fix templates for common WCAG violations
  */
 const FIX_TEMPLATES: Record<string, (violation: LegacyViolation) => CodeFix> = {
@@ -201,7 +213,7 @@ function detectAffectedFiles(violation: LegacyViolation): string[] {
 
   // Try to extract file path from element selector or technical details
   if (violation.technicalDetails) {
-    const fileMatch = violation.technicalDetails.match(/(\w+\.(?:html|jsx?|tsx?|css))/i);
+    const fileMatch = violation.technicalDetails.match(/([^\s]+\.(?:html|jsx?|tsx?|css))/i);
     if (fileMatch) {
       files.push(fileMatch[1]);
     }

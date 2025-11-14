@@ -136,7 +136,7 @@ export interface FixResult {
   status: FixStatus;
   codeFix: CodeFix;
   filesAffected: string[];
-  estimatedEffort: string; // e.g., "5 minutes", "2 hours"
+  estimatedEffort: string; // e.g., "5 minutes", "20 minutes"
   confidence: number; // 0.0-1.0
   instructions: string[];
   generatedAt: Date;

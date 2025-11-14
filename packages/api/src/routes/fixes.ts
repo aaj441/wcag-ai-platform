@@ -4,10 +4,10 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { generateFix } from '../services/fixGenerator';
+import { generateFix, AUTO_FIXABLE_CRITERIA } from '../services/fixGenerator';
 import { generateRemediationPlan, getRemediationRecommendations } from '../services/remediationEngine';
 import { getAllViolations } from '../data/store';
-import { ApiResponse, FixRequest, FixResult, LegacyViolation } from '../types';
+import { ApiResponse, FixRequest, FixResult } from '../types';
 import { log } from '../utils/logger';
 
 const router = Router();
@@ -212,10 +212,7 @@ router.get('/stats', (req: Request, res: Response) => {
 
     const stats = {
       totalViolations: violations.length,
-      autoFixable: violations.filter(v => {
-        const autoFixableCriteria = ['1.1.1', '1.4.3', '2.1.1', '2.4.4', '3.3.2', '4.1.2'];
-        return autoFixableCriteria.includes(v.wcagCriteria);
-      }).length,
+      autoFixable: violations.filter(v => AUTO_FIXABLE_CRITERIA.indexOf(v.wcagCriteria) !== -1).length,
       bySeverity: {
         critical: violations.filter(v => v.severity === 'critical').length,
         high: violations.filter(v => v.severity === 'high').length,
