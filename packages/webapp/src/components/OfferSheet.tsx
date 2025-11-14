@@ -90,11 +90,11 @@ export const OfferSheet: React.FC = () => {
           </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {offerSheet.tiers.map((tier, index) => (
+            {offerSheet.tiers.map((tier) => (
               <ServiceTierCard 
                 key={tier.id} 
                 tier={tier} 
-                featured={index === 1}
+                featured={tier.id === 'continuous_compliance'}
               />
             ))}
           </div>
