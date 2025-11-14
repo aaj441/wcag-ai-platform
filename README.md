@@ -208,6 +208,37 @@ Run the end-to-end demo to see the full client journey:
 | [Deployment Harmony Guide](DEPLOYMENT_HARMONY_GUIDE.md) | **NEW:** Unified deployment verification system |
 | [Deployment](DEPLOYMENT_AUDIT_RAILWAY_VERCEL.md) | Production deployment guide |
 | [Testing](END_TO_END_TESTING_GUIDE.md) | Automated WCAG testing suite |
+| [Accessibility Scripts](scripts/README.md) | CI/CD accessibility scanner automation |
+
+---
+
+## **🔍 Automated Accessibility Scanning**
+
+The platform includes automated CI/CD accessibility scanning using axe-core and Pa11y:
+
+### **Features:**
+- ✅ **Automated scans on every PR** - Catch violations before they reach production
+- 🚫 **Critical violation blocking** - PRs with critical issues are automatically blocked
+- 📊 **Detailed reports** - Comprehensive violation details with severity levels
+- 📂 **Evidence vault** - All scan results stored for 90 days
+- 💬 **PR comments** - Automated feedback on every pull request
+
+### **Quick Test:**
+```bash
+# Install dependencies
+npm install
+
+# Run accessibility scan (requires running app)
+npm run accessibility:scan http://localhost:3000
+
+# Or use Pa11y
+npm run accessibility:pa11y http://localhost:3000
+
+# Update evidence vault
+npm run evidence:update
+```
+
+See [scripts/README.md](scripts/README.md) for detailed documentation.
 
 ---
 
