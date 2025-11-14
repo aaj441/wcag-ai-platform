@@ -15,6 +15,10 @@ dist/
 .env.local
 .env.production
 
+# Keep .env.example files for documentation
+!**/.env.example
+!config/.env.example
+
 # Misc
 .DS_Store
 *.log
@@ -90,3 +94,27 @@ evidence-vault/README.md
 
 # Test files
 test-page.html
+
+# Legal & Compliance (exclude sensitive client data)
+legal/contracts/signed/
+legal/compliance/exports/
+legal/insurance/policies/
+*.pdf.signed
+*.docx.signed
+
+# Automation & Integration secrets
+automation/*.env
+automation/secrets/
+integrations/*/.env
+integrations/*/secrets/
+config/.env*
+config/secrets.*
+
+# Client-specific data
+clients/
+client-data/
+*.client.json
+
+# Music & Insurance data
+music_api/api_keys.json
+insurance_api/credentials.json

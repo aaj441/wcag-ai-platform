@@ -56,26 +56,9 @@ export const ensureTenantAccess = (req: Request, res: Response, next: NextFuncti
     log.error('Tenant access error', error instanceof Error ? error : new Error(String(error)));
     res.status(403).json({ error: 'Forbidden' });
   }
-/**
- * Authentication Middleware
- * Clerk-based authentication for multi-tenant operations
- */
+};
 
-import { Request, Response, NextFunction } from 'express';
 import { ClerkExpressRequireAuth } from '@clerk/clerk-sdk-node';
-
-// Extend Express Request to include auth data
-declare global {
-  namespace Express {
-    interface Request {
-      auth?: {
-        userId: string;
-        sessionId: string;
-        organizationId?: string;
-      };
-    }
-  }
-}
 
 /**
  * Clerk authentication middleware
