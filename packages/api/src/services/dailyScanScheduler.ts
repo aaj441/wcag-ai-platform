@@ -346,7 +346,6 @@ export function validateScanScheduleAgainstTier(
   scheduleCount: number,
   tier: WarrantyTier
 ): { valid: boolean; message?: string } {
-  const config = WARRANTY_TIERS[tier];
   
   // For now, allow unlimited schedules but could add tier-based limits
   // Example: Basic tier = 1 site, Pro = 5 sites, Enterprise = unlimited
