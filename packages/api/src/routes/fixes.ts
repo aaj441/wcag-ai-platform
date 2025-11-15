@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { prisma } from '../lib/db';
 import { RemediationEngine } from '../services/RemediationEngine';
 import { authMiddleware, ensureTenantAccess } from '../middleware/auth';
@@ -12,7 +12,7 @@ const router = express.Router();
  * Generate a fix for a WCAG violation
  * Body: { violationId, wcagCriteria, issueType, description, codeLanguage? }
  */
-router.post('/generate', authMiddleware, ensureTenantAccess, async (req, res) => {
+router.post('/generate', authMiddleware, ensureTenantAccess, async (req: Request, res: Response) => {
   try {
     const { violationId, wcagCriteria, issueType, description, codeLanguage } = req.body;
     const tenantId = req.tenantId!;
@@ -90,7 +90,7 @@ router.post('/generate', authMiddleware, ensureTenantAccess, async (req, res) =>
  *
  * Get a specific fix
  */
-router.get('/:fixId', authMiddleware, async (req, res) => {
+router.get('/:fixId', authMiddleware, async (req: Request, res: Response) => {
   try {
     const fix = await prisma.fix.findUnique({
       where: { id: req.params.fixId },
@@ -113,7 +113,7 @@ router.get('/:fixId', authMiddleware, async (req, res) => {
  *
  * Review and approve/reject a fix
  */
-router.patch('/:fixId/review', authMiddleware, async (req, res) => {
+router.patch('/:fixId/review', authMiddleware, async (req: Request, res: Response) => {
   try {
     const { reviewStatus, reviewNotes } = req.body;
     const fixId = req.params.fixId;
@@ -169,7 +169,7 @@ router.patch('/:fixId/review', authMiddleware, async (req, res) => {
  * Apply a fix (Phase 2: will actually modify code)
  * For Phase 1, this just logs the action
  */
-router.post('/:fixId/apply', authMiddleware, async (req, res) => {
+router.post('/:fixId/apply', authMiddleware, async (req: Request, res: Response) => {
   try {
     const { filePath, repository, branch } = req.body;
     const fixId = req.params.fixId;
@@ -230,7 +230,7 @@ router.post('/:fixId/apply', authMiddleware, async (req, res) => {
  *
  * Get all fixes for violations in a scan
  */
-router.get('/scan/:scanId', authMiddleware, async (req, res) => {
+router.get('/scan/:scanId', authMiddleware, async (req: Request, res: Response) => {
   try {
     const { scanId } = req.params;
 
@@ -288,7 +288,7 @@ router.get('/scan/:scanId', authMiddleware, async (req, res) => {
  *
  * Get remediation engine metrics
  */
-router.get('/metrics', authMiddleware, async (req, res) => {
+router.get('/metrics', authMiddleware, async (req: Request, res: Response) => {
   try {
     const metrics = await RemediationEngine.getFixMetrics(req.tenantId!);
 

@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { prisma } from '../lib/db';
 import { CompanyDiscoveryService } from '../services/CompanyDiscoveryService';
 import { authMiddleware, ensureTenantAccess } from '../middleware/auth';
@@ -12,7 +12,7 @@ const router = express.Router();
  * Search for companies by keywords and create leads
  * Body: { keywords: ["fintech", "healthtech"], minEmployees?: 50, maxEmployees?: 500 }
  */
-router.post('/search', authMiddleware, ensureTenantAccess, async (req, res) => {
+router.post('/search', authMiddleware, ensureTenantAccess, async (req: Request, res: Response) => {
   try {
     const { keywords, minEmployees = 50, maxEmployees = 500 } = req.body;
     const tenantId = req.tenantId!;
@@ -107,7 +107,7 @@ router.post('/search', authMiddleware, ensureTenantAccess, async (req, res) => {
  * Get all leads for tenant with optional filters
  * Query: ?status=new&priority=high&sortBy=relevanceScore
  */
-router.get('/', authMiddleware, ensureTenantAccess, async (req, res) => {
+router.get('/', authMiddleware, ensureTenantAccess, async (req: Request, res: Response) => {
   try {
     const tenantId = req.tenantId!;
     const { status, priority, sortBy = 'relevanceScore' } = req.query;
@@ -166,7 +166,7 @@ router.get('/', authMiddleware, ensureTenantAccess, async (req, res) => {
  *
  * Get single lead details
  */
-router.get('/:leadId', authMiddleware, async (req, res) => {
+router.get('/:leadId', authMiddleware, async (req: Request, res: Response) => {
   try {
     const lead = await prisma.lead.findUnique({
       where: { id: req.params.leadId },
@@ -192,7 +192,7 @@ router.get('/:leadId', authMiddleware, async (req, res) => {
  *
  * Update lead status, notes, tags, etc
  */
-router.patch('/:leadId', authMiddleware, async (req, res) => {
+router.patch('/:leadId', authMiddleware, async (req: Request, res: Response) => {
   try {
     const { status, notes, tags, priorityTier, nextFollowUp } = req.body;
 
@@ -238,7 +238,7 @@ router.patch('/:leadId', authMiddleware, async (req, res) => {
  *
  * Mark lead as contacted and log the interaction
  */
-router.post('/:leadId/contact', authMiddleware, async (req, res) => {
+router.post('/:leadId/contact', authMiddleware, async (req: Request, res: Response) => {
   try {
     const { message } = req.body;
     const leadId = req.params.leadId;
@@ -289,7 +289,7 @@ router.post('/:leadId/contact', authMiddleware, async (req, res) => {
  *
  * Get conversion funnel stats
  */
-router.get('/analytics/summary', authMiddleware, async (req, res) => {
+router.get('/analytics/summary', authMiddleware, async (req: Request, res: Response) => {
   try {
     const tenantId = req.tenantId!;
 
@@ -329,7 +329,7 @@ router.get('/analytics/summary', authMiddleware, async (req, res) => {
  *
  * Delete a lead
  */
-router.delete('/:leadId', authMiddleware, async (req, res) => {
+router.delete('/:leadId', authMiddleware, async (req: Request, res: Response) => {
   try {
     const lead = await prisma.lead.findUnique({
       where: { id: req.params.leadId },
