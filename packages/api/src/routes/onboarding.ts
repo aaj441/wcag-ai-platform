@@ -28,9 +28,18 @@ interface OnboardingRecord extends OnboardingRequest {
 
 const onboardingRecords: Map<string, OnboardingRecord> = new Map();
 
-// Generate API Key
+// Simple in-memory lock to prevent race conditions during onboarding
+// In production, use database unique constraints or distributed locks (Redis)
+const onboardingLocks: Set<string> = new Set();
+
+// Generate API Key (hashed for storage)
 function generateApiKey(): string {
   return `wcagaii_${crypto.randomBytes(24).toString('hex')}`;
+}
+
+// Hash API key for storage (in production, use proper key management)
+function hashApiKey(apiKey: string): string {
+  return crypto.createHash('sha256').update(apiKey).digest('hex');
 }
 
 /**
@@ -50,34 +59,47 @@ router.post('/warranty', async (req: Request, res: Response) => {
       });
     }
     
-    // Check if client already exists
-    const existingClient = Array.from(onboardingRecords.values())
-      .find(r => r.email === request.email);
-    
-    if (existingClient) {
+    // Check for concurrent onboarding with same email (race condition prevention)
+    if (onboardingLocks.has(request.email)) {
       return res.status(409).json({
         success: false,
-        error: 'Client with this email already exists'
+        error: 'Onboarding request for this email is already in progress'
       });
     }
     
-    // Get tier configuration
-    const tierConfig = WARRANTY_TIERS[request.tier];
+    // Acquire lock
+    onboardingLocks.add(request.email);
     
-    // Generate client credentials
-    const clientId = uuidv4();
-    const apiKey = generateApiKey();
-    
-    // Create onboarding record
-    const record: OnboardingRecord = {
-      ...request,
-      clientId,
-      apiKey,
-      createdAt: new Date(),
-      status: 'active'
-    };
-    
-    onboardingRecords.set(clientId, record);
+    try {
+      // Check if client already exists
+      const existingClient = Array.from(onboardingRecords.values())
+        .find(r => r.email === request.email);
+      
+      if (existingClient) {
+        return res.status(409).json({
+          success: false,
+          error: 'Client with this email already exists'
+        });
+      }
+      
+      // Get tier configuration
+      const tierConfig = WARRANTY_TIERS[request.tier];
+      
+      // Generate client credentials
+      const clientId = uuidv4();
+      const apiKey = generateApiKey();
+      const hashedApiKey = hashApiKey(apiKey);
+      
+      // Create onboarding record (store hashed API key)
+      const record: OnboardingRecord = {
+        ...request,
+        clientId,
+        apiKey: hashedApiKey, // Store hashed version
+        createdAt: new Date(),
+        status: 'active'
+      };
+      
+      onboardingRecords.set(clientId, record);
     
     // Create daily scan schedule if enabled
     let scanSchedule;
@@ -95,11 +117,11 @@ router.post('/warranty', async (req: Request, res: Response) => {
     const nextBillingDate = new Date();
     nextBillingDate.setMonth(nextBillingDate.getMonth() + (request.billingCycle === 'annual' ? 12 : 1));
     
-    // Prepare response
+    // Prepare response (return plain text API key - only time it's shown)
     const response: OnboardingResponse = {
       success: true,
       clientId,
-      apiKey,
+      apiKey, // Plain text version for client
       message: `Successfully onboarded to ${tierConfig.name}`,
       nextSteps: {
         setupBilling: true,
@@ -124,8 +146,17 @@ router.post('/warranty', async (req: Request, res: Response) => {
     
     return res.status(201).json(response);
     
+    } finally {
+      // Always release lock
+      onboardingLocks.delete(request.email);
+    }
+    
   } catch (error) {
     console.error('Error during warranty onboarding:', error);
+    // Ensure lock is released on error
+    if (req.body.email) {
+      onboardingLocks.delete(req.body.email);
+    }
     return res.status(500).json({
       success: false,
       error: 'Failed to complete onboarding'
@@ -369,13 +400,24 @@ function validateOnboardingRequest(request: Partial<OnboardingRequest>): {
     };
   }
   
-  // Email validation
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  // Email validation - More comprehensive regex that handles valid email formats
+  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
   if (!emailRegex.test(request.email)) {
     return {
       valid: false,
       error: 'Invalid email address format'
     };
+  }
+  
+  // Phone number validation (E.164 format if provided)
+  if (request.phone) {
+    const phoneRegex = /^\+[1-9]\d{1,14}$/;
+    if (!phoneRegex.test(request.phone)) {
+      return {
+        valid: false,
+        error: 'Invalid phone number format. Use E.164 format (e.g., +1234567890)'
+      };
+    }
   }
   
   // Website URL validation
@@ -411,14 +453,56 @@ function validateOnboardingRequest(request: Partial<OnboardingRequest>): {
     };
   }
   
+  // IP address validation (if provided)
+  if (request.acceptanceIpAddress) {
+    const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+    const ipv6Regex = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::(?:[0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4}$|^[0-9a-fA-F]{1,4}::(?:[0-9a-fA-F]{1,4}:){0,5}[0-9a-fA-F]{1,4}$/;
+    
+    if (!ipv4Regex.test(request.acceptanceIpAddress) && !ipv6Regex.test(request.acceptanceIpAddress)) {
+      return {
+        valid: false,
+        error: 'Invalid IP address format. Must be a valid IPv4 or IPv6 address'
+      };
+    }
+  }
+  
+  // Scan time format validation (HH:MM:SS)
+  if (request.preferredScanTime) {
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/;
+    if (!timeRegex.test(request.preferredScanTime)) {
+      return {
+        valid: false,
+        error: 'Invalid scan time format. Use HH:MM:SS format (e.g., "02:00:00")'
+      };
+    }
+  }
+  
+  // Timezone validation (basic check for IANA format)
+  if (request.timezone) {
+    // List of common IANA timezone patterns
+    const timezoneRegex = /^[A-Za-z]+\/[A-Za-z_]+(?:\/[A-Za-z_]+)?$/;
+    const commonTimezones = [
+      'UTC', 'GMT', 'EST', 'CST', 'MST', 'PST',
+      'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
+      'Europe/London', 'Europe/Paris', 'Asia/Tokyo', 'Asia/Shanghai'
+    ];
+    
+    if (!timezoneRegex.test(request.timezone) && !commonTimezones.includes(request.timezone)) {
+      return {
+        valid: false,
+        error: 'Invalid timezone format. Use IANA timezone identifier (e.g., "America/New_York" or "UTC")'
+      };
+    }
+  }
+  
   // Estimated pages validation
   if (request.estimatedPages) {
     const tierConfig = WARRANTY_TIERS[request.tier];
     if (request.estimatedPages > tierConfig.maxPagesPerScan) {
-      warnings.push(
-        `Website has ${request.estimatedPages} pages but tier limit is ${tierConfig.maxPagesPerScan}. ` +
-        `Consider upgrading to a higher tier.`
-      );
+      return {
+        valid: false,
+        error: `Website has ${request.estimatedPages} pages but ${tierConfig.name} tier limit is ${tierConfig.maxPagesPerScan} pages. Please upgrade to a higher tier or reduce the page count.`
+      };
     }
   }
   

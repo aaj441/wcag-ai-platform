@@ -52,7 +52,7 @@ export interface OnboardingRequest {
   email: string;
   company: string;
   contactName: string;
-  phone?: string;
+  phone?: string; // Optional E.164 format phone number (e.g., "+1234567890")
   
   // Website Details
   websiteUrl: string;
@@ -66,13 +66,13 @@ export interface OnboardingRequest {
   acceptedTerms: boolean;
   acceptedPrivacy: boolean;
   acceptedWarrantyTerms: boolean;
-  acceptanceTimestamp: Date;
-  acceptanceIpAddress?: string;
+  acceptanceTimestamp: string | Date;
+  acceptanceIpAddress?: string; // Optional IPv4 or IPv6 address
   
   // Scanning Preferences
   enableDailyScans: boolean;
-  preferredScanTime?: string;
-  timezone?: string;
+  preferredScanTime?: string; // HH:MM:SS format (e.g., "02:00:00")
+  timezone?: string; // IANA timezone identifier (e.g., "America/New_York")
 }
 
 export interface OnboardingResponse {

@@ -116,6 +116,7 @@ function calculateNextScanTime(scanTime: string, timezone: string): Date {
 
 /**
  * Schedule a scan job
+ * Handles large delays by rescheduling if delay exceeds JavaScript's max timeout (~24.8 days)
  */
 function scheduleScanJob(schedule: DailyScanSchedule): void {
   if (!schedule.enabled || !schedule.nextScanAt) {
@@ -131,9 +132,20 @@ function scheduleScanJob(schedule: DailyScanSchedule): void {
     return;
   }
   
+  // JavaScript's maximum timeout is 2^31-1 milliseconds (~24.8 days)
+  // If delay exceeds 24 hours, schedule a check for 23 hours from now
+  const MAX_TIMEOUT = 23 * 60 * 60 * 1000; // 23 hours in milliseconds
+  const actualDelay = Math.min(delay, MAX_TIMEOUT);
+  
   const timeout = setTimeout(() => {
-    executeDailyScan(schedule);
-  }, delay);
+    if (actualDelay < delay) {
+      // We used a shortened delay, reschedule to check again
+      scheduleScanJob(schedule);
+    } else {
+      // Time to execute the scan
+      executeDailyScan(schedule);
+    }
+  }, actualDelay);
   
   activeScanJobs.set(schedule.id, timeout);
 }
