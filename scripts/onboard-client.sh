@@ -190,9 +190,18 @@ CREDS
     
     # Show next steps
     echo "📝 Next Steps:"
-    echo "   1. $(echo "$RESPONSE" | jq -r '.nextSteps.setupBilling') Setup billing"
-    echo "   2. $(echo "$RESPONSE" | jq -r '.nextSteps.verifyWebsite') Verify website ownership"
-    
+    SETUP_BILLING=$(echo "$RESPONSE" | jq -r '.nextSteps.setupBilling')
+    VERIFY_WEBSITE=$(echo "$RESPONSE" | jq -r '.nextSteps.verifyWebsite')
+    if [ "$SETUP_BILLING" = "true" ]; then
+      echo "   1. Setup billing: Required"
+    else
+      echo "   1. Setup billing: Completed"
+    fi
+    if [ "$VERIFY_WEBSITE" = "true" ]; then
+      echo "   2. Verify website ownership: Required"
+    else
+      echo "   2. Website ownership: Verified"
+    fi
     if [ "$ENABLE_DAILY_SCANS" = "true" ]; then
       NEXT_SCAN=$(echo "$RESPONSE" | jq -r '.scanSchedule.nextScanAt')
       echo "   3. First scan scheduled for: $NEXT_SCAN"
