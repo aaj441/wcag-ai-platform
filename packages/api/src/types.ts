@@ -115,7 +115,7 @@ export interface ServiceTier {
   subtitle: string;
   type: 'project' | 'retainer';
   features: string[];
-  outcomes: string[];
+  outcomes?: string[];
   pricing?: {
     type: 'project' | 'monthly' | 'custom';
     value?: number;

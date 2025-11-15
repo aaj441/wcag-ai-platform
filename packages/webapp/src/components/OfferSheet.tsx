@@ -149,7 +149,7 @@ interface ServiceTierCardProps {
 
 const ServiceTierCard: React.FC<ServiceTierCardProps> = ({ tier, featured = false }) => {
   const borderColor = featured ? 'border-blue-500' : 'border-gray-700';
-  const bgColor = featured ? 'bg-gray-750' : 'bg-gray-800';
+  const bgColor = featured ? 'bg-gray-700' : 'bg-gray-800';
   
   return (
     <div 
@@ -195,6 +195,13 @@ const ServiceTierCard: React.FC<ServiceTierCardProps> = ({ tier, featured = fals
 
       {/* CTA Button */}
       <button 
+        onClick={() => {
+          // Scroll to CTA section or open contact form
+          const ctaSection = document.querySelector('.bg-gradient-to-r');
+          if (ctaSection) {
+            ctaSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }}
         className={`w-full py-3 rounded-lg font-semibold transition-colors ${
           featured 
             ? 'bg-blue-600 hover:bg-blue-700 text-white' 

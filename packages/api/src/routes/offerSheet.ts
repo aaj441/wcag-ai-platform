@@ -22,7 +22,6 @@ const SERVICE_TIERS: ServiceTier[] = [
       'Comprehensive Baseline Audit',
       'Evidence Vault Setup',
     ],
-    outcomes: [],
     pricing: {
       type: 'project',
       description: 'Custom quote based on site complexity'
@@ -40,7 +39,6 @@ const SERVICE_TIERS: ServiceTier[] = [
       'Monthly Remediation Reports',
       'Quarterly "Proof of Compliance" Pack',
     ],
-    outcomes: [],
     pricing: {
       type: 'monthly',
       description: 'Starting at $2,500/month'
@@ -61,7 +59,6 @@ const SERVICE_TIERS: ServiceTier[] = [
       'AI Product & Bias Audit',
       'Internal Team "Cyborg" Training',
     ],
-    outcomes: [],
     pricing: {
       type: 'custom',
       description: 'Custom enterprise pricing'

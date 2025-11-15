@@ -3,7 +3,7 @@
  * Connects frontend to REST API
  */
 
-import { EmailDraft, EmailStatus, Violation } from '../types';
+import { EmailDraft, EmailStatus, Violation, OfferSheet, ServiceTier } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
@@ -162,15 +162,15 @@ class ApiService {
   // OFFER SHEET ENDPOINTS
   // ============================================================================
 
-  async getOfferSheet(): Promise<ApiResponse<any>> {
+  async getOfferSheet(): Promise<ApiResponse<OfferSheet>> {
     return this.request('/offer-sheet');
   }
 
-  async getServiceTiers(): Promise<ApiResponse<any[]>> {
+  async getServiceTiers(): Promise<ApiResponse<ServiceTier[]>> {
     return this.request('/offer-sheet/tiers');
   }
 
-  async getServiceTier(tierId: string): Promise<ApiResponse<any>> {
+  async getServiceTier(tierId: string): Promise<ApiResponse<ServiceTier>> {
     return this.request(`/offer-sheet/tiers/${tierId}`);
   }
 }
