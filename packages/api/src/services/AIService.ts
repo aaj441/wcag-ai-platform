@@ -35,7 +35,10 @@ export class AIService {
     this.provider = process.env.OPENAI_API_KEY ? 'openai' : 'anthropic';
 
     if (!this.apiKey) {
-      log.warn('No AI API key configured - using mock responses');
+      log.warn('⚠️  No AI API key configured - using mock responses');
+      log.warn('   To enable AI features, set OPENAI_API_KEY or ANTHROPIC_API_KEY in .env');
+    } else {
+      log.info(`✅ AI Service initialized with ${this.provider} (${this.model})`);
     }
   }
 
