@@ -126,7 +126,10 @@ export const OfferSheet: React.FC = () => {
             <p className="text-xl text-white mb-6">
               {offerSheet.callToAction}
             </p>
-            <button className="bg-white text-blue-600 font-bold py-3 px-8 rounded-lg hover:bg-gray-100 transition-colors">
+            <button
+              className="bg-white text-blue-600 font-bold py-3 px-8 rounded-lg hover:bg-gray-100 transition-colors"
+              onClick={() => window.open('https://calendly.com/your-link', '_blank')}
+            >
               Schedule Your Call
             </button>
           </div>
