@@ -71,7 +71,7 @@ export class ScanQueue {
       log.info('✅ ScanQueue initialized and ready');
       this.isInitialized = true;
     } catch (error) {
-      log.error('❌ Failed to initialize ScanQueue:', error);
+      log.error('❌ Failed to initialize ScanQueue:', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -151,7 +151,7 @@ export class ScanQueue {
           },
         });
       } catch (dbError) {
-        log.error('Failed to save failed scan to database:', dbError);
+        log.error('Failed to save failed scan to database:', dbError instanceof Error ? dbError : new Error(String(dbError)));
       }
 
       // If this is the last attempt, return failure result

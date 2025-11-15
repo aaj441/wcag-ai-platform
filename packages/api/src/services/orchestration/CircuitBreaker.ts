@@ -107,7 +107,8 @@ export class CircuitBreaker<T = any> {
   /**
    * Reset the circuit to CLOSED state
    */
-  private reset(): void {
+  reset(): void {
+    log.info(`🔄 Circuit breaker reset (${this.options.name || 'default'})`);
     this.state = 'CLOSED';
     this.failures = 0;
     this.successes = 0;
@@ -133,17 +134,6 @@ export class CircuitBreaker<T = any> {
       nextAttempt: this.nextAttempt,
       lastError: this.lastError?.message || null,
     };
-  }
-
-  /**
-   * Force reset the circuit (for testing)
-   */
-  reset(): void {
-    log.info(`🔄 Circuit breaker manually reset (${this.options.name || 'default'})`);
-    this.state = 'CLOSED';
-    this.failures = 0;
-    this.successes = 0;
-    this.lastError = null;
   }
 
   /**

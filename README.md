@@ -91,19 +91,23 @@ packages/
 node --version  # Should be v18+
 npm install
 
-# 3. Set up AI API keys
+# 3. Set up AI API keys (required for site transformation)
 cd packages/api
 cp .env.example .env
-# Add your ANTHROPIC_API_KEY or OPENAI_API_KEY
+# Add your OPENAI_API_KEY or ANTHROPIC_API_KEY
 
-# 4. Start the platform
+# 4. Initialize database (for fix templates)
+npx prisma generate
+npx prisma db push
+
+# 5. Start the platform
 # Terminal 1 (Backend):
 cd packages/api && npm run dev
 
 # Terminal 2 (Frontend):
 cd packages/webapp && npm run dev
 
-# 5. Open http://localhost:3000 - Start building sites!
+# 6. Open http://localhost:3000 - Start building sites!
 ```
 
 ### **For Developers (Technical Setup):**
@@ -115,11 +119,18 @@ cd packages/api && npm install
 cd ../webapp && npm install
 
 # Set up database
+cd packages/api
+npx prisma generate
 npx prisma db push
 
-# Configure AI services
-echo "ANTHROPIC_API_KEY=your_key_here" >> packages/api/.env
+# Configure AI services (required for transformation)
 echo "OPENAI_API_KEY=your_key_here" >> packages/api/.env
+# OR
+echo "ANTHROPIC_API_KEY=your_key_here" >> packages/api/.env
+echo "AI_MODEL=gpt-4" >> packages/api/.env
+
+# Optional: Configure GitHub integration (for PR deployment)
+echo "GITHUB_TOKEN=your_token_here" >> packages/api/.env
 
 # Run validation suite
 npm run test:wcag
@@ -203,6 +214,7 @@ Run the end-to-end demo to see the full client journey:
 |-------|-------------|
 | [Consultant Quickstart](CONSULTANT_QUICKSTART.md) | Get your first client site built in 30 minutes |
 | [Business Playbook](CONSULTANT_BUSINESS_GUIDE.md) | Complete sales & marketing strategy |
+| [Site Transformation API](SITE_TRANSFORMATION_API.md) | **NEW:** AI-powered remediation API documentation |
 | [Content Marketing](content/README.md) | LinkedIn AI Accessibility Teardown templates |
 | [Architecture](WCAGAI_Architecture_Flow.md) | Technical platform architecture |
 | [Deployment Harmony Guide](DEPLOYMENT_HARMONY_GUIDE.md) | **NEW:** Unified deployment verification system |

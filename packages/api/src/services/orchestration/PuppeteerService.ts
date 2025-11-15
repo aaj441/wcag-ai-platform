@@ -22,7 +22,7 @@ export interface ScanResult {
  * kill switches, and automatic recovery
  */
 export class PuppeteerService extends EventEmitter {
-  private browser: puppeteer.Browser | null = null;
+  private browser: Browser | null = null;
   private activePages = 0;
   private maxConcurrentPages = 3; // Prevents resource exhaustion
   private healthCheckInterval: NodeJS.Timeout | null = null;
@@ -42,7 +42,7 @@ export class PuppeteerService extends EventEmitter {
       log.info('Initializing Puppeteer browser');
 
       this.browser = await puppeteer.launch({
-        headless: 'new',
+        headless: true,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -62,7 +62,7 @@ export class PuppeteerService extends EventEmitter {
       log.info('✅ Puppeteer browser initialized successfully');
       this.monitorBrowserHealth();
     } catch (error) {
-      log.error('❌ Failed to initialize Puppeteer:', error);
+      log.error('❌ Failed to initialize Puppeteer:', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -93,7 +93,7 @@ export class PuppeteerService extends EventEmitter {
         return result;
       } catch (error) {
         lastError = error as Error;
-        log.error(`❌ Attempt ${attempt} failed: ${url}`, error);
+        log.error(`❌ Attempt ${attempt} failed: ${url}`, error instanceof Error ? error : new Error(String(error)));
 
         if (attempt < maxRetries) {
           const backoff = attempt * 2000; // 2s, 4s, 6s...
@@ -140,51 +140,55 @@ export class PuppeteerService extends EventEmitter {
       }, timeoutMs * 2);
 
       // Set user agent to avoid detection
-      await page.setUserAgent(
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-      );
+      if (page) {
+        await page.setUserAgent(
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        );
 
-      // Set headers to look like real browser
-      await page.setExtraHTTPHeaders({
-        'Accept-Language': 'en-US,en;q=0.9',
-        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      });
+        // Set headers to look like real browser
+        await page.setExtraHTTPHeaders({
+          'Accept-Language': 'en-US,en;q=0.9',
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        });
 
-      // Navigate with timeout
-      log.debug(`Navigating to ${url}`);
-      await page.goto(url, {
-        waitUntil: 'networkidle2',
-        timeout: timeoutMs,
-      });
+        // Navigate with timeout
+        log.debug(`Navigating to ${url}`);
+        await page.goto(url, {
+          waitUntil: 'networkidle2',
+          timeout: timeoutMs,
+        });
 
-      clearTimeout(killSwitch);
+        clearTimeout(killSwitch);
 
-      if (killSwitchTriggered) {
-        throw new Error('Scan was killed due to timeout');
-      }
-
-      // Inject axe-core for accessibility scanning
-      log.debug(`Injecting axe-core into ${url}`);
-      await page.evaluate(() => {
-        // @ts-ignore
-        if (!window.axe) {
-          // Inline axe-core (simplified - in production use npm package)
-          console.log('Axe-core not found, would be injected here');
+        if (killSwitchTriggered) {
+          throw new Error('Scan was killed due to timeout');
         }
-      });
 
-      // Get page content for basic scoring
-      const content = await page.content();
-      const score = this.calculateAccessibilityScore(content);
+        // Inject axe-core for accessibility scanning
+        log.debug(`Injecting axe-core into ${url}`);
+        await page.evaluate(() => {
+          // @ts-ignore
+          if (!window.axe) {
+            // Inline axe-core (simplified - in production use npm package)
+            console.log('Axe-core not found, would be injected here');
+          }
+        });
 
-      log.debug(`Accessibility score for ${url}: ${score}`);
+        // Get page content for basic scoring
+        const content = await page.content();
+        const score = this.calculateAccessibilityScore(content);
 
-      return {
-        url,
-        score,
-        violations: [], // Would be populated by axe-core in production
-        scanTime: Date.now() - startTime,
-      };
+        log.debug(`Accessibility score for ${url}: ${score}`);
+
+        return {
+          url,
+          score,
+          violations: [], // Would be populated by axe-core in production
+          scanTime: Date.now() - startTime,
+        };
+      } else {
+        throw new Error('Page not initialized');
+      }
     } finally {
       this.activePages--;
       if (page) {
@@ -265,7 +269,7 @@ export class PuppeteerService extends EventEmitter {
       log.info('✅ Browser restarted successfully');
       this.emit('restart');
     } catch (error) {
-      log.error('❌ Failed to restart browser:', error);
+      log.error('❌ Failed to restart browser:', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -302,7 +306,7 @@ export class PuppeteerService extends EventEmitter {
         this.browser = null;
         log.info('✅ Browser closed successfully');
       } catch (error) {
-        log.error('Error closing browser:', error);
+        log.error('Error closing browser:', error instanceof Error ? error : new Error(String(error)));
       }
     }
   }
