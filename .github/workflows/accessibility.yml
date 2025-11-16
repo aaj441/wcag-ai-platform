@@ -27,15 +27,18 @@ jobs:
           cache: 'npm'
       
       - name: Install root dependencies
-        run: npm install
-      
+        run: npm install || npm ci --legacy-peer-deps
+
       - name: Install API dependencies
         working-directory: ./packages/api
-        run: npm install
-      
+        run: npm install || npm ci --legacy-peer-deps
+
       - name: Install webapp dependencies
         working-directory: ./packages/webapp
-        run: npm install
+        run: npm install || npm ci --legacy-peer-deps
+
+      - name: Install wait-on globally
+        run: npm install -g wait-on
       
       - name: Build API
         working-directory: ./packages/api
@@ -51,16 +54,18 @@ jobs:
         working-directory: ./packages/api
         run: |
           npm start &
-          npx wait-on http://localhost:3001/health --timeout 60000
+          echo $! > ../../api-server.pid
+          wait-on http://localhost:3001/health --timeout 60000
         env:
           PORT: 3001
           NODE_ENV: test
-      
+
       - name: Start webapp server
         working-directory: ./packages/webapp
         run: |
           npm start &
-          npx wait-on http://localhost:3000 --timeout 60000
+          echo $! > ../../webapp-server.pid
+          wait-on http://localhost:3000 --timeout 60000
         env:
           PORT: 3000
       
@@ -200,6 +205,18 @@ Scan results are stored in the Evidence Vault for 90 days.
               // Don't fail the workflow if comment creation fails
             }
       
+      - name: Stop servers
+        if: always()
+        run: |
+          if [ -f api-server.pid ]; then
+            kill $(cat api-server.pid) || true
+            rm api-server.pid
+          fi
+          if [ -f webapp-server.pid ]; then
+            kill $(cat webapp-server.pid) || true
+            rm webapp-server.pid
+          fi
+
       - name: Check scan status
         if: always()
         run: |
