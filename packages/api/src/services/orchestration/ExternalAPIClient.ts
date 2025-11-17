@@ -436,11 +436,7 @@ export class ApolloClient {
           'Content-Type': 'application/json',
           'X-Api-Key': apiKey,
         },
-      },
-      {
         timeout: 10000,
-        retries: 2, // Retry twice
-        retryDelay: 1000,
       }
     );
   }
@@ -458,11 +454,7 @@ export class ApolloClient {
           'Content-Type': 'application/json',
           'X-Api-Key': apiKey,
         },
-      },
-      {
         timeout: 10000,
-        retries: 2,
-        retryDelay: 1000,
       }
     );
   }
@@ -483,11 +475,7 @@ export class HubSpotClient {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
         },
-      },
-      {
         timeout: 10000,
-        retries: 2,
-        retryDelay: 1000,
       }
     );
   }
@@ -505,11 +493,7 @@ export class HubSpotClient {
           'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
-      },
-      {
         timeout: 10000,
-        retries: 2,
-        retryDelay: 1000,
       }
     );
   }

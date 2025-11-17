@@ -11,9 +11,10 @@
 import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { getCircuitBreakerHealth } from '../services/orchestration/ExternalAPIClient';
-import { scanQueue } from '../services/orchestration/ScanQueue';
+import { getScanQueue } from '../services/orchestration/ScanQueue';
 
 const router = Router();
+const scanQueue = getScanQueue();
 
 // Basic health check
 router.get('/', async (req: Request, res: Response) => {
