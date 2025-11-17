@@ -387,9 +387,6 @@ async function runStressTest(): Promise<void> {
   console.log('');
   console.log('');
 
-  const endTime = Date.now();
-  const duration = endTime - startTime;
-
   // Final GC and sample
   if (global.gc) {
     console.log('🧹 Running final garbage collection...');
@@ -397,7 +394,7 @@ async function runStressTest(): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for GC
   }
 
-  const finalSample = monitor.sample(config.cycles);
+  monitor.sample(config.cycles);
 
   // Analyze results
   console.log('');

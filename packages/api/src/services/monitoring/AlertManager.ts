@@ -278,7 +278,6 @@ export class AlertManager {
   recordMemoryMetrics(): void {
     const mem = process.memoryUsage();
     const heapUsedMB = mem.heapUsed / 1024 / 1024;
-    const rssMB = mem.rss / 1024 / 1024;
 
     this.checkThreshold('memory_heap', heapUsedMB);
     this.checkThreshold('memory_heap_critical', heapUsedMB);
