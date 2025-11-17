@@ -159,7 +159,7 @@ export class ProtectedHTTPClient {
           return response;
         } catch (error: any) {
           lastError = error;
-          const duration = Date.now();
+          const duration = Date.now() - startTime;
 
           log.warn(`🌐 ${service} API call failed (attempt ${attempt + 1}/${retries + 1})`, {
             method: config.method,
