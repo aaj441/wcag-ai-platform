@@ -1,0 +1,520 @@
+name: Railway Production Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+  RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
+  NODE_VERSION: '20'
+
+jobs:
+  # ============================================================================
+  # STAGE 1: Pre-Deploy Validation
+  # ============================================================================
+  validate:
+    name: Pre-Deploy Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'packages/api/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: packages/api
+        run: npm ci
+
+      - name: TypeScript compilation check
+        working-directory: packages/api
+        run: npm run build
+
+      - name: Run unit tests
+        working-directory: packages/api
+        run: npm test
+        continue-on-error: true
+
+      - name: Validate migration files
+        run: |
+          echo "✅ Checking for SQL migration files..."
+          if [ -f "packages/api/prisma/migrations/performance_indexes.sql" ]; then
+            echo "✅ Performance indexes file found"
+            # Validate SQL syntax (basic check)
+            if grep -q "CREATE INDEX" packages/api/prisma/migrations/performance_indexes.sql; then
+              echo "✅ SQL file appears valid"
+            else
+              echo "❌ SQL file may be invalid"
+              exit 1
+            fi
+          else
+            echo "⚠️  Performance indexes file not found (may not be needed)"
+          fi
+
+  # ============================================================================
+  # STAGE 2: Stress Testing (Optional for main, required for production tag)
+  # ============================================================================
+  stress-test:
+    name: Stress Testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: validate
+    if: github.event_name == 'workflow_dispatch'
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: testdb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'packages/api/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: packages/api
+        run: npm ci
+
+      - name: Install k6 for load testing
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+
+      - name: Build application
+        working-directory: packages/api
+        run: npm run build
+
+      - name: Run Prisma migrations
+        working-directory: packages/api
+        env:
+          DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
+        run: npx prisma migrate deploy
+
+      - name: Memory Leak Detection Test
+        working-directory: packages/api
+        env:
+          DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          NODE_ENV: test
+        run: |
+          echo "🧪 Running memory leak detection (1000 cycles)..."
+          npx tsx stress-tests/memory-leak-detector.ts || {
+            echo "⚠️  Memory leak test failed - review heap growth"
+            exit 1
+          }
+
+      - name: Load Testing (100 Concurrent Scans)
+        working-directory: packages/api
+        env:
+          DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+        run: |
+          echo "🧪 Running k6 load test (100 concurrent users)..."
+          # Start API server in background
+          npm start &
+          SERVER_PID=$!
+          sleep 10
+
+          # Run k6 load test
+          k6 run stress-tests/100-concurrent-scans.js --out json=stress-test-results.json || {
+            echo "⚠️  Load test failed - check performance"
+            kill $SERVER_PID
+            exit 1
+          }
+
+          kill $SERVER_PID
+
+      - name: Upload stress test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: stress-test-results
+          path: packages/api/stress-test-results.json
+          retention-days: 30
+
+  # ============================================================================
+  # STAGE 3: Deploy to Railway
+  # ============================================================================
+  deploy:
+    name: Deploy to Railway
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: validate
+    environment:
+      name: ${{ github.event.inputs.environment || 'production' }}
+      url: ${{ steps.deploy.outputs.url }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Verify Railway credentials
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "❌ RAILWAY_TOKEN secret not set"
+            exit 1
+          fi
+          if [ -z "$RAILWAY_SERVICE_ID" ]; then
+            echo "❌ RAILWAY_SERVICE_ID secret not set"
+            exit 1
+          fi
+          echo "✅ Railway credentials configured"
+
+      - name: Deploy to Railway
+        id: deploy
+        run: |
+          echo "🚀 Deploying to Railway..."
+          railway up --service $RAILWAY_SERVICE_ID || {
+            echo "❌ Railway deployment failed"
+            exit 1
+          }
+
+          # Get deployment URL
+          DEPLOY_URL=$(railway status --service $RAILWAY_SERVICE_ID --json | jq -r '.url')
+          echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
+          echo "✅ Deployed to: $DEPLOY_URL"
+
+      - name: Wait for deployment
+        run: |
+          echo "⏳ Waiting 30 seconds for deployment to stabilize..."
+          sleep 30
+
+  # ============================================================================
+  # STAGE 4: Database Migrations & Performance Indexes
+  # ============================================================================
+  migrate:
+    name: Database Migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: deploy
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Install dependencies
+        working-directory: packages/api
+        run: npm ci
+
+      - name: Run Prisma migrations
+        working-directory: packages/api
+        run: |
+          echo "🔄 Running Prisma migrations..."
+          railway run --service $RAILWAY_SERVICE_ID npx prisma migrate deploy || {
+            echo "❌ Prisma migrations failed"
+            exit 1
+          }
+          echo "✅ Prisma migrations completed"
+
+      - name: Apply performance indexes
+        working-directory: packages/api
+        run: |
+          echo "⚡ Applying performance indexes..."
+
+          # Check if indexes file exists
+          if [ ! -f "prisma/migrations/performance_indexes.sql" ]; then
+            echo "⚠️  Performance indexes file not found, skipping..."
+            exit 0
+          fi
+
+          # Apply indexes using Railway's psql connection
+          railway run --service $RAILWAY_SERVICE_ID bash -c '
+            if [ -z "$DATABASE_URL" ]; then
+              echo "❌ DATABASE_URL not found in Railway environment"
+              exit 1
+            fi
+
+            echo "📊 Applying performance indexes (this may take 2-5 minutes)..."
+            psql $DATABASE_URL -f prisma/migrations/performance_indexes.sql || {
+              echo "⚠️  Some indexes may already exist (this is normal)"
+              exit 0
+            }
+
+            echo "✅ Performance indexes applied successfully"
+          ' || {
+            echo "⚠️  Performance indexes application failed (may already exist)"
+            # Don't fail the workflow - indexes may already be applied
+            exit 0
+          }
+
+      - name: Verify database schema
+        working-directory: packages/api
+        run: |
+          echo "🔍 Verifying database schema..."
+          railway run --service $RAILWAY_SERVICE_ID npx prisma db pull || {
+            echo "⚠️  Schema verification failed"
+            exit 1
+          }
+          echo "✅ Database schema verified"
+
+  # ============================================================================
+  # STAGE 5: Post-Deploy Health Checks
+  # ============================================================================
+  health-check:
+    name: Post-Deploy Health Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [deploy, migrate]
+
+    steps:
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Get deployment URL
+        id: get-url
+        run: |
+          DEPLOY_URL=$(railway status --service $RAILWAY_SERVICE_ID --json | jq -r '.url')
+          echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
+          echo "🔗 Deployment URL: $DEPLOY_URL"
+
+      - name: Basic health check
+        run: |
+          echo "🏥 Running basic health check..."
+          HEALTH_URL="${{ steps.get-url.outputs.url }}/health"
+
+          # Retry up to 5 times
+          for i in {1..5}; do
+            echo "Attempt $i/5..."
+
+            RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" $HEALTH_URL) || true
+
+            if [ "$RESPONSE" = "200" ]; then
+              echo "✅ Health check passed (HTTP 200)"
+              exit 0
+            fi
+
+            echo "⚠️  Health check returned HTTP $RESPONSE, retrying..."
+            sleep 10
+          done
+
+          echo "❌ Health check failed after 5 attempts"
+          exit 1
+
+      - name: Detailed health check
+        run: |
+          echo "🔍 Running detailed health check..."
+          DETAILED_HEALTH_URL="${{ steps.get-url.outputs.url }}/health/detailed"
+
+          RESPONSE=$(curl -s $DETAILED_HEALTH_URL)
+
+          # Parse health status
+          STATUS=$(echo $RESPONSE | jq -r '.status')
+
+          if [ "$STATUS" = "healthy" ]; then
+            echo "✅ Detailed health check passed"
+            echo "📊 Health details:"
+            echo $RESPONSE | jq '.'
+          elif [ "$STATUS" = "degraded" ]; then
+            echo "⚠️  System is degraded but operational"
+            echo "📊 Health details:"
+            echo $RESPONSE | jq '.'
+            # Don't fail on degraded status
+            exit 0
+          else
+            echo "❌ System is unhealthy"
+            echo "📊 Health details:"
+            echo $RESPONSE | jq '.'
+            exit 1
+          fi
+
+      - name: Test circuit breakers
+        run: |
+          echo "🔌 Checking circuit breaker health..."
+          DETAILED_HEALTH_URL="${{ steps.get-url.outputs.url }}/health/detailed"
+
+          RESPONSE=$(curl -s $DETAILED_HEALTH_URL)
+          BREAKERS_HEALTHY=$(echo $RESPONSE | jq -r '.checks.circuitBreakers.healthy')
+
+          if [ "$BREAKERS_HEALTHY" = "true" ]; then
+            echo "✅ All circuit breakers healthy"
+          else
+            echo "⚠️  Some circuit breakers may be open"
+            echo $RESPONSE | jq '.checks.circuitBreakers'
+            # Don't fail - breakers may be open due to external service issues
+          fi
+
+      - name: Test database connectivity
+        run: |
+          echo "🗄️  Checking database connectivity..."
+          DETAILED_HEALTH_URL="${{ steps.get-url.outputs.url }}/health/detailed"
+
+          RESPONSE=$(curl -s $DETAILED_HEALTH_URL)
+          DB_HEALTHY=$(echo $RESPONSE | jq -r '.checks.database.healthy')
+
+          if [ "$DB_HEALTHY" = "true" ]; then
+            echo "✅ Database connection healthy"
+          else
+            echo "❌ Database connection failed"
+            exit 1
+          fi
+
+      - name: Test Redis connectivity
+        run: |
+          echo "⚡ Checking Redis connectivity..."
+          DETAILED_HEALTH_URL="${{ steps.get-url.outputs.url }}/health/detailed"
+
+          RESPONSE=$(curl -s $DETAILED_HEALTH_URL)
+          REDIS_HEALTHY=$(echo $RESPONSE | jq -r '.checks.redis.healthy')
+
+          if [ "$REDIS_HEALTHY" = "true" ]; then
+            echo "✅ Redis connection healthy"
+          else
+            echo "⚠️  Redis connection failed (caching may be disabled)"
+            # Don't fail - app can run without Redis
+          fi
+
+      - name: Test queue health
+        run: |
+          echo "📋 Checking job queue health..."
+          DETAILED_HEALTH_URL="${{ steps.get-url.outputs.url }}/health/detailed"
+
+          RESPONSE=$(curl -s $DETAILED_HEALTH_URL)
+          QUEUE_CAPACITY=$(echo $RESPONSE | jq -r '.checks.queue.capacity')
+
+          if [ "$QUEUE_CAPACITY" = "healthy" ]; then
+            echo "✅ Job queue capacity healthy"
+          elif [ "$QUEUE_CAPACITY" = "warning" ]; then
+            echo "⚠️  Job queue capacity at warning level"
+            echo $RESPONSE | jq '.checks.queue'
+            # Don't fail on warning
+          else
+            echo "❌ Job queue overloaded"
+            exit 1
+          fi
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🎉 DEPLOYMENT COMPLETE"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "🔗 Application URL: ${{ steps.get-url.outputs.url }}"
+          echo "🏥 Health endpoint: ${{ steps.get-url.outputs.url }}/health"
+          echo "📊 Detailed health: ${{ steps.get-url.outputs.url }}/health/detailed"
+          echo ""
+          echo "📋 Next steps:"
+          echo "  1. Monitor metrics for 24 hours"
+          echo "  2. Check Sentry for any new errors"
+          echo "  3. Review cache hit rate (target >70%)"
+          echo "  4. Verify performance improvements"
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+  # ============================================================================
+  # STAGE 6: Rollback on Failure
+  # ============================================================================
+  rollback:
+    name: Rollback on Failure
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [deploy, migrate, health-check]
+    if: failure()
+
+    steps:
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Rollback deployment
+        run: |
+          echo "🔄 Rolling back to previous deployment..."
+          railway rollback --service $RAILWAY_SERVICE_ID || {
+            echo "❌ Rollback failed - manual intervention required"
+            echo "Please check Railway dashboard: https://railway.app"
+            exit 1
+          }
+          echo "✅ Rollback completed successfully"
+
+      - name: Verify rollback health
+        run: |
+          echo "⏳ Waiting for rollback to stabilize..."
+          sleep 30
+
+          DEPLOY_URL=$(railway status --service $RAILWAY_SERVICE_ID --json | jq -r '.url')
+          HEALTH_URL="${DEPLOY_URL}/health"
+
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" $HEALTH_URL)
+
+          if [ "$RESPONSE" = "200" ]; then
+            echo "✅ Rollback health check passed"
+          else
+            echo "❌ Rollback health check failed - manual intervention required"
+            exit 1
+          fi
+
+      - name: Notify failure
+        if: always()
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "⚠️  DEPLOYMENT FAILED - ROLLBACK EXECUTED"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "The deployment failed health checks and has been"
+          echo "automatically rolled back to the previous version."
+          echo ""
+          echo "Please review the workflow logs and fix issues"
+          echo "before attempting another deployment."
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

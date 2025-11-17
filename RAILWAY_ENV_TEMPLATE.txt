@@ -1,0 +1,52 @@
+# Railway Environment Variables Template
+# Copy these to Railway Dashboard → Your Project → Variables
+
+# ============================================================================
+# REQUIRED - Core Database & Cache
+# ============================================================================
+DATABASE_URL=postgresql://user:password@host:5432/dbname
+REDIS_HOST=redis.railway.internal  # Railway will provide this
+REDIS_PORT=6379
+REDIS_PASSWORD=                     # Railway will generate this
+
+# ============================================================================
+# REQUIRED - External Services
+# ============================================================================
+OPENAI_API_KEY=sk-...              # Your OpenAI API key
+# OR
+ANTHROPIC_API_KEY=sk-ant-...       # Your Anthropic API key
+
+CLERK_SECRET_KEY=sk_live_...       # Clerk authentication
+STRIPE_SECRET_KEY=sk_live_...      # Stripe billing
+
+SENDGRID_API_KEY=SG....            # Email service
+
+# ============================================================================
+# AWS S3 (for report storage)
+# ============================================================================
+AWS_ACCESS_KEY_ID=AKIA...
+AWS_SECRET_ACCESS_KEY=...
+AWS_REGION=us-east-1
+S3_BUCKET_NAME=wcagai-reports
+
+# ============================================================================
+# REQUIRED - Monitoring
+# ============================================================================
+SENTRY_DSN=https://...@sentry.io/...
+LOG_LEVEL=info                     # info for production, debug for staging
+
+# ============================================================================
+# OPTIONAL - Alerts & Integrations
+# ============================================================================
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
+HUBSPOT_API_KEY=...
+APOLLO_API_KEY=...
+
+PAGERDUTY_API_KEY=...
+PAGERDUTY_ROUTING_KEY=...
+
+# ============================================================================
+# Application Config
+# ============================================================================
+NODE_ENV=production                # or 'staging' for staging environment
+PORT=8080                          # Railway will override this
