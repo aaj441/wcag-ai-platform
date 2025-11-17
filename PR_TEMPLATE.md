@@ -30,6 +30,14 @@ This PR implements comprehensive production-hardening for the WCAGAI platform ac
 - CDN-ready static HTML reports
 - Complete deployment guides and runbooks
 
+**🚀 CI/CD Automation**
+- GitHub Actions workflow for automated Railway deployment
+- Auto-deploy on push to `main` branch
+- Pre-deploy validation (TypeScript, tests, migration checks)
+- Automated database migrations + performance indexes
+- Multi-stage health checks (DB, Redis, circuit breakers, queue)
+- Automatic rollback on failure (<2 min recovery)
+
 ---
 
 ## Changes by Category
@@ -73,6 +81,18 @@ This PR implements comprehensive production-hardening for the WCAGAI platform ac
 - `COMPLETE_DEPLOYMENT_PACKAGE.md` - Comprehensive 60-minute deployment guide
 - `API_KEYS_SETUP_GUIDE.md` - Step-by-step guide for all API keys
 - `RAILWAY_ENV_TEMPLATE.txt` - Environment variables template
+- `GITHUB_ACTIONS_SETUP.md` - Complete CI/CD setup guide
+
+### 🤖 CI/CD & Automation
+
+**New Files:**
+- `.github/workflows/railway-deploy.yml` - Automated deployment pipeline with:
+  - Pre-deploy validation (TypeScript, tests, migrations)
+  - Optional stress testing (memory leaks, load testing)
+  - Automated Railway deployment
+  - Database migrations + performance indexes
+  - Multi-stage health checks
+  - Automatic rollback on failure
 
 ---
 
