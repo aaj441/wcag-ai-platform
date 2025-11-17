@@ -15,6 +15,15 @@
 
 **📋 Documentation:** [Security Policy](./SECURITY.md) | [Vulnerability Disclosure](./VULNERABILITY_DISCLOSURE.md) | [Compliance](./COMPLIANCE.md) | [Incident Response](./INCIDENT_RESPONSE.md)
 
+### ⚙️ **CI/CD & Quality**
+
+[![Code Quality](https://github.com/aaj441/wcag-ai-platform/actions/workflows/code-quality-checks.yml/badge.svg)](https://github.com/aaj441/wcag-ai-platform/actions/workflows/code-quality-checks.yml)
+[![Railway Deploy](https://github.com/aaj441/wcag-ai-platform/actions/workflows/railway-deploy.yml/badge.svg)](https://github.com/aaj441/wcag-ai-platform/actions/workflows/railway-deploy.yml)
+[![Accessibility](https://github.com/aaj441/wcag-ai-platform/actions/workflows/accessibility.yml/badge.svg)](https://github.com/aaj441/wcag-ai-platform/actions/workflows/accessibility.yml)
+[![Production Monitoring](https://github.com/aaj441/wcag-ai-platform/actions/workflows/production-monitoring.yml/badge.svg)](https://github.com/aaj441/wcag-ai-platform/actions/workflows/production-monitoring.yml)
+
+**🔧 Workflows:** [Workflow Documentation](./.github/workflows/README.md) | [Deployment Scripts](./deployment/scripts)
+
 ---
 
 ## **🎯 What Is This?**
