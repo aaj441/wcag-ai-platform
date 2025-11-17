@@ -1,0 +1,268 @@
+name: Production Monitoring & Auto-Remediation
+
+on:
+  schedule:
+    # Every 5 minutes during business hours (9 AM - 6 PM UTC, Monday-Friday)
+    - cron: '*/5 9-18 * * 1-5'
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/production-monitoring.yml'
+
+env:
+  # Thresholds
+  MAX_QUEUE_DEPTH: 100
+  MAX_ERROR_RATE: 10  # percentage
+  MAX_RESPONSE_TIME: 5000  # ms
+
+jobs:
+  # ==========================================================================
+  # JOB 1: Health Monitoring & Metrics Collection
+  # ==========================================================================
+  health-monitoring:
+    name: Health Check & Metrics
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      status: ${{ steps.health-check.outputs.status }}
+      needs_remediation: ${{ steps.analyze.outputs.needs_remediation }}
+
+    steps:
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Get Production URL
+        id: get-url
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "⚠️  RAILWAY_TOKEN not set, using fallback URL"
+            echo "url=https://wcagai-production.railway.app" >> $GITHUB_OUTPUT
+          else
+            DEPLOY_URL=$(railway status --service ${{ secrets.RAILWAY_SERVICE_ID }} --json | jq -r '.url' || echo "")
+            if [ -z "$DEPLOY_URL" ]; then
+              echo "⚠️  Could not get Railway URL, using fallback"
+              echo "url=https://wcagai-production.railway.app" >> $GITHUB_OUTPUT
+            else
+              echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Basic Health Check
+        id: health-check
+        run: |
+          API_URL="${{ steps.get-url.outputs.url }}"
+          echo "🏥 Checking health: $API_URL/health"
+          
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/health" || echo "000")
+          
+          if [ "$HTTP_CODE" == "200" ]; then
+            echo "✅ Basic health check passed"
+            echo "status=healthy" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Basic health check failed (HTTP $HTTP_CODE)"
+            echo "status=unhealthy" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Detailed Health Check
+        id: detailed-health
+        run: |
+          API_URL="${{ steps.get-url.outputs.url }}"
+          echo "🔍 Fetching detailed health..."
+          
+          RESPONSE=$(curl -s "$API_URL/health/detailed" || echo "{}")
+          echo "$RESPONSE" > /tmp/health.json
+          
+          # Parse health metrics
+          STATUS=$(echo "$RESPONSE" | jq -r '.status' || echo "unknown")
+          DB_HEALTHY=$(echo "$RESPONSE" | jq -r '.checks.database.healthy' || echo "false")
+          REDIS_HEALTHY=$(echo "$RESPONSE" | jq -r '.checks.redis.healthy' || echo "false")
+          QUEUE_DEPTH=$(echo "$RESPONSE" | jq -r '.checks.queue.waiting' || echo "0")
+          
+          echo "   System Status: $STATUS"
+          echo "   Database: $DB_HEALTHY"
+          echo "   Redis: $REDIS_HEALTHY"
+          echo "   Queue Depth: $QUEUE_DEPTH"
+          
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+          echo "db_healthy=$DB_HEALTHY" >> $GITHUB_OUTPUT
+          echo "redis_healthy=$REDIS_HEALTHY" >> $GITHUB_OUTPUT
+          echo "queue_depth=$QUEUE_DEPTH" >> $GITHUB_OUTPUT
+
+      - name: Collect Metrics
+        id: metrics
+        continue-on-error: true
+        run: |
+          API_URL="${{ steps.get-url.outputs.url }}"
+          echo "📊 Collecting metrics..."
+          
+          # Try to get metrics endpoint
+          METRICS=$(curl -s "$API_URL/metrics" || echo "{}")
+          
+          # Extract key metrics (if endpoint exists)
+          if echo "$METRICS" | jq empty 2>/dev/null; then
+            ERROR_RATE=$(echo "$METRICS" | jq -r '.error_rate // 0')
+            AVG_RESPONSE_TIME=$(echo "$METRICS" | jq -r '.avg_response_time // 0')
+            REQUESTS_PER_MIN=$(echo "$METRICS" | jq -r '.requests_per_min // 0')
+            
+            echo "   Error Rate: ${ERROR_RATE}%"
+            echo "   Avg Response Time: ${AVG_RESPONSE_TIME}ms"
+            echo "   Requests/min: $REQUESTS_PER_MIN"
+            
+            echo "error_rate=$ERROR_RATE" >> $GITHUB_OUTPUT
+            echo "response_time=$AVG_RESPONSE_TIME" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️  Metrics endpoint not available"
+          fi
+
+      - name: Analyze Health Status
+        id: analyze
+        run: |
+          STATUS="${{ steps.detailed-health.outputs.status }}"
+          QUEUE_DEPTH="${{ steps.detailed-health.outputs.queue_depth }}"
+          DB_HEALTHY="${{ steps.detailed-health.outputs.db_healthy }}"
+          
+          NEEDS_REMEDIATION=false
+          
+          # Check if remediation needed
+          if [ "$STATUS" != "healthy" ] && [ "$STATUS" != "degraded" ]; then
+            echo "⚠️  System is unhealthy"
+            NEEDS_REMEDIATION=true
+          fi
+          
+          if [ "$QUEUE_DEPTH" -gt "$MAX_QUEUE_DEPTH" ]; then
+            echo "⚠️  Queue depth ($QUEUE_DEPTH) exceeds threshold ($MAX_QUEUE_DEPTH)"
+            NEEDS_REMEDIATION=true
+          fi
+          
+          if [ "$DB_HEALTHY" != "true" ]; then
+            echo "⚠️  Database connection unhealthy"
+            NEEDS_REMEDIATION=true
+          fi
+          
+          echo "needs_remediation=$NEEDS_REMEDIATION" >> $GITHUB_OUTPUT
+
+      - name: Upload Health Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: health-report
+          path: /tmp/health.json
+          retention-days: 7
+
+  # ==========================================================================
+  # JOB 2: Auto-Remediation (if needed)
+  # ==========================================================================
+  auto-remediation:
+    name: Auto-Remediation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: health-monitoring
+    if: needs.health-monitoring.outputs.needs_remediation == 'true'
+
+    steps:
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Restart Service (if unhealthy)
+        if: needs.health-monitoring.outputs.status == 'unhealthy'
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          echo "🔄 Restarting Railway service..."
+          
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "❌ RAILWAY_TOKEN not set, cannot restart"
+            exit 1
+          fi
+          
+          railway restart --service ${{ secrets.RAILWAY_SERVICE_ID }} || {
+            echo "❌ Failed to restart service"
+            exit 1
+          }
+          
+          echo "✅ Service restarted, waiting 60s for recovery..."
+          sleep 60
+
+      - name: Verify Recovery
+        run: |
+          echo "🔍 Verifying service recovery..."
+          
+          API_URL="${{ needs.health-monitoring.outputs.url }}"
+          
+          # Try health check 3 times
+          for i in {1..3}; do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/health" || echo "000")
+            
+            if [ "$HTTP_CODE" == "200" ]; then
+              echo "✅ Service recovered successfully"
+              exit 0
+            fi
+            
+            echo "⏳ Attempt $i/3 failed, retrying..."
+            sleep 20
+          done
+          
+          echo "❌ Service did not recover after restart"
+          exit 1
+
+  # ==========================================================================
+  # JOB 3: Alert Notifications
+  # ==========================================================================
+  send-alerts:
+    name: Send Alerts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [health-monitoring, auto-remediation]
+    if: always() && (needs.health-monitoring.outputs.status == 'unhealthy' || needs.auto-remediation.result == 'failure')
+
+    steps:
+      - name: Send Slack Notification
+        if: vars.SLACK_WEBHOOK_URL
+        run: |
+          STATUS="${{ needs.health-monitoring.outputs.status }}"
+          REMEDIATION="${{ needs.auto-remediation.result }}"
+          
+          MESSAGE="🚨 *Production Alert*\n\nStatus: $STATUS\nAuto-remediation: $REMEDIATION\n\nTime: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+          
+          curl -X POST "${{ vars.SLACK_WEBHOOK_URL }}" \
+            -H 'Content-Type: application/json' \
+            -d "{\"text\": \"$MESSAGE\"}" || true
+
+      - name: Create GitHub Issue
+        if: needs.auto-remediation.result == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Production Health Alert - Auto-remediation Failed',
+              body: `## Production Health Issue\n\n**Status:** ${{ needs.health-monitoring.outputs.status }}\n**Auto-remediation:** Failed\n**Time:** ${new Date().toISOString()}\n\n**Action Required:** Manual intervention needed to restore service health.\n\n**Health Report:** Check workflow artifacts for detailed health report.`,
+              labels: ['production', 'urgent', 'auto-generated']
+            });
+
+  # ==========================================================================
+  # JOB 4: Monitoring Summary
+  # ==========================================================================
+  monitoring-summary:
+    name: Monitoring Summary
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [health-monitoring, auto-remediation]
+    if: always()
+
+    steps:
+      - name: Generate Summary
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📊 PRODUCTION MONITORING SUMMARY"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "Health Status: ${{ needs.health-monitoring.outputs.status }}"
+          echo "Remediation Needed: ${{ needs.health-monitoring.outputs.needs_remediation }}"
+          echo "Auto-Remediation: ${{ needs.auto-remediation.result || 'skipped' }}"
+          echo "Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

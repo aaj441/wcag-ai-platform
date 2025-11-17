@@ -1,0 +1,290 @@
+name: Code Quality & API Compatibility Checks
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'packages/**/*.ts'
+      - 'packages/**/*.tsx'
+      - 'packages/**/*.js'
+      - 'packages/**/*.jsx'
+  push:
+    branches: [main]
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ==========================================================================
+  # JOB 1: TypeScript Compilation & Type Checking
+  # ==========================================================================
+  typescript-check:
+    name: TypeScript Compilation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'packages/api/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: packages/api
+        run: npm ci
+
+      - name: TypeScript compilation check
+        working-directory: packages/api
+        run: npx tsc --noEmit
+
+      - name: Report TypeScript errors
+        if: failure()
+        run: |
+          echo "❌ TypeScript compilation failed"
+          echo "Run 'npx tsc --noEmit' locally to see detailed errors"
+
+  # ==========================================================================
+  # JOB 2: API Breaking Changes Detection
+  # ==========================================================================
+  api-breaking-changes:
+    name: Detect API Breaking Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        working-directory: packages/api
+        run: npm ci
+
+      - name: Extract API surface (current)
+        working-directory: packages/api
+        run: |
+          echo "📊 Extracting current API surface..."
+          
+          # Find all exported functions, classes, interfaces, types
+          find src -name "*.ts" -not -name "*.test.ts" -not -name "*.spec.ts" | while read file; do
+            echo "=== $file ===" >> /tmp/api-current.txt
+            grep -E "^export (function|class|interface|type|const|enum)" "$file" >> /tmp/api-current.txt || true
+          done
+          
+          echo "✅ Current API surface extracted"
+
+      - name: Extract API surface (base branch)
+        run: |
+          echo "📊 Extracting base branch API surface..."
+          git checkout ${{ github.base_ref }}
+          
+          cd packages/api
+          find src -name "*.ts" -not -name "*.test.ts" -not -name "*.spec.ts" | while read file; do
+            echo "=== $file ===" >> /tmp/api-base.txt
+            grep -E "^export (function|class|interface|type|const|enum)" "$file" >> /tmp/api-base.txt || true
+          done
+          
+          echo "✅ Base API surface extracted"
+
+      - name: Compare API surfaces
+        run: |
+          echo "🔍 Comparing API surfaces..."
+          
+          # Check for removed exports (breaking changes)
+          if diff /tmp/api-base.txt /tmp/api-current.txt | grep "^<" > /tmp/breaking-changes.txt; then
+            echo "❌ BREAKING CHANGES DETECTED:"
+            cat /tmp/breaking-changes.txt
+            
+            echo ""
+            echo "⚠️  The following exports were removed or modified:"
+            cat /tmp/breaking-changes.txt | sed 's/^< /  - /'
+            
+            echo ""
+            echo "💡 If this is intentional, document the breaking change in CHANGELOG.md"
+            echo "   and bump the major version (semver)"
+            
+            exit 1
+          else
+            echo "✅ No breaking changes detected"
+          fi
+
+  # ==========================================================================
+  # JOB 3: Code Complexity Analysis
+  # ==========================================================================
+  complexity-analysis:
+    name: Code Complexity Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Analyze code complexity
+        working-directory: packages/api
+        run: |
+          echo "📊 Analyzing code complexity..."
+          
+          # Find files with high complexity (>15 is concerning)
+          HIGH_COMPLEXITY=0
+          
+          find src -name "*.ts" -not -name "*.test.ts" | while read file; do
+            # Count cyclomatic complexity indicators
+            COMPLEXITY=0
+            
+            # Count control flow statements
+            IF_COUNT=$(grep -c "if (" "$file" || true)
+            FOR_COUNT=$(grep -c "for (" "$file" || true)
+            WHILE_COUNT=$(grep -c "while (" "$file" || true)
+            CASE_COUNT=$(grep -c "case " "$file" || true)
+            CATCH_COUNT=$(grep -c "catch (" "$file" || true)
+            TERNARY_COUNT=$(grep -c " ? " "$file" || true)
+            
+            COMPLEXITY=$((IF_COUNT + FOR_COUNT + WHILE_COUNT + CASE_COUNT + CATCH_COUNT + TERNARY_COUNT))
+            
+            if [ $COMPLEXITY -gt 50 ]; then
+              echo "⚠️  HIGH COMPLEXITY: $file (complexity: $COMPLEXITY)"
+              HIGH_COMPLEXITY=$((HIGH_COMPLEXITY + 1))
+            fi
+          done
+          
+          if [ $HIGH_COMPLEXITY -gt 0 ]; then
+            echo ""
+            echo "⚠️  Found $HIGH_COMPLEXITY file(s) with high complexity"
+            echo "   Consider refactoring to improve maintainability"
+          else
+            echo "✅ All files have acceptable complexity"
+          fi
+
+  # ==========================================================================
+  # JOB 4: PR Size Check
+  # ==========================================================================
+  pr-size-check:
+    name: PR Size Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check PR size
+        run: |
+          echo "📏 Analyzing PR size..."
+          
+          # Count changed lines
+          ADDED=$(git diff --numstat ${{ github.base_ref }}...HEAD | awk '{sum+=$1} END {print sum}')
+          REMOVED=$(git diff --numstat ${{ github.base_ref }}...HEAD | awk '{sum+=$2} END {print sum}')
+          FILES=$(git diff --name-only ${{ github.base_ref }}...HEAD | wc -l)
+          
+          echo "   Lines added: $ADDED"
+          echo "   Lines removed: $REMOVED"
+          echo "   Files changed: $FILES"
+          echo ""
+          
+          # Warn on large PRs
+          if [ $ADDED -gt 1000 ] || [ $FILES -gt 50 ]; then
+            echo "⚠️  LARGE PR DETECTED"
+            echo "   This PR changes $FILES files with $ADDED additions"
+            echo "   Consider breaking it into smaller, reviewable chunks"
+            echo ""
+            echo "💡 Benefits of smaller PRs:"
+            echo "   - Faster review cycles"
+            echo "   - Easier to identify bugs"
+            echo "   - Lower risk deployments"
+            echo ""
+          else
+            echo "✅ PR size is reasonable"
+          fi
+
+  # ==========================================================================
+  # JOB 5: Deprecation Enforcement
+  # ==========================================================================
+  deprecation-check:
+    name: Check Deprecated Code Usage
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Find deprecated code usage
+        working-directory: packages/api
+        run: |
+          echo "🔍 Scanning for deprecated code..."
+          
+          # Find @deprecated tags with deadlines
+          OVERDUE=0
+          TODAY=$(date +%Y-%m-%d)
+          
+          grep -rn "@deprecated" src --include="*.ts" | while read -r line; do
+            # Extract deadline if present
+            if echo "$line" | grep -q "deadline:"; then
+              DEADLINE=$(echo "$line" | sed -n 's/.*deadline: \([0-9-]*\).*/\1/p')
+              
+              if [[ "$DEADLINE" < "$TODAY" ]]; then
+                echo "❌ OVERDUE DEPRECATION: $line"
+                OVERDUE=$((OVERDUE + 1))
+              else
+                echo "⏰ Upcoming deprecation: $line"
+              fi
+            else
+              echo "⚠️  Deprecation without deadline: $line"
+            fi
+          done
+          
+          if [ $OVERDUE -gt 0 ]; then
+            echo ""
+            echo "❌ Found $OVERDUE overdue deprecations"
+            echo "   Remove deprecated code or extend deadlines"
+            exit 1
+          else
+            echo "✅ No overdue deprecations"
+          fi
+
+  # ==========================================================================
+  # JOB 6: Summary Report
+  # ==========================================================================
+  quality-summary:
+    name: Quality Summary
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [typescript-check, complexity-analysis, pr-size-check]
+    if: always()
+
+    steps:
+      - name: Generate summary
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📊 CODE QUALITY SUMMARY"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "TypeScript: ${{ needs.typescript-check.result }}"
+          echo "Complexity: ${{ needs.complexity-analysis.result }}"
+          echo "PR Size: ${{ needs.pr-size-check.result }}"
+          echo ""
+          echo "✅ = success, ❌ = failure, ⚠️  = skipped"
+          echo ""
