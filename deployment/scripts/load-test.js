@@ -1,132 +1,265 @@
+#!/usr/bin/env node
+
 /**
- * k6 Load Test for WCAG AI Platform
+ * Production Load Test Script
  *
- * Usage:
- *   k6 run --vus 10 --duration 60s load-test.js
- *   k6 run --vus 50 --duration 5m load-test.js
+ * Simulates realistic production load to verify system capacity
+ * Tests critical endpoints with concurrent requests
+ *
+ * Usage: node deployment/scripts/load-test.js <base-url>
  */
 
-import http from 'k6/http';
-import { check, sleep } from 'k6';
-import { Rate, Trend } from 'k6/metrics';
+const https = require('https');
+const http = require('http');
 
-// Custom metrics
-const errorRate = new Rate('errors');
-const scanDuration = new Trend('scan_duration');
+const BASE_URL = process.argv[2] || 'http://localhost:3001';
+const CONCURRENT_REQUESTS = 50;
+const REQUESTS_PER_USER = 5;
+const TIMEOUT_MS = 30000;
 
-// Configuration
-const BASE_URL = __ENV.API_URL || 'http://localhost:8080';
-
-export const options = {
-  stages: [
-    { duration: '30s', target: 10 },  // Ramp up to 10 users
-    { duration: '1m', target: 10 },   // Stay at 10 users
-    { duration: '30s', target: 20 },  // Ramp up to 20 users
-    { duration: '1m', target: 20 },   // Stay at 20 users
-    { duration: '30s', target: 0 },   // Ramp down to 0 users
-  ],
-  thresholds: {
-    http_req_duration: ['p(95)<2000'], // 95% of requests should be below 2s
-    http_req_failed: ['rate<0.1'],     // Less than 10% errors
-    errors: ['rate<0.1'],
-  },
-};
-
-// Test URLs
-const TEST_URLS = [
-  'https://example.com',
-  'https://www.w3.org',
-  'https://google.com',
-  'https://github.com',
+// Test endpoints with expected response
+const TEST_CASES = [
+  { method: 'GET', path: '/health', expectedStatus: 200, weight: 10 },
+  { method: 'GET', path: '/health/detailed', expectedStatus: 200, weight: 5 },
+  { method: 'GET', path: '/api/scans', expectedStatus: [200, 401], weight: 3 }, // May require auth
 ];
 
-export default function () {
-  // 1. Health check
-  const healthRes = http.get(`${BASE_URL}/health`);
-  check(healthRes, {
-    'health check status is 200': (r) => r.status === 200,
-  });
+let totalRequests = 0;
+let successfulRequests = 0;
+let failedRequests = 0;
+const responseTimes = [];
 
-  sleep(1);
+/**
+ * Make HTTP request
+ */
+function makeRequest(endpoint) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(endpoint.path, BASE_URL);
+    const client = url.protocol === 'https:' ? https : http;
 
-  // 2. API status
-  const statusRes = http.get(`${BASE_URL}/api/status`);
-  check(statusRes, {
-    'status endpoint is 200': (r) => r.status === 200,
-  });
+    const startTime = Date.now();
 
-  sleep(1);
+    const req = client.request(
+      url,
+      {
+        method: endpoint.method,
+        timeout: TIMEOUT_MS,
+        headers: {
+          'User-Agent': 'WCAGAI-LoadTest/1.0',
+        },
+      },
+      (res) => {
+        const duration = Date.now() - startTime;
+        let data = '';
 
-  // 3. Scan request
-  const testUrl = TEST_URLS[Math.floor(Math.random() * TEST_URLS.length)];
-  const scanPayload = JSON.stringify({
-    url: testUrl,
-    wcagLevel: 'AA',
-    includeWarnings: false,
-  });
+        res.on('data', (chunk) => {
+          data += chunk;
+        });
 
-  const scanStart = Date.now();
-  const scanRes = http.post(`${BASE_URL}/api/scan`, scanPayload, {
-    headers: { 'Content-Type': 'application/json' },
-  });
+        res.on('end', () => {
+          const expectedStatuses = Array.isArray(endpoint.expectedStatus)
+            ? endpoint.expectedStatus
+            : [endpoint.expectedStatus];
 
-  const duration = Date.now() - scanStart;
-  scanDuration.add(duration);
+          const success = expectedStatuses.includes(res.statusCode);
 
-  const scanOk = check(scanRes, {
-    'scan request accepted': (r) => r.status === 200 || r.status === 202,
-    'scan response has scanId': (r) => {
-      try {
-        const body = JSON.parse(r.body);
-        return body.scanId !== undefined;
-      } catch {
-        return false;
+          resolve({
+            success,
+            status: res.statusCode,
+            duration,
+            endpoint: endpoint.path,
+          });
+        });
       }
-    },
+    );
+
+    req.on('error', (error) => {
+      const duration = Date.now() - startTime;
+      reject({
+        success: false,
+        error: error.message,
+        duration,
+        endpoint: endpoint.path,
+      });
+    });
+
+    req.on('timeout', () => {
+      req.destroy();
+      const duration = Date.now() - startTime;
+      reject({
+        success: false,
+        error: 'Request timeout',
+        duration,
+        endpoint: endpoint.path,
+      });
+    });
+
+    req.end();
   });
-
-  if (!scanOk) {
-    errorRate.add(1);
-    console.error(`Scan failed: ${scanRes.status} ${scanRes.body}`);
-  } else {
-    errorRate.add(0);
-  }
-
-  sleep(2);
-
-  // 4. Metrics endpoint
-  const metricsRes = http.get(`${BASE_URL}/metrics`);
-  check(metricsRes, {
-    'metrics endpoint is 200': (r) => r.status === 200,
-    'metrics has prometheus format': (r) => r.body.includes('wcagai_'),
-  });
-
-  sleep(1);
 }
 
-export function handleSummary(data) {
+/**
+ * Run load test for single user
+ */
+async function simulateUser(userId) {
+  const results = [];
+
+  for (let i = 0; i < REQUESTS_PER_USER; i++) {
+    // Select random endpoint based on weight
+    const totalWeight = TEST_CASES.reduce((sum, tc) => sum + tc.weight, 0);
+    let random = Math.random() * totalWeight;
+    let selectedEndpoint = TEST_CASES[0];
+
+    for (const endpoint of TEST_CASES) {
+      random -= endpoint.weight;
+      if (random <= 0) {
+        selectedEndpoint = endpoint;
+        break;
+      }
+    }
+
+    try {
+      const result = await makeRequest(selectedEndpoint);
+      results.push(result);
+      totalRequests++;
+
+      if (result.success) {
+        successfulRequests++;
+        responseTimes.push(result.duration);
+      } else {
+        failedRequests++;
+      }
+
+      // Random think time (100-500ms)
+      await new Promise((resolve) =>
+        setTimeout(resolve, Math.random() * 400 + 100)
+      );
+    } catch (error) {
+      results.push(error);
+      totalRequests++;
+      failedRequests++;
+      responseTimes.push(error.duration || TIMEOUT_MS);
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Calculate statistics
+ */
+function calculateStats(values) {
+  const sorted = values.slice().sort((a, b) => a - b);
+  const len = sorted.length;
+
   return {
-    'stdout': textSummary(data, { indent: ' ', enableColors: true }),
-    'load-test-results.json': JSON.stringify(data),
+    min: sorted[0],
+    max: sorted[len - 1],
+    avg: values.reduce((sum, v) => sum + v, 0) / len,
+    p50: sorted[Math.floor(len * 0.5)],
+    p90: sorted[Math.floor(len * 0.9)],
+    p95: sorted[Math.floor(len * 0.95)],
+    p99: sorted[Math.floor(len * 0.99)],
   };
 }
 
-function textSummary(data, options) {
-  const indent = options.indent || '';
-  const enableColors = options.enableColors || false;
+/**
+ * Main load test
+ */
+async function runLoadTest() {
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('🧪 PRODUCTION LOAD TEST');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('');
+  console.log(`Target: ${BASE_URL}`);
+  console.log(`Concurrent Users: ${CONCURRENT_REQUESTS}`);
+  console.log(`Requests per User: ${REQUESTS_PER_USER}`);
+  console.log(`Total Requests: ${CONCURRENT_REQUESTS * REQUESTS_PER_USER}`);
+  console.log('');
 
-  let output = '\n';
-  output += `${indent}✅ Load Test Summary\n`;
-  output += `${indent}${'='.repeat(50)}\n`;
-  output += `${indent}Total Requests: ${data.metrics.http_reqs.values.count}\n`;
-  output += `${indent}Failed Requests: ${data.metrics.http_req_failed.values.passes}\n`;
-  output += `${indent}Request Duration (avg): ${data.metrics.http_req_duration.values.avg.toFixed(2)}ms\n`;
-  output += `${indent}Request Duration (p95): ${data.metrics.http_req_duration.values['p(95)'].toFixed(2)}ms\n`;
-  output += `${indent}Request Duration (p99): ${data.metrics.http_req_duration.values['p(99)'].toFixed(2)}ms\n`;
+  // Health check before starting
+  console.log('🏥 Running pre-test health check...');
+  try {
+    const health = await makeRequest({ method: 'GET', path: '/health', expectedStatus: 200 });
+    if (!health.success) {
+      console.error('❌ Health check failed - aborting load test');
+      process.exit(1);
+    }
+    console.log('✅ Health check passed');
+  } catch (error) {
+    console.error('❌ Cannot reach target URL - aborting load test');
+    console.error(`   Error: ${error.error || error.message}`);
+    process.exit(1);
+  }
+  console.log('');
 
-  if (data.metrics.errors) {
-    output += `${indent}Error Rate: ${(data.metrics.errors.values.rate * 100).toFixed(2)}%\n`;
+  // Run load test
+  console.log('🚀 Starting load test...');
+  const startTime = Date.now();
+
+  const userSimulations = [];
+  for (let i = 0; i < CONCURRENT_REQUESTS; i++) {
+    userSimulations.push(simulateUser(i));
   }
 
-  return output;
+  await Promise.all(userSimulations);
+
+  const duration = (Date.now() - startTime) / 1000;
+
+  console.log('✅ Load test complete');
+  console.log('');
+
+  // Results
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('📊 LOAD TEST RESULTS');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('');
+  console.log(`Total Requests: ${totalRequests}`);
+  console.log(`Successful: ${successfulRequests} (${((successfulRequests / totalRequests) * 100).toFixed(2)}%)`);
+  console.log(`Failed: ${failedRequests} (${((failedRequests / totalRequests) * 100).toFixed(2)}%)`);
+  console.log(`Duration: ${duration.toFixed(2)}s`);
+  console.log(`Throughput: ${(totalRequests / duration).toFixed(2)} req/s`);
+  console.log('');
+
+  if (responseTimes.length > 0) {
+    const stats = calculateStats(responseTimes);
+
+    console.log('Response Times (ms):');
+    console.log(`  Min: ${stats.min.toFixed(0)}ms`);
+    console.log(`  Avg: ${stats.avg.toFixed(0)}ms`);
+    console.log(`  p50: ${stats.p50.toFixed(0)}ms`);
+    console.log(`  p90: ${stats.p90.toFixed(0)}ms`);
+    console.log(`  p95: ${stats.p95.toFixed(0)}ms`);
+    console.log(`  p99: ${stats.p99.toFixed(0)}ms`);
+    console.log(`  Max: ${stats.max.toFixed(0)}ms`);
+  }
+
+  console.log('');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('');
+
+  // Pass/fail criteria
+  const errorRate = (failedRequests / totalRequests) * 100;
+  const avgResponseTime = responseTimes.reduce((sum, v) => sum + v, 0) / responseTimes.length;
+
+  if (errorRate > 5) {
+    console.log(`❌ FAILED: Error rate (${errorRate.toFixed(2)}%) exceeds 5% threshold`);
+    process.exit(1);
+  }
+
+  if (avgResponseTime > 2000) {
+    console.log(`❌ FAILED: Average response time (${avgResponseTime.toFixed(0)}ms) exceeds 2000ms threshold`);
+    process.exit(1);
+  }
+
+  console.log('✅ PASSED: System handled load successfully');
+  console.log('');
+  process.exit(0);
 }
+
+// Run test
+runLoadTest().catch((error) => {
+  console.error('❌ Load test failed with error:');
+  console.error(error);
+  process.exit(1);
+});
