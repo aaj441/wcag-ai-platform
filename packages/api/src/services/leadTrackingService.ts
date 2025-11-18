@@ -81,8 +81,8 @@ export class LeadTrackingService {
   /**
    * Add a new prospect to the database
    */
-  addProspect(prospect: Omit<ProspectRecord, 'id' | 'createdAt'>): ProspectRecord {
-    const id = `prospect_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  addProspect(prospect: Omit<ProspectRecord, 'id' | 'createdAt'> & { id?: string }): ProspectRecord {
+    const id = prospect.id || `prospect_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const record: ProspectRecord = {
       ...prospect,
       id,
