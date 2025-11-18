@@ -3,7 +3,7 @@
  * Connects frontend to REST API
  */
 
-import { EmailDraft, EmailStatus, Violation } from '../types';
+import { EmailDraft, EmailStatus, Violation, Fix, FixReviewStatus } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
@@ -164,6 +164,121 @@ class ApiService {
     } catch {
       return false;
     }
+  }
+
+  // ============================================================================
+  // FIX GENERATION ENDPOINTS (Phase 1 MVP)
+  // ============================================================================
+
+  /**
+   * Generate AI fix for a WCAG violation
+   */
+  async generateFix(params: {
+    violationId: string;
+    wcagCriteria: string;
+    issueType: string;
+    description: string;
+    codeLanguage?: string;
+  }): Promise<Fix | null> {
+    const response = await this.request<Fix>('/fixes/generate', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+    return response.data || null;
+  }
+
+  /**
+   * Get a specific fix by ID
+   */
+  async getFix(fixId: string): Promise<Fix | null> {
+    const response = await this.request<Fix>(`/fixes/${fixId}`);
+    return response.data || null;
+  }
+
+  /**
+   * Get all fixes for a scan
+   */
+  async getFixesByScan(scanId: string): Promise<{
+    fixes: Fix[];
+    stats: {
+      totalViolations: number;
+      fixesGenerated: number;
+      fixesApproved: number;
+      fixesApplied: number;
+      averageConfidence: string;
+    };
+  } | null> {
+    const response = await this.request<{
+      fixes: Fix[];
+      stats: {
+        totalViolations: number;
+        fixesGenerated: number;
+        fixesApproved: number;
+        fixesApplied: number;
+        averageConfidence: string;
+      };
+    }>(`/fixes/scan/${scanId}`);
+    return response.data || null;
+  }
+
+  /**
+   * Review a fix (approve/reject)
+   */
+  async reviewFix(
+    fixId: string,
+    reviewStatus: 'approved' | 'rejected',
+    reviewNotes?: string
+  ): Promise<Fix | null> {
+    const response = await this.request<Fix>(`/fixes/${fixId}/review`, {
+      method: 'PATCH',
+      body: JSON.stringify({ reviewStatus, reviewNotes }),
+    });
+    return response.data || null;
+  }
+
+  /**
+   * Apply a fix (Phase 1: just logs, Phase 2: creates PR)
+   */
+  async applyFix(
+    fixId: string,
+    params: {
+      filePath?: string;
+      repository?: string;
+      branch?: string;
+    }
+  ): Promise<{ success: boolean; message?: string }> {
+    const response = await this.request<{ message?: string }>(`/fixes/${fixId}/apply`, {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+    return {
+      success: response.success,
+      message: response.message || response.error,
+    };
+  }
+
+  /**
+   * Get remediation engine metrics
+   */
+  async getFixMetrics(): Promise<{
+    totalFixes: number;
+    approvedFixes: number;
+    averageConfidence: string;
+    totalApplications: number;
+    successfulApplications: number;
+    successRate: string;
+    totalGenerationCost: string;
+  } | null> {
+    const response = await this.request<{
+      totalFixes: number;
+      approvedFixes: number;
+      averageConfidence: string;
+      totalApplications: number;
+      successfulApplications: number;
+      successRate: string;
+      totalGenerationCost: string;
+    }>('/fixes/metrics');
+    return response.data || null;
   }
 }
 

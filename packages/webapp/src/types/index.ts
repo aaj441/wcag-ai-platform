@@ -10,6 +10,8 @@
 export type ViolationSeverity = 'critical' | 'high' | 'medium' | 'low';
 export type EmailStatus = 'draft' | 'pending_review' | 'approved' | 'sent' | 'rejected';
 export type WCAGLevel = 'A' | 'AA' | 'AAA';
+export type FixReviewStatus = 'pending' | 'approved' | 'rejected' | 'applied';
+export type FixVerificationStatus = 'pending' | 'verified' | 'failed';
 
 export interface Violation {
   id: string;
@@ -26,6 +28,31 @@ export interface Violation {
   codeSnippet?: string;
   affectedUsers?: string;
   priority: number;
+}
+
+/**
+ * AI-Generated Fix for a WCAG Violation
+ * Phase 1: Display fix code and allow copy/PR creation
+ * Phase 2: Auto-apply fixes via GitHub integration
+ */
+export interface Fix {
+  id: string;
+  violationId: string;
+  wcagCriteria: string;
+  issueType: string;
+  codeLanguage: string;
+  originalCode?: string;
+  fixedCode: string;
+  explanation: string;
+  confidenceScore: number;
+  reviewStatus: FixReviewStatus;
+  reviewedBy?: string;
+  reviewedAt?: Date;
+  reviewNotes?: string;
+  githubBranchName?: string;
+  githubPRUrl?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface EmailDraft {

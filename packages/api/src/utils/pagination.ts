@@ -139,7 +139,7 @@ export async function paginateQuery<T>(
     limit,
     results: data.length,
     hasNext,
-    took: response.meta.took,
+    took: response.meta?.took || 0,
   });
 
   return response;
@@ -240,7 +240,7 @@ export async function paginateWithCursor<T extends { id: string }>(
     results: data.length,
     hasNext,
     nextCursor,
-    took: response.meta.took,
+    took: response.meta?.took || 0,
   });
 
   return response;
