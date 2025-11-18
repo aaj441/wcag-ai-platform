@@ -19,6 +19,7 @@
 const fs = require('fs').promises;
 const path = require('path');
 const Handlebars = require('handlebars');
+const { safePathJoin, sanitizeFilename } = require('../backend/src/utils/securityUtils');
 
 // VPAT Configuration
 const VPAT_VERSION = '2.4';
@@ -190,52 +191,69 @@ class VPATGenerator {
   async generateReport(scanResults, options = {}) {
     console.log('[VPATGenerator] Generating VPAT report...');
 
-    // Parse scan results
-    const violations = scanResults.violations || [];
-    
-    // Map violations to WCAG criteria
-    const criteriaCoverage = this.mapViolationsToCriteria(violations);
-    
-    // Build VPAT data
-    const vpatData = {
-      vpatVersion: VPAT_VERSION,
-      standard: `Revised Section 508 / WCAG ${WCAG_VERSION} Edition`,
-      productName: options.productName || scanResults.websiteUrl || 'Web Application',
-      productVersion: options.productVersion || '1.0',
-      reportDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-      contactInfo: options.contactInfo || 'accessibility@company.com',
-      productDescription: options.productDescription || 'Web application accessibility assessment',
-      evaluationMethods: [
-        'Automated testing using axe-core and WAVE',
-        'Manual testing with keyboard navigation',
-        'Screen reader testing (NVDA, JAWS)',
-        'Color contrast analysis',
-        'Zoom and magnification testing',
-      ],
-      criteriaA: this.buildCriteriaTable('A', criteriaCoverage),
-      criteriaAA: this.buildCriteriaTable('AA', criteriaCoverage),
-      legalDisclaimer: options.legalDisclaimer || 'This VPAT is provided for informational purposes only and does not constitute a legally binding warranty of accessibility compliance. The content is based on testing performed on the date indicated and may not reflect current product status.',
-      generatedAt: new Date().toISOString(),
-    };
+    try {
+      // Validate and sanitize output path
+      if (!options.output) {
+        throw new Error('Output path is required');
+      }
 
-    // Render HTML
-    const html = this.template(vpatData);
-    
-    // Save HTML
-    const htmlPath = options.output.replace(/\.(pdf|docx)$/, '.html');
-    await fs.writeFile(htmlPath, html);
-    console.log(`[VPATGenerator] ✓ HTML report saved to ${htmlPath}`);
+      // Get the output directory (use current directory as default)
+      const outputDir = path.dirname(options.output) || '.';
+      const outputFilename = path.basename(options.output);
+      const sanitizedFilename = sanitizeFilename(outputFilename);
 
-    // Convert to PDF if requested
-    if (options.format === 'pdf' || options.output.endsWith('.pdf')) {
-      await this.convertToPDF(html, options.output);
+      // Parse scan results
+      const violations = scanResults.violations || [];
+
+      // Map violations to WCAG criteria
+      const criteriaCoverage = this.mapViolationsToCriteria(violations);
+
+      // Build VPAT data
+      const vpatData = {
+        vpatVersion: VPAT_VERSION,
+        standard: `Revised Section 508 / WCAG ${WCAG_VERSION} Edition`,
+        productName: options.productName || scanResults.websiteUrl || 'Web Application',
+        productVersion: options.productVersion || '1.0',
+        reportDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+        contactInfo: options.contactInfo || 'accessibility@company.com',
+        productDescription: options.productDescription || 'Web application accessibility assessment',
+        evaluationMethods: [
+          'Automated testing using axe-core and WAVE',
+          'Manual testing with keyboard navigation',
+          'Screen reader testing (NVDA, JAWS)',
+          'Color contrast analysis',
+          'Zoom and magnification testing',
+        ],
+        criteriaA: this.buildCriteriaTable('A', criteriaCoverage),
+        criteriaAA: this.buildCriteriaTable('AA', criteriaCoverage),
+        legalDisclaimer: options.legalDisclaimer || 'This VPAT is provided for informational purposes only and does not constitute a legally binding warranty of accessibility compliance. The content is based on testing performed on the date indicated and may not reflect current product status.',
+        generatedAt: new Date().toISOString(),
+      };
+
+      // Render HTML
+      const html = this.template(vpatData);
+
+      // Save HTML with sanitized path
+      const htmlFilename = sanitizedFilename.replace(/\.(pdf|docx)$/, '.html');
+      const htmlPath = safePathJoin(outputDir, htmlFilename);
+      await fs.writeFile(htmlPath, html);
+      console.log(`[VPATGenerator] ✓ HTML report saved to ${htmlPath}`);
+
+      // Convert to PDF if requested
+      if (options.format === 'pdf' || sanitizedFilename.endsWith('.pdf')) {
+        const pdfPath = safePathJoin(outputDir, sanitizedFilename);
+        await this.convertToPDF(html, pdfPath);
+      }
+
+      return {
+        html: htmlPath,
+        pdf: options.format === 'pdf' ? safePathJoin(outputDir, sanitizedFilename) : null,
+        data: vpatData,
+      };
+    } catch (error) {
+      console.error(`[VPATGenerator] Error generating report: ${error.message}`);
+      throw error;
     }
-
-    return {
-      html: htmlPath,
-      pdf: options.format === 'pdf' ? options.output : null,
-      data: vpatData,
-    };
   }
 
   /**
