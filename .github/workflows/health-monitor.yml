@@ -77,38 +77,65 @@ jobs:
             echo "pool_warning=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Auto-Remediate Queue Issues
+      - name: Install Railway CLI
         if: steps.check_queue.outputs.queue_critical == 'true'
         run: |
+          echo "📦 Installing Railway CLI..."
+          npm install -g @railway/cli
+          echo "✅ Railway CLI installed"
+
+      - name: Auto-Remediate Queue Issues
+        if: steps.check_queue.outputs.queue_critical == 'true'
+        id: auto_remediate
+        run: |
           echo "🔧 Auto-remediating queue issues..."
+          REMEDIATION_SUCCESS=false
 
           # Trigger queue drain
-          curl -X POST ${{ env.PRODUCTION_API_URL }}/api/admin/queue/drain \
+          echo "Attempting to drain queue..."
+          if curl -X POST ${{ env.PRODUCTION_API_URL }}/api/admin/queue/drain \
             -H "Authorization: Bearer ${{ secrets.ADMIN_API_KEY }}" \
             -H "Content-Type: application/json" \
-            -d '{"reason": "automated_health_check", "max_workers": 10}'
+            -d '{"reason": "automated_health_check", "max_workers": 10}' \
+            --fail --silent --show-error; then
+            echo "✅ Queue drain initiated successfully"
+          else
+            echo "⚠️  Queue drain API call failed, continuing with other remediation steps"
+          fi
 
-          # Scale up workers temporarily
-          railway variables set MAX_POOL_SIZE=10 --service=wcagaii-backend
+          # Scale up workers temporarily using Railway CLI
+          echo "Attempting to scale up workers..."
+          if railway variables set MAX_POOL_SIZE=10 --service=wcagaii-backend 2>/dev/null; then
+            echo "✅ Worker pool scaled up"
+          else
+            echo "⚠️  Railway scaling failed (Railway CLI or credentials may not be available)"
+          fi
 
           sleep 60
 
           # Check if remediation worked
-          NEW_DEPTH=$(curl -s ${{ env.PRODUCTION_API_URL }}/metrics | grep 'wcagai_queue_length' | awk '{print $2}' | head -1)
+          NEW_DEPTH=$(curl -s ${{ env.PRODUCTION_API_URL }}/metrics | grep 'wcagai_queue_length' | awk '{print $2}' | head -1 || echo "0")
 
           if [[ "$NEW_DEPTH" -lt 50 ]]; then
             echo "✅ Auto-remediation successful: Queue depth now $NEW_DEPTH"
+            REMEDIATION_SUCCESS=true
+            echo "remediation_status=success" >> $GITHUB_OUTPUT
           else
             echo "❌ Auto-remediation failed: Queue still at $NEW_DEPTH"
+            echo "remediation_status=failed" >> $GITHUB_OUTPUT
           fi
+        continue-on-error: true
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
       - name: Auto-Rollback Model on Drift
         if: steps.check_drift.outputs.drift_warning == 'true'
+        id: model_rollback
         run: |
           echo "🔄 Auto-rolling back AI model due to drift..."
 
           # Disable shadow model in LaunchDarkly
-          curl -X PATCH https://app.launchdarkly.com/api/v2/flags/default/ai-shadow-deployment-enabled \
+          if curl -X PATCH https://app.launchdarkly.com/api/v2/flags/default/ai-shadow-deployment-enabled \
             -H "Authorization: ${{ secrets.LAUNCHDARKLY_API_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d '{
@@ -119,9 +146,15 @@ jobs:
                   "value": false
                 }
               ]
-            }'
-
-          echo "✅ Shadow model disabled"
+            }' \
+            --fail --silent --show-error; then
+            echo "✅ Shadow model disabled successfully"
+            echo "rollback_status=success" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️  Model rollback failed (LaunchDarkly API may be unavailable)"
+            echo "rollback_status=failed" >> $GITHUB_OUTPUT
+          fi
+        continue-on-error: true
 
       - name: Send PagerDuty Alert - Queue Critical
         if: steps.check_queue.outputs.queue_critical == 'true'
@@ -191,6 +224,9 @@ jobs:
         run: |
           TIMESTAMP=$(date -Iseconds)
           INCIDENT_ID="INC-$(date +%Y%m%d%H%M%S)"
+          
+          # Ensure incident-reports directory exists
+          mkdir -p incident-reports
 
           cat > "incident-reports/$INCIDENT_ID.md" <<EOF
           # Incident Report: $INCIDENT_ID
@@ -206,9 +242,9 @@ jobs:
           - Pool Utilization: ${{ steps.check_pool.outputs.pool_utilization }}%
 
           ## Auto-Remediation Actions Taken
-          - Queue drain initiated
-          - Worker pool scaled to 10
-          - Shadow model disabled (if drift detected)
+          - Queue drain initiated: ${{ steps.auto_remediate.outputs.remediation_status || 'skipped' }}
+          - Worker pool scaled to 10: ${{ steps.auto_remediate.outputs.remediation_status || 'skipped' }}
+          - Shadow model disabled: ${{ steps.check_drift.outputs.drift_warning == 'true' && 'yes' || 'no' }}
 
           ## Manual Follow-up Required
           - [ ] Review error logs
@@ -225,11 +261,72 @@ jobs:
 
           echo "📝 Incident report created: $INCIDENT_ID"
 
+      - name: Upload Incident Report
+        if: |
+          steps.check_queue.outputs.queue_critical == 'true' ||
+          steps.check_errors.outputs.error_critical == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: incident-report-${{ github.run_id }}
+          path: incident-reports/*.md
+          retention-days: 30
+
+      - name: Create GitHub Issue for Manual Intervention
+        if: |
+          steps.check_queue.outputs.queue_critical == 'true' ||
+          steps.check_errors.outputs.error_critical == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const timestamp = new Date().toISOString();
+            const status = '${{ steps.auto_remediate.outputs.remediation_status || 'not_attempted' }}';
+            const queueDepth = '${{ steps.check_queue.outputs.queue_depth }}';
+            const errorRate = '${{ steps.check_errors.outputs.error_rate }}';
+            
+            const issueBody = `## Production Health Issue
+
+**Status:** ${status === 'success' ? 'recovered' : 'needs attention'}
+**Auto-remediation:** ${status === 'success' ? 'Succeeded' : 'Failed'}
+**Time:** ${timestamp}
+
+**Action Required:** ${status === 'success' ? 'Verify system stability' : 'Manual intervention needed to restore service health'}
+
+**Metrics:**
+- Queue Depth: ${queueDepth || 'N/A'}
+- Error Rate: ${errorRate || 'N/A'}%
+- Model Drift: ${{ steps.check_drift.outputs.drift_score || 'N/A' }}
+- Pool Utilization: ${{ steps.check_pool.outputs.pool_utilization || 'N/A' }}%
+
+**Health Report:** Check [workflow artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) for detailed health report.
+
+**Auto-Remediation Actions Taken:**
+- Queue drain: ${status !== 'not_attempted' ? 'Attempted' : 'Not attempted'}
+- Worker scaling: ${status !== 'not_attempted' ? 'Attempted' : 'Not attempted'}
+- Model rollback: ${{ steps.check_drift.outputs.drift_warning == 'true' ? 'Attempted' : 'Not needed' }}
+
+**Next Steps:**
+1. Review the incident report in workflow artifacts
+2. Check application logs for root cause
+3. Verify system recovery if auto-remediation succeeded
+4. Update runbooks if this is a new failure pattern`;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚨 Production Health Alert - Auto-remediation ${status === 'success' ? 'Succeeded' : 'Failed'}`,
+              body: issueBody,
+              labels: ['production', 'health-check', 'automated']
+            });
+
       - name: Summary
         if: always()
         run: |
           echo "## Health Check Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- Queue Depth: ${{ steps.check_queue.outputs.queue_depth }} (Critical: ${{ steps.check_queue.outputs.queue_critical }})" >> $GITHUB_STEP_SUMMARY
-          echo "- Error Rate: ${{ steps.check_errors.outputs.error_rate }}% (Critical: ${{ steps.check_errors.outputs.error_critical }})" >> $GITHUB_STEP_SUMMARY
-          echo "- Model Drift: ${{ steps.check_drift.outputs.drift_score }} (Warning: ${{ steps.check_drift.outputs.drift_warning }})" >> $GITHUB_STEP_SUMMARY
-          echo "- Pool Utilization: ${{ steps.check_pool.outputs.pool_utilization }}% (Warning: ${{ steps.check_pool.outputs.pool_warning }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Status Overview:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Queue Depth: ${{ steps.check_queue.outputs.queue_depth || 'N/A' }} (Critical: ${{ steps.check_queue.outputs.queue_critical || 'false' }})" >> $GITHUB_STEP_SUMMARY
+          echo "- Error Rate: ${{ steps.check_errors.outputs.error_rate || 'N/A' }}% (Critical: ${{ steps.check_errors.outputs.error_critical || 'false' }})" >> $GITHUB_STEP_SUMMARY
+          echo "- Model Drift: ${{ steps.check_drift.outputs.drift_score || 'N/A' }} (Warning: ${{ steps.check_drift.outputs.drift_warning || 'false' }})" >> $GITHUB_STEP_SUMMARY
+          echo "- Pool Utilization: ${{ steps.check_pool.outputs.pool_utilization || 'N/A' }}% (Warning: ${{ steps.check_pool.outputs.pool_warning || 'false' }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Auto-Remediation Status:** ${{ steps.auto_remediate.outputs.remediation_status || 'not_attempted' }}" >> $GITHUB_STEP_SUMMARY
