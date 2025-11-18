@@ -1,8 +1,37 @@
 /**
  * Site Transformation Service Tests
- * 
+ *
  * Tests for the complete site transformation pipeline
  */
+
+// Mock Prisma before importing the service
+jest.mock('../lib/db', () => ({
+  prisma: {
+    transformation: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+    },
+    violation: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+    },
+  },
+}));
+
+// Mock RemediationEngine
+jest.mock('../services/RemediationEngine', () => ({
+  RemediationEngine: {
+    generateFix: jest.fn().mockResolvedValue({
+      fixedCode: '<img src="test.png" alt="Fixed image">',
+      explanation: 'Added alt text',
+      confidence: 0.95,
+    }),
+    saveFix: jest.fn().mockResolvedValue({ id: 'fix-1' }),
+  },
+}));
 
 import { siteTransformationService } from '../services/SiteTransformationService';
 
