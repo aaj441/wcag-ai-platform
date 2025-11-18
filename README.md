@@ -222,6 +222,16 @@ Run the end-to-end demo to see the full client journey:
 | [Testing](END_TO_END_TESTING_GUIDE.md) | Automated WCAG testing suite |
 | [Accessibility Scripts](scripts/README.md) | CI/CD accessibility scanner automation |
 
+### **🆕 Production Deployment & Audit Resources**
+
+| Resource | Description |
+|----------|-------------|
+| [AI Audit Prompts](AI_AUDIT_PROMPTS.md) | **NEW:** 10 comprehensive prompts for AI auditors (Kimi/Claude/ChatGPT) |
+| [Deployment Reproducibility Guide](DEPLOYMENT_REPRODUCIBILITY_GUIDE.md) | **NEW:** Step-by-step guide for 100% reproducible deployments |
+| [Live Deployment Testing Guide](LIVE_DEPLOYMENT_TESTING_GUIDE.md) | **NEW:** Comprehensive production testing checklist |
+| [Deployment Completeness Checklist](DEPLOYMENT_COMPLETENESS_CHECKLIST.md) | **NEW:** Master checklist with 13 phases for launch readiness |
+| [Production Readiness Audit](PRODUCTION_READINESS_AUDIT.md) | Detailed audit findings and remediation guide |
+
 ---
 
 ## **🔍 Automated Accessibility Scanning**
@@ -349,7 +359,78 @@ GitHub Actions automatically:
 - Comments results on PRs
 - Prevents broken deployments
 
-**Learn more:** [Deployment Harmony Guide](DEPLOYMENT_HARMONY_GUIDE.md)
+#### **Automated Deployment Verification**
+Comprehensive automated checks for deployment completeness:
+```bash
+# Run 50+ automated checks
+./deployment/scripts/comprehensive-deployment-check.sh \
+  https://your-api.railway.app \
+  https://your-app.vercel.app
+
+# Collect deployment evidence
+./deployment/scripts/collect-deployment-evidence.sh \
+  https://your-api.railway.app \
+  https://your-app.vercel.app
+```
+
+**Learn more:** [Deployment Harmony Guide](DEPLOYMENT_HARMONY_GUIDE.md) | [Deployment Reproducibility Guide](DEPLOYMENT_REPRODUCIBILITY_GUIDE.md)
+
+---
+
+## **🤖 AI-Powered Deployment Auditing**
+
+Leverage AI assistants (Kimi, Claude, ChatGPT) to comprehensively audit deployment completeness:
+
+### **10 Comprehensive Audit Prompts**
+
+We provide 10 specialized prompts for extensive AI-powered auditing:
+
+1. **Complete Production Readiness Audit** - Security, error handling, data integrity, monitoring, WCAG
+2. **Deployment Infrastructure Completeness** - Scripts, configuration, platform requirements, verification
+3. **Code Quality & Architecture Review** - TypeScript quality, React patterns, API design, testing coverage
+4. **Database & Data Layer Assessment** - Schema design, migrations, performance, backup/recovery
+5. **API Contract & Integration Testing** - Endpoint coverage, validation, documentation, external integrations
+6. **Frontend Accessibility Deep Dive** - WCAG 2.2 compliance, component audit, dynamic content handling
+7. **CI/CD Pipeline & DevOps Audit** - GitHub Actions, build process, deployment pipeline, monitoring
+8. **Environment Configuration & Secrets** - Environment variables, secrets management, platform configuration
+9. **Performance, Scalability & Load Testing** - Bundle size, Core Web Vitals, bottlenecks, optimization
+10. **End-to-End User Journey Validation** - Complete workflows, business logic, error recovery, integrations
+
+### **How to Use:**
+
+```bash
+# 1. Review the prompts
+cat AI_AUDIT_PROMPTS.md
+
+# 2. Copy a prompt to your AI assistant (Kimi, Claude, ChatGPT)
+# 3. Provide repository access or key files
+# 4. Review the detailed audit report
+# 5. Address findings and iterate
+```
+
+### **Expected Outcomes:**
+
+Each audit generates:
+- ✅ Detailed findings with severity levels (P0/P1/P2)
+- 📊 Quantitative metrics and scores
+- 🔧 Specific remediation recommendations with code examples
+- ✨ Best practices guidance
+- 🚀 Production readiness assessment
+
+### **Audit Tracking:**
+
+Track progress across all 10 prompts:
+```
+| Prompt | Auditor | P0 | P1 | P2 | Score | Status |
+|--------|---------|----|----|----|----|--------|
+| 1      | Kimi    | 3  | 7  | 12 | 6/10| ✅ Done |
+| 2      | Claude  | 1  | 4  | 8  | 7/10| ✅ Done |
+| ...    | ...     | .. | .. | .. | ..  | ...     |
+```
+
+**Success Criteria**: Platform is production-ready when all P0 issues resolved (100%), P1 issues >90% resolved, WCAG AA >95%, security >9/10.
+
+**Full Guide:** [AI Audit Prompts](AI_AUDIT_PROMPTS.md)
 
 ---
 
