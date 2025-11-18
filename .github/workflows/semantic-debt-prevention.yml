@@ -17,6 +17,8 @@ jobs:
   semantic-analysis:
     name: Semantic Change Detection
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -78,8 +80,9 @@ jobs:
         run: |
           echo "🔍 Analyzing code complexity..."
 
-          # Install complexity analyzer
+          # Install complexity analyzer and jq
           npm install -g complexity-report
+          sudo apt-get update -y && sudo apt-get install -y jq || true
 
           # Analyze changed files
           CHANGED_FILES=$(git diff origin/${{ github.base_ref }}...HEAD --name-only | grep -E "\.(ts|js)$" | grep -v "node_modules" || echo "")
@@ -88,8 +91,12 @@ jobs:
           if [ -n "$CHANGED_FILES" ]; then
             while IFS= read -r file; do
               if [ -f "$file" ]; then
-                COMPLEXITY=$(cr "$file" --format json 2>/dev/null | jq '.maintainability // 100')
-                if (( $(echo "$COMPLEXITY < 65" | bc -l) )); then
+                # get maintainability as a numeric value (default to 100 on error)
+                COMPLEXITY=$(cr "$file" --format json 2>/dev/null | jq -r '.maintainability // 100' || echo "100")
+                COMPLEXITY=${COMPLEXITY:-100}
+
+                # numeric comparison using awk to avoid bc errors
+                if awk "BEGIN {exit !($COMPLEXITY < 65)}"; then
                   HIGH_COMPLEXITY_FILES=$((HIGH_COMPLEXITY_FILES + 1))
                   echo "⚠️  High complexity: $file (maintainability: $COMPLEXITY)"
                 fi

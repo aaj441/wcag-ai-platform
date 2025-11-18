@@ -2,6 +2,11 @@
  * Structured Logging with Winston
  *
  * Production-ready logging for WCAG AI Platform
+ *
+ * MEGA PROMPT 2 Enhancements:
+ * - Automatic correlation ID injection from async context
+ * - Structured request context in all logs
+ * - Request lifecycle tracing
  */
 
 import winston from 'winston';
@@ -73,16 +78,41 @@ export class Logger {
   }
 
   private addTraceContext(meta: any = {}) {
+    let enrichedMeta = { ...meta };
+
+    // Add OpenTelemetry trace context
     const span = trace.getSpan(context.active());
     if (span) {
       const spanContext = span.spanContext();
-      return {
-        ...meta,
+      enrichedMeta = {
+        ...enrichedMeta,
         traceId: spanContext.traceId,
         spanId: spanContext.spanId,
       };
     }
-    return meta;
+
+    // Add correlation ID from async local storage (MEGA PROMPT 2)
+    // Note: Import is lazy to avoid circular dependency
+    try {
+      const { getRequestContext } = require('../middleware/correlationId');
+      const requestContext = getRequestContext();
+
+      if (requestContext) {
+        enrichedMeta = {
+          ...enrichedMeta,
+          requestId: requestContext.requestId,
+          userId: requestContext.userId || enrichedMeta.userId,
+          tenantId: requestContext.tenantId || enrichedMeta.tenantId,
+          route: requestContext.route,
+          method: requestContext.method,
+        };
+      }
+    } catch (error) {
+      // Silently fail if correlation ID middleware not available
+      // This allows logger to work in contexts without async storage
+    }
+
+    return enrichedMeta;
   }
 
   info(message: string, meta?: any) {

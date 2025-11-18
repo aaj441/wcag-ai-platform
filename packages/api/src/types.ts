@@ -2,7 +2,9 @@
  * API Type Definitions - Shared with Frontend & Prisma Models
  */
 
-import type { Scan as PrismaScan, Violation as PrismaViolation, ReviewLog as PrismaReviewLog } from "@prisma/client";
+// Prisma types - commented out due to build environment constraints
+// In production, these would be imported from @prisma/client
+// import type { Scan as PrismaScan, Violation as PrismaViolation, ReviewLog as PrismaReviewLog } from "@prisma/client";
 
 export type ViolationSeverity = 'critical' | 'high' | 'medium' | 'low';
 export type EmailStatus = 'draft' | 'pending_review' | 'approved' | 'sent' | 'rejected';
@@ -12,7 +14,20 @@ export type WCAGLevel = 'A' | 'AA' | 'AAA';
 /**
  * Scan - Main auditable unit
  */
-export interface Scan extends PrismaScan {
+export interface Scan {
+  id: string;
+  websiteUrl: string;
+  scanResults: string;
+  aiConfidenceScore: number;
+  confidenceDetails: Record<string, any>;
+  reviewed: boolean;
+  reviewedBy?: string | null;
+  reviewedAt?: Date | null;
+  approvalStatus: string;
+  reportPdf?: string | null;
+  reportGeneratedAt?: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
   violations?: Violation[];
   reviewLogs?: ReviewLog[];
 }
@@ -20,12 +35,32 @@ export interface Scan extends PrismaScan {
 /**
  * Violation - Individual WCAG violation
  */
-export interface Violation extends PrismaViolation {}
+export interface Violation {
+  id: string;
+  scanId: string;
+  wcagCriteria: string;
+  severity: string;
+  description: string;
+  aiConfidence: number;
+  humanReviewed: boolean;
+  elementSelector?: string | null;
+  screenshot?: string | null;
+  codeSnippet?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 /**
  * ReviewLog - Audit trail entry
  */
-export interface ReviewLog extends PrismaReviewLog {}
+export interface ReviewLog {
+  id: string;
+  scanId: string;
+  action: string;
+  consultantEmail: string;
+  timestamp: Date;
+  details: Record<string, any>;
+}
 
 /**
  * Legacy types for backward compatibility
@@ -62,6 +97,8 @@ export interface EmailDraft {
   approvedBy?: string;
   approvedAt?: Date;
   tags?: string[];
+  keywords?: string[]; // Auto-extracted accessibility keywords from violations
+  keywordTags?: string[]; // Manually added keyword tags for filtering/search
 }
 
 export interface ConsultantProfile {
@@ -74,6 +111,19 @@ export interface ConsultantProfile {
   isActive: boolean;
   totalAuditsReviewed: number;
   accuracyScore: number; // 0.0-1.0
+}
+
+export interface Consultant {
+  id: string;
+  name: string;
+  email: string;
+  company?: string;
+  role?: string;
+  phone?: string;
+  website?: string;
+  hubspotContactId?: string;
+  lastContacted?: Date;
+  responseRate?: number;
 }
 
 export interface ApiResponse<T = unknown> {
@@ -90,112 +140,4 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
     total: number;
     totalPages: number;
   };
-}
-
-export interface Consultant {
-  id: string;
-  name: string;
-  email: string;
-  company?: string;
-  role?: string;
-  phone?: string;
-  website?: string;
-  hubspotContactId?: string;
-  lastContacted?: Date;
-  responseRate?: number;
-}
-
-/**
- * Evidence Vault - Store scan evidence for compliance tracking and legal defense
- */
-export interface EvidenceRecord {
-  id: string;
-  scanId: string;
-  url: string;
-  timestamp: Date;
-  complianceScore: number;
-  violationsCount: number;
-  criticalCount: number;
-  highCount: number;
-  mediumCount: number;
-  lowCount: number;
-  scanType: 'manual' | 'automated' | 'ci-cd';
-  scanTool: string; // 'axe-core' | 'pa11y' | 'lighthouse' | 'manual'
-  violations: LegacyViolation[];
-  screenshotUrl?: string;
-  reportUrl?: string;
-  clientId?: string;
-  projectId?: string;
-  retentionDays: number; // Default 90 days
-  tags?: string[];
-  metadata?: Record<string, any>;
-}
-
-/**
- * Compliance Metrics - Aggregate data for dashboard
- */
-export interface ComplianceMetrics {
-  period: 'daily' | 'weekly' | 'monthly' | 'quarterly';
-  startDate: Date;
-  endDate: Date;
-  totalScans: number;
-  averageComplianceScore: number;
-  totalViolations: number;
-  violationsByType: {
-    critical: number;
-    high: number;
-    medium: number;
-    low: number;
-  };
-  trendData: Array<{
-    date: Date;
-    complianceScore: number;
-    violationsCount: number;
-  }>;
-  topViolations: Array<{
-    wcagCriteria: string;
-    count: number;
-    severity: ViolationSeverity;
-  }>;
-  scanCoverage: {
-    totalUrls: number;
-    scannedUrls: number;
-    coveragePercentage: number;
-  };
-}
-
-/**
- * Quarterly Report Data
- */
-export interface QuarterlyReport {
-  id: string;
-  quarter: string; // e.g., "Q1-2024"
-  clientId?: string;
-  generatedAt: Date;
-  metrics: ComplianceMetrics;
-  executiveSummary: string;
-  evidenceRecords: EvidenceRecord[];
-  recommendations: string[];
-  legalDefenseDocumentation: {
-    complianceEfforts: string[];
-    remediationActions: string[];
-    ongoingMonitoring: string[];
-  };
-}
-
-/**
- * CI/CD Scan Result
- */
-export interface CIScanResult {
-  id: string;
-  prNumber?: number;
-  commitSha: string;
-  branch: string;
-  timestamp: Date;
-  passed: boolean;
-  complianceScore: number;
-  violations: LegacyViolation[];
-  criticalBlockers: number;
-  scanDurationMs: number;
-  tool: string;
 }
