@@ -106,7 +106,7 @@ export class BaseError extends Error implements ProblemDetails {
     this.isOperational = options.isOperational ?? true;
 
     if (options.cause) {
-      this.cause = options.cause;
+      (this as any).cause = options.cause;
     }
 
     Error.captureStackTrace(this, this.constructor);
