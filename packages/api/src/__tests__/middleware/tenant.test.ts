@@ -209,12 +209,14 @@ describe('Tenant Isolation Middleware', () => {
       expect(mockNext).toHaveBeenCalled();
     });
 
-    it('should handle errors gracefully', async () => {
+    it('should handle errors from next middleware', async () => {
       mockReq.client = {
-        get scansRemaining() {
-          throw new Error('Property access error');
-        },
+        scansRemaining: 10,
       };
+      // Simulate an error thrown by the next middleware in the chain
+      mockNext.mockImplementation(() => {
+        throw new Error('Error in next middleware');
+      });
 
       await checkScanQuota(mockReq as Request, mockRes as Response, mockNext);
 

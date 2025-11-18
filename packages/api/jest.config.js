@@ -1,6 +1,4 @@
-import type { Config } from 'jest';
-
-const config: Config = {
+module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   roots: ['<rootDir>/src'],
@@ -28,7 +26,6 @@ const config: Config = {
   setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts'],
   testTimeout: 10000,
   verbose: true,
-  // Ignore common issues with dependencies
   transformIgnorePatterns: [
     'node_modules/(?!(supertest)/)',
   ],
@@ -36,5 +33,3 @@ const config: Config = {
     '^.+\\.ts$': ['ts-jest', { isolatedModules: true }],
   },
 };
-
-export default config;
