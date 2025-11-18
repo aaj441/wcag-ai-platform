@@ -224,7 +224,7 @@ jobs:
         run: |
           TIMESTAMP=$(date -Iseconds)
           INCIDENT_ID="INC-$(date +%Y%m%d%H%M%S)"
-          
+
           # Ensure incident-reports directory exists
           mkdir -p incident-reports
 
@@ -283,37 +283,37 @@ jobs:
             const queueDepth = '${{ steps.check_queue.outputs.queue_depth }}';
             const errorRate = '${{ steps.check_errors.outputs.error_rate }}';
             
-            const issueBody = `## Production Health Issue
-
-**Status:** ${status === 'success' ? 'recovered' : 'needs attention'}
-**Auto-remediation:** ${status === 'success' ? 'Succeeded' : 'Failed'}
-**Time:** ${timestamp}
-
-**Action Required:** ${status === 'success' ? 'Verify system stability' : 'Manual intervention needed to restore service health'}
-
-**Metrics:**
-- Queue Depth: ${queueDepth || 'N/A'}
-- Error Rate: ${errorRate || 'N/A'}%
-- Model Drift: ${{ steps.check_drift.outputs.drift_score || 'N/A' }}
-- Pool Utilization: ${{ steps.check_pool.outputs.pool_utilization || 'N/A' }}%
-
-**Health Report:** Check [workflow artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) for detailed health report.
-
-**Auto-Remediation Actions Taken:**
-- Queue drain: ${status !== 'not_attempted' ? 'Attempted' : 'Not attempted'}
-- Worker scaling: ${status !== 'not_attempted' ? 'Attempted' : 'Not attempted'}
-- Model rollback: ${{ steps.check_drift.outputs.drift_warning == 'true' ? 'Attempted' : 'Not needed' }}
-
-**Next Steps:**
-1. Review the incident report in workflow artifacts
-2. Check application logs for root cause
-3. Verify system recovery if auto-remediation succeeded
-4. Update runbooks if this is a new failure pattern`;
+            const statusText = status === 'success' ? 'recovered' : 'needs attention';
+            const remediationText = status === 'success' ? 'Succeeded' : 'Failed';
+            const actionText = status === 'success' ? 'Verify system stability' : 'Manual intervention needed to restore service health';
+            const queueDrainText = status !== 'not_attempted' ? 'Attempted' : 'Not attempted';
+            const workerScalingText = status !== 'not_attempted' ? 'Attempted' : 'Not attempted';
+            
+            const issueBody = '## Production Health Issue\n\n' +
+              '**Status:** ' + statusText + '\n' +
+              '**Auto-remediation:** ' + remediationText + '\n' +
+              '**Time:** ' + timestamp + '\n\n' +
+              '**Action Required:** ' + actionText + '\n\n' +
+              '**Metrics:**\n' +
+              '- Queue Depth: ' + (queueDepth || 'N/A') + '\n' +
+              '- Error Rate: ' + (errorRate || 'N/A') + '%\n' +
+              '- Model Drift: ${{ steps.check_drift.outputs.drift_score || 'N/A' }}\n' +
+              '- Pool Utilization: ${{ steps.check_pool.outputs.pool_utilization || 'N/A' }}%\n\n' +
+              '**Health Report:** Check [workflow artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) for detailed health report.\n\n' +
+              '**Auto-Remediation Actions Taken:**\n' +
+              '- Queue drain: ' + queueDrainText + '\n' +
+              '- Worker scaling: ' + workerScalingText + '\n' +
+              '- Model rollback: ${{ steps.check_drift.outputs.drift_warning == \'true\' ? \'Attempted\' : \'Not needed\' }}\n\n' +
+              '**Next Steps:**\n' +
+              '1. Review the incident report in workflow artifacts\n' +
+              '2. Check application logs for root cause\n' +
+              '3. Verify system recovery if auto-remediation succeeded\n' +
+              '4. Update runbooks if this is a new failure pattern';
 
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `🚨 Production Health Alert - Auto-remediation ${status === 'success' ? 'Succeeded' : 'Failed'}`,
+              title: '🚨 Production Health Alert - Auto-remediation ' + remediationText,
               body: issueBody,
               labels: ['production', 'health-check', 'automated']
             });
