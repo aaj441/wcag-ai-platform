@@ -82,7 +82,8 @@ jobs:
 
       - name: Run tests
         run: npm test
-        continue-on-error: true
+        env:
+          CI: true
 
       - name: Build
         run: npm run build
@@ -121,6 +122,11 @@ jobs:
 
       - name: Run type check
         run: npm run type-check
+
+      - name: Run tests
+        run: npm test
+        env:
+          CI: true
 
       - name: Build
         run: npm run build

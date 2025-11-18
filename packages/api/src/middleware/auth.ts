@@ -56,6 +56,8 @@ export const ensureTenantAccess = (req: Request, res: Response, next: NextFuncti
     log.error('Tenant access error', error instanceof Error ? error : new Error(String(error)));
     res.status(403).json({ error: 'Forbidden' });
   }
+};
+
 /**
  * Authentication Middleware
  * Clerk-based authentication for multi-tenant operations
