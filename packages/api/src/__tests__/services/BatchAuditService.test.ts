@@ -20,6 +20,33 @@ describe('BatchAuditService', () => {
   let mockBrowser: any;
   let mockPage: any;
 
+  // Helper function to poll job status until completion or timeout
+  const waitForJobCompletion = async (
+    jobId: string,
+    maxWaitMs: number = 5000,
+    pollIntervalMs: number = 50
+  ): Promise<any> => {
+    const startTime = Date.now();
+    
+    while (Date.now() - startTime < maxWaitMs) {
+      const status = BatchAuditService.getJobStatus(jobId);
+      
+      if (!status) {
+        throw new Error(`Job ${jobId} not found`);
+      }
+      
+      // Check if job has reached a terminal state
+      if (status.status === 'completed' || status.status === 'failed') {
+        return status;
+      }
+      
+      // Wait before next poll
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    }
+    
+    throw new Error(`Job ${jobId} did not complete within ${maxWaitMs}ms`);
+  };
+
   beforeEach(() => {
     // Reset the internal state
     (BatchAuditService as any).jobs = new Map();
@@ -124,10 +151,8 @@ describe('BatchAuditService', () => {
 
       const job = BatchAuditService.createAuditJob(['https://example.com']);
 
-      // Wait for processing to complete
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      const status = BatchAuditService.getJobStatus(job.jobId);
+      // Wait for processing to complete using polling
+      const status = await waitForJobCompletion(job.jobId);
       expect(status).toBeDefined();
     });
   });
@@ -148,10 +173,8 @@ describe('BatchAuditService', () => {
 
       const job = BatchAuditService.createAuditJob(['https://example.com']);
 
-      // Wait for processing
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      const status = BatchAuditService.getJobStatus(job.jobId);
+      // Wait for processing using polling
+      const status = await waitForJobCompletion(job.jobId);
       expect(status).toBeDefined();
     });
 
@@ -170,9 +193,7 @@ describe('BatchAuditService', () => {
 
       const job = BatchAuditService.createAuditJob(['https://example.com']);
 
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      const status = BatchAuditService.getJobStatus(job.jobId);
+      const status = await waitForJobCompletion(job.jobId);
       expect(status).toBeDefined();
     });
 
@@ -191,9 +212,7 @@ describe('BatchAuditService', () => {
 
       const job = BatchAuditService.createAuditJob(['https://example.com']);
 
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      const status = BatchAuditService.getJobStatus(job.jobId);
+      const status = await waitForJobCompletion(job.jobId);
       expect(status).toBeDefined();
     });
 
@@ -212,9 +231,7 @@ describe('BatchAuditService', () => {
 
       const job = BatchAuditService.createAuditJob(['http://example.com']); // HTTP
 
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      const status = BatchAuditService.getJobStatus(job.jobId);
+      const status = await waitForJobCompletion(job.jobId);
       expect(status).toBeDefined();
     });
 
@@ -235,9 +252,7 @@ describe('BatchAuditService', () => {
 
       const job = BatchAuditService.createAuditJob(['https://example.com']);
 
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      const status = BatchAuditService.getJobStatus(job.jobId);
+      const status = await waitForJobCompletion(job.jobId);
       expect(status).toBeDefined();
     });
 
@@ -246,9 +261,7 @@ describe('BatchAuditService', () => {
 
       const job = BatchAuditService.createAuditJob(['https://slow-site.com']);
 
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      const status = BatchAuditService.getJobStatus(job.jobId);
+      const status = await waitForJobCompletion(job.jobId);
       // Check that job has processed (may be completed with failed count)
       expect(status?.status).toMatch(/in_progress|completed|failed/);
     });
@@ -258,9 +271,7 @@ describe('BatchAuditService', () => {
 
       const job = BatchAuditService.createAuditJob(['not-a-valid-url']);
 
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      const status = BatchAuditService.getJobStatus(job.jobId);
+      const status = await waitForJobCompletion(job.jobId);
       // Job should complete processing even with failures
       expect(status?.status).toMatch(/in_progress|completed|failed/);
     });
@@ -278,9 +289,9 @@ describe('BatchAuditService', () => {
         headings: 0,
       });
 
-      BatchAuditService.createAuditJob(['https://example.com']);
+      const job = BatchAuditService.createAuditJob(['https://example.com']);
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await waitForJobCompletion(job.jobId);
 
       expect(mockBrowser.close).toHaveBeenCalled();
       expect(mockPage.close).toHaveBeenCalled();
@@ -310,9 +321,7 @@ describe('BatchAuditService', () => {
 
       const job = BatchAuditService.createAuditJob(websites);
 
-      await new Promise(resolve => setTimeout(resolve, 200));
-
-      const status = BatchAuditService.getJobStatus(job.jobId);
+      const status = await waitForJobCompletion(job.jobId);
       expect(status?.progress.total).toBe(4);
     });
 
@@ -339,9 +348,9 @@ describe('BatchAuditService', () => {
 
       const websites = ['https://site1.com', 'https://site2.com', 'https://site3.com'];
 
-      BatchAuditService.createAuditJob(websites);
+      const job = BatchAuditService.createAuditJob(websites);
 
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await waitForJobCompletion(job.jobId);
 
       // Job should complete despite one failure
       expect(mockBrowser.close).toHaveBeenCalled();
@@ -363,9 +372,9 @@ describe('BatchAuditService', () => {
       // Create job with more than 4 sites (concurrency limit)
       const websites = Array(10).fill(0).map((_, i) => `https://site${i}.com`);
 
-      BatchAuditService.createAuditJob(websites);
+      const job = BatchAuditService.createAuditJob(websites);
 
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await waitForJobCompletion(job.jobId, 10000); // Longer timeout for more sites
 
       // Should process in batches of 4
       expect(puppeteer.launch).toHaveBeenCalled();
@@ -386,9 +395,9 @@ describe('BatchAuditService', () => {
         headings: 4,
       });
 
-      BatchAuditService.createAuditJob(['https://perfect.com']);
+      const job = BatchAuditService.createAuditJob(['https://perfect.com']);
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await waitForJobCompletion(job.jobId);
 
       // Perfect website should have high compliance
       expect(mockPage.evaluate).toHaveBeenCalled();
@@ -407,9 +416,9 @@ describe('BatchAuditService', () => {
         headings: 0,
       });
 
-      BatchAuditService.createAuditJob(['http://bad-site.com']);
+      const job = BatchAuditService.createAuditJob(['http://bad-site.com']);
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await waitForJobCompletion(job.jobId);
 
       expect(mockPage.evaluate).toHaveBeenCalled();
     });
@@ -423,9 +432,7 @@ describe('BatchAuditService', () => {
 
       const job = BatchAuditService.createAuditJob(['https://example.com']);
 
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      const status = BatchAuditService.getJobStatus(job.jobId);
+      const status = await waitForJobCompletion(job.jobId);
       // Job should eventually complete or fail
       expect(status?.status).toMatch(/in_progress|completed|failed/);
     });
@@ -436,9 +443,7 @@ describe('BatchAuditService', () => {
 
       const job = BatchAuditService.createAuditJob(['https://example.com']);
 
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      const status = BatchAuditService.getJobStatus(job.jobId);
+      const status = await waitForJobCompletion(job.jobId);
       // Job should process even with evaluation errors
       expect(status?.status).toMatch(/in_progress|completed|failed/);
     });
@@ -448,18 +453,16 @@ describe('BatchAuditService', () => {
 
       const job = BatchAuditService.createAuditJob(['https://invalid-domain-xyz.com']);
 
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      const status = BatchAuditService.getJobStatus(job.jobId);
+      const status = await waitForJobCompletion(job.jobId);
       expect(status).toBeDefined();
     });
 
     it('should ensure browser cleanup on error', async () => {
       mockPage.goto.mockRejectedValue(new Error('Navigation failed'));
 
-      BatchAuditService.createAuditJob(['https://example.com']);
+      const job = BatchAuditService.createAuditJob(['https://example.com']);
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await waitForJobCompletion(job.jobId);
 
       expect(mockBrowser.close).toHaveBeenCalled();
     });
@@ -484,14 +487,10 @@ describe('BatchAuditService', () => {
       // Job starts as pending or transitions quickly to in_progress
       expect(['pending', 'in_progress']).toContain(job.status);
 
-      await new Promise(resolve => setTimeout(resolve, 50));
-      let status = BatchAuditService.getJobStatus(job.jobId);
-      // Should be in_progress or completed
-      expect(['in_progress', 'completed']).toContain(status?.status);
-
-      await new Promise(resolve => setTimeout(resolve, 150));
-      status = BatchAuditService.getJobStatus(job.jobId);
-      // Should be completed
+      // Wait for completion
+      const status = await waitForJobCompletion(job.jobId);
+      
+      // Should be completed or failed
       expect(['completed', 'failed']).toContain(status?.status);
     });
 
@@ -510,9 +509,7 @@ describe('BatchAuditService', () => {
 
       const job = BatchAuditService.createAuditJob(['https://example.com']);
 
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      const status = BatchAuditService.getJobStatus(job.jobId);
+      const status = await waitForJobCompletion(job.jobId);
       expect(status?.startedAt).toBeDefined();
     });
 
@@ -531,9 +528,7 @@ describe('BatchAuditService', () => {
 
       const job = BatchAuditService.createAuditJob(['https://example.com']);
 
-      await new Promise(resolve => setTimeout(resolve, 200));
-
-      const status = BatchAuditService.getJobStatus(job.jobId);
+      const status = await waitForJobCompletion(job.jobId);
       expect(status?.completedAt).toBeDefined();
     });
   });
