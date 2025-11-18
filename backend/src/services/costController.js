@@ -43,7 +43,8 @@ class CostController extends EventEmitter {
     
     // Kill switch state
     this.killSwitchActive = false;
-    this.lastResetDate = new Date().toISOString().split('T')[0];
+    const [datePart] = new Date().toISOString().split('T');
+    this.lastResetDate = datePart;
     this.lastResetMonth = new Date().toISOString().substring(0, 7);
 
     // Metrics for Grafana
@@ -354,9 +355,9 @@ class CostController extends EventEmitter {
       userCostArray.push({ userId, monthlyCost });
     }
 
-    return userCostArray
-      .sort((a, b) => b.monthlyCost - a.monthlyCost)
-      .slice(0, limit);
+    // Sort array before slicing to avoid mutation during chaining
+    const sortedUsers = userCostArray.sort((a, b) => b.monthlyCost - a.monthlyCost);
+    return sortedUsers.slice(0, limit);
   }
 
   /**
@@ -434,7 +435,7 @@ class CostController extends EventEmitter {
    * @private
    */
   generateTransactionId() {
-    return `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return `txn_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
   }
 }
 

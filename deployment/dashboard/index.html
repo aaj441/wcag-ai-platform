@@ -478,9 +478,16 @@
       const errorRate = metrics.wcagai_api_errors_total || 0;
       const errorElem = document.getElementById('error-rate');
       errorElem.textContent = errorRate.toFixed(0);
-      errorElem.className = errorRate > 10 ? 'metric-value red' :
-                           errorRate > 5 ? 'metric-value yellow' :
-                           'metric-value green';
+      // Determine error rate class based on thresholds
+      let errorClass;
+      if (errorRate > 10) {
+        errorClass = 'metric-value red';
+      } else if (errorRate > 5) {
+        errorClass = 'metric-value yellow';
+      } else {
+        errorClass = 'metric-value green';
+      }
+      errorElem.className = errorClass;
 
       // Scan Metrics
       document.getElementById('total-scans').textContent =
@@ -489,9 +496,16 @@
       const queueDepth = metrics.wcagai_queue_length || 0;
       const queueElem = document.getElementById('queue-depth');
       queueElem.textContent = queueDepth.toFixed(0);
-      queueElem.className = queueDepth > 100 ? 'metric-value red' :
-                            queueDepth > 50 ? 'metric-value yellow' :
-                            'metric-value green';
+      // Determine queue depth class based on thresholds
+      let queueClass;
+      if (queueDepth > 100) {
+        queueClass = 'metric-value red';
+      } else if (queueDepth > 50) {
+        queueClass = 'metric-value yellow';
+      } else {
+        queueClass = 'metric-value green';
+      }
+      queueElem.className = queueClass;
 
       const scanDuration = (metrics.wcagai_scan_duration_seconds_sum / metrics.wcagai_scan_duration_seconds_count) || 0;
       document.getElementById('scan-duration').textContent =
