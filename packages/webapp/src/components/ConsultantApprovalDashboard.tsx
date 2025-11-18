@@ -211,6 +211,50 @@ export const ConsultantApprovalDashboard: React.FC = () => {
     addNotification('success', 'Email marked as sent');
   }
 
+  function approveAllPending() {
+    const pendingDrafts = drafts.filter(d => d.status === 'pending_review');
+    
+    if (pendingDrafts.length === 0) {
+      addNotification('info', 'No pending drafts to approve');
+      return;
+    }
+
+    // Confirmation dialog
+    if (!window.confirm(`Are you sure you want to approve ${pendingDrafts.length} pending draft(s)? This action cannot be undone.`)) {
+      return;
+    }
+
+    // Approve all pending drafts
+    const now = new Date();
+    const approvedDrafts = drafts.map(d => {
+      if (d.status === 'pending_review') {
+        return {
+          ...d,
+          status: 'approved' as const,
+          approvedBy: 'admin@wcag-ai.com',
+          approvedAt: now,
+          updatedAt: now,
+        };
+      }
+      return d;
+    });
+
+    setDrafts(approvedDrafts);
+    
+    // Update selected draft if it was approved
+    if (selectedDraft && selectedDraft.status === 'pending_review') {
+      setSelectedDraft({
+        ...selectedDraft,
+        status: 'approved',
+        approvedBy: 'admin@wcag-ai.com',
+        approvedAt: now,
+        updatedAt: now,
+      });
+    }
+
+    addNotification('success', `Successfully approved ${pendingDrafts.length} draft(s)!`);
+  }
+
   // ============================================================================
   // RENDER - The Manifestation
   // ============================================================================
@@ -240,6 +284,16 @@ export const ConsultantApprovalDashboard: React.FC = () => {
               <p className="text-sm text-gray-400 mt-1">{APP_CONFIG.tagline}</p>
             </div>
             <div className="flex items-center space-x-4">
+              {stats.pending_review > 0 && (
+                <button
+                  onClick={approveAllPending}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors flex items-center space-x-2"
+                  title={`Approve ${stats.pending_review} pending draft(s)`}
+                >
+                  <span>✓</span>
+                  <span>Approve All ({stats.pending_review})</span>
+                </button>
+              )}
               <div className="text-right">
                 <div className="text-sm font-semibold text-gray-300">{stats.total} Total Drafts</div>
                 <div className="text-xs text-gray-500">{stats.pending_review} Pending Review</div>
