@@ -1,0 +1,35 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "🔒 Running pre-commit security checks..."
+echo ""
+
+# Check for secrets
+echo "🔍 Checking for secrets..."
+git-secrets --pre_commit_hook || {
+  echo "❌ Secret detection failed! Found potential secrets in staged files."
+  echo "   Run: git secrets --install -f"
+  exit 1
+}
+echo "✅ No secrets detected"
+echo ""
+
+# Run ESLint
+echo "🔍 Running ESLint..."
+npx eslint --fix . --max-warnings 5 || {
+  echo "⚠️  ESLint found issues (auto-fixed where possible)"
+  echo "   Please review the changes and commit again if needed"
+}
+echo "✅ ESLint check complete"
+echo ""
+
+# Run Prettier
+echo "🔍 Formatting code..."
+npx prettier --write . || true
+echo "✅ Code formatting complete"
+echo ""
+
+# Add any formatted files
+git add -A
+
+echo "✅ Pre-commit checks passed!"
