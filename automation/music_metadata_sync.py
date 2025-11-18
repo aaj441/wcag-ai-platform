@@ -70,13 +70,13 @@ class MusicMetadataSync:
         if not self.spotify:
             return {}
         
-        logger.info(f"Fetching Spotify metadata for: {artist_name}")
+        logger.info("Fetching Spotify metadata for: %s", artist_name)
         
         try:
             # Search for artist
             results = self.spotify.search(q=f'artist:{artist_name}', type='artist', limit=1)
             if not results['artists']['items']:
-                logger.warning(f"Artist not found: {artist_name}")
+                logger.warning("Artist not found: %s", artist_name)
                 return {}
             
             artist = results['artists']['items'][0]
@@ -120,11 +120,11 @@ class MusicMetadataSync:
                 'fetched_at': datetime.utcnow().isoformat(),
             }
             
-            logger.info(f"Fetched Spotify data: {len(metadata['top_tracks'])} tracks, {len(metadata['albums'])} albums")
+            logger.info("Fetched Spotify data: %d tracks, %d albums", len(metadata['top_tracks']), len(metadata['albums']))
             return metadata
             
         except Exception as e:
-            logger.error(f"Spotify API error: {e}")
+            logger.error("Spotify API error: %s", e)
             return {}
     
     def fetch_lastfm_metadata(self, artist_name: str) -> Dict:
@@ -132,7 +132,7 @@ class MusicMetadataSync:
         if not LASTFM_API_KEY:
             return {}
         
-        logger.info(f"Fetching Last.fm metadata for: {artist_name}")
+        logger.info("Fetching Last.fm metadata for: %s", artist_name)
         
         try:
             url = 'http://ws.audioscrobbler.com/2.0/'
@@ -166,11 +166,11 @@ class MusicMetadataSync:
                 'fetched_at': datetime.utcnow().isoformat(),
             }
             
-            logger.info(f"Fetched Last.fm data: {metadata['artist']['listeners']} listeners")
+            logger.info("Fetched Last.fm data: %s listeners", metadata['artist']['listeners'])
             return metadata
             
         except Exception as e:
-            logger.error(f"Last.fm API error: {e}")
+            logger.error("Last.fm API error: %s", e)
             return {}
     
     def generate_accessible_description(self, metadata: Dict) -> str:
@@ -207,7 +207,7 @@ Output only the description, no preamble."""
             return description
             
         except Exception as e:
-            logger.error(f"AI description generation failed: {e}")
+            logger.error("AI description generation failed: %s", e)
             return ""
     
     def merge_metadata(self, spotify_data: Dict, lastfm_data: Dict) -> Dict:
@@ -243,21 +243,21 @@ Output only the description, no preamble."""
     
     def sync_artist(self, artist_name: str) -> Dict:
         """Sync all metadata for an artist"""
-        logger.info(f"Starting full sync for: {artist_name}")
+        logger.info("Starting full sync for: %s", artist_name)
         
         spotify_data = self.fetch_spotify_metadata(artist_name)
         lastfm_data = self.fetch_lastfm_metadata(artist_name)
         
         merged = self.merge_metadata(spotify_data, lastfm_data)
         
-        logger.info(f"Sync complete for {artist_name}")
+        logger.info("Sync complete for %s", artist_name)
         return merged
     
     def save_metadata(self, metadata: Dict, output_file: str):
         """Save metadata to JSON file"""
         with open(output_file, 'w') as f:
             json.dump(metadata, f, indent=2)
-        logger.info(f"Saved metadata to {output_file}")
+        logger.info("Saved metadata to %s", output_file)
 
 def main():
     parser = argparse.ArgumentParser(description='Sync music metadata across platforms')
