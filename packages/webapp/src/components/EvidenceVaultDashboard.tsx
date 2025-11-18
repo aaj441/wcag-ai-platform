@@ -50,6 +50,7 @@ export const EvidenceVaultDashboard: React.FC = () => {
       setQuarterlyReports(reports);
 
       // Only show success notification if all data loads without errors
+      // Only show success notification if all data loads without errors
       addNotification('success', 'Evidence vault data loaded successfully');
     } catch (error) {
       addNotification('error', 'Failed to load evidence vault data');
