@@ -98,6 +98,45 @@ export class DeadLetterQueue {
   }
 
   /**
+   * Validate regex pattern to prevent ReDoS attacks
+   * @private
+   */
+  private validateRegexPattern(pattern: string): void {
+    // Check for common ReDoS patterns
+    const dangerousPatterns = [
+      /(\.\*){2,}/, // Multiple .* in sequence
+      /(\.\+){2,}/, // Multiple .+ in sequence
+      /(\w\*){2,}/, // Multiple \w* in sequence
+      /(\w\+){2,}/, // Multiple \w+ in sequence
+      /\([^)]*\)\*\+/, // Nested quantifiers like (a*)+
+      /\([^)]*\)\+\*/, // Nested quantifiers like (a+)*
+      /\([^)]*\)\{\d+,\}\+/, // Nested quantifiers like (a{2,})+
+    ];
+
+    for (const dangerous of dangerousPatterns) {
+      if (dangerous.test(pattern)) {
+        throw new Error(
+          'Invalid regex pattern: potentially vulnerable to ReDoS attacks'
+        );
+      }
+    }
+
+    // Limit pattern length to prevent complexity attacks
+    if (pattern.length > 200) {
+      throw new Error('Regex pattern too long (max 200 characters)');
+    }
+
+    // Test that the pattern is valid
+    try {
+      new RegExp(pattern);
+    } catch (error) {
+      throw new Error(
+        `Invalid regex pattern: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
    * Initialize DLQ
    */
   async initialize(): Promise<void> {
@@ -205,6 +244,9 @@ export class DeadLetterQueue {
 
     // Filter by error pattern if provided
     if (options?.errorPattern) {
+      // Validate regex pattern to prevent ReDoS attacks
+      this.validateRegexPattern(options.errorPattern);
+      
       const pattern = new RegExp(options.errorPattern, 'i');
       filtered = filtered.filter((r) => pattern.test(r.error.message));
     }
