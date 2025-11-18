@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WCAG Compliant: Proper Form Labels</title>
+</head>
+<body>
+    <h1>Test Page: Proper Form Labels</h1>
+    
+    <form>
+        <!-- COMPLIANT 1: Label explicitly associated with input -->
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" required>
+        
+        <!-- COMPLIANT 2: Label with nested input -->
+        <label>
+            Email Address:
+            <input type="email" name="email" required>
+        </label>
+        
+        <!-- COMPLIANT 3: Select with label -->
+        <label for="country">Country:</label>
+        <select id="country" name="country">
+            <option value="">Select a country</option>
+            <option value="us">United States</option>
+            <option value="uk">United Kingdom</option>
+        </select>
+        
+        <!-- COMPLIANT 4: Textarea with label and description -->
+        <label for="comments">Comments:</label>
+        <span id="comments-desc">Please provide detailed feedback</span>
+        <textarea id="comments" name="comments" aria-describedby="comments-desc"></textarea>
+        
+        <!-- COMPLIANT 5: Checkbox with proper label -->
+        <input type="checkbox" id="terms" name="terms" required>
+        <label for="terms">I agree to the terms and conditions</label>
+        
+        <!-- COMPLIANT 6: Radio buttons with fieldset and legend -->
+        <fieldset>
+            <legend>Gender:</legend>
+            <input type="radio" id="male" name="gender" value="male">
+            <label for="male">Male</label>
+            
+            <input type="radio" id="female" name="gender" value="female">
+            <label for="female">Female</label>
+            
+            <input type="radio" id="other" name="gender" value="other">
+            <label for="other">Other</label>
+        </fieldset>
+        
+        <button type="submit">Submit Form</button>
+    </form>
+    
+    <footer>
+        <p>Expected violations: 0</p>
+        <p>WCAG Criteria: 1.3.1 (Level A), 3.3.2 (Level A) - COMPLIANT</p>
+    </footer>
+</body>
+</html>

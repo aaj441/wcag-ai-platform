@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WCAG Violation: Missing Form Labels</title>
+</head>
+<body>
+    <h1>Test Page: Missing Form Labels</h1>
+    
+    <form>
+        <!-- VIOLATION 1: Input without label -->
+        <input type="text" name="username" placeholder="Enter username">
+        
+        <!-- VIOLATION 2: Input with visual label but no programmatic association -->
+        <div>Email Address</div>
+        <input type="email" name="email">
+        
+        <!-- VIOLATION 3: Select without label -->
+        <select name="country">
+            <option value="">Select country</option>
+            <option value="us">United States</option>
+            <option value="uk">United Kingdom</option>
+        </select>
+        
+        <!-- VIOLATION 4: Textarea without label -->
+        <textarea name="comments" placeholder="Your comments"></textarea>
+        
+        <!-- VIOLATION 5: Checkbox without label -->
+        <input type="checkbox" name="terms" id="terms">
+        <span>I agree to terms</span>
+        
+        <!-- VIOLATION 6: Radio buttons without proper labels -->
+        <div>
+            <span>Gender:</span>
+            <input type="radio" name="gender" value="male"> Male
+            <input type="radio" name="gender" value="female"> Female
+        </div>
+        
+        <button type="submit">Submit</button>
+    </form>
+    
+    <footer>
+        <p>Expected violations: 6+ form control labeling issues</p>
+        <p>WCAG Criteria: 1.3.1 (Level A), 3.3.2 (Level A)</p>
+        <p>Success Criterion: Info and Relationships, Labels or Instructions</p>
+    </footer>
+</body>
+</html>
