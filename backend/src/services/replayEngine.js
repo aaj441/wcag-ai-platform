@@ -31,6 +31,43 @@ class ReplayEngine {
   }
 
   /**
+   * Sanitize and validate a path to prevent directory traversal
+   * @private
+   * @param {string} identifier - The identifier to sanitize (scanId, recordingName, etc.)
+   * @returns {string} Sanitized identifier
+   * @throws {Error} If identifier contains illegal characters or path traversal
+   */
+  sanitizePathIdentifier(identifier) {
+    // Remove any characters that aren't alphanumeric, underscore, or hyphen
+    const sanitized = identifier.replace(/[^a-zA-Z0-9_-]/g, '');
+    
+    if (sanitized !== identifier) {
+      throw new Error('Invalid identifier: contains illegal characters');
+    }
+    
+    if (sanitized.length === 0) {
+      throw new Error('Invalid identifier: cannot be empty after sanitization');
+    }
+    
+    return sanitized;
+  }
+
+  /**
+   * Validate that a resolved path is within the recordings directory
+   * @private
+   * @param {string} filePath - The file path to validate
+   * @throws {Error} If path is outside the recordings directory
+   */
+  validatePathWithinRecordings(filePath) {
+    const resolvedPath = path.resolve(filePath);
+    const resolvedRecordingsPath = path.resolve(this.recordingsPath);
+    
+    if (!resolvedPath.startsWith(resolvedRecordingsPath)) {
+      throw new Error('Invalid path: directory traversal detected');
+    }
+  }
+
+  /**
    * Initialize the replay engine
    */
   async initialize() {
@@ -366,9 +403,15 @@ class ReplayEngine {
     }
 
     try {
-      // Delete recording files
-      const recordingPath = path.join(this.recordingsPath, `${recording.recordingName}.har`);
-      const metadataPath = path.join(this.recordingsPath, `${scanId}_metadata.json`);
+      // Delete recording files (with path validation)
+      const sanitizedRecordingName = this.sanitizePathIdentifier(recording.recordingName);
+      const sanitizedScanId = this.sanitizePathIdentifier(scanId);
+      
+      const recordingPath = path.join(this.recordingsPath, `${sanitizedRecordingName}.har`);
+      const metadataPath = path.join(this.recordingsPath, `${sanitizedScanId}_metadata.json`);
+      
+      this.validatePathWithinRecordings(recordingPath);
+      this.validatePathWithinRecordings(metadataPath);
       
       await fs.unlink(recordingPath).catch(() => {});
       await fs.unlink(metadataPath).catch(() => {});
@@ -393,7 +436,10 @@ class ReplayEngine {
       throw new Error(`Recording not found: ${scanId}`);
     }
 
-    const recordingPath = path.join(this.recordingsPath, `${recording.recordingName}.har`);
+    const sanitizedRecordingName = this.sanitizePathIdentifier(recording.recordingName);
+    const recordingPath = path.join(this.recordingsPath, `${sanitizedRecordingName}.har`);
+    this.validatePathWithinRecordings(recordingPath);
+    
     const harContent = await fs.readFile(recordingPath, 'utf8');
 
     return {
@@ -422,7 +468,10 @@ class ReplayEngine {
    * @private
    */
   async saveRecordingMetadata(scanId, recordingInfo) {
-    const metadataPath = path.join(this.recordingsPath, `${scanId}_metadata.json`);
+    const sanitizedScanId = this.sanitizePathIdentifier(scanId);
+    const metadataPath = path.join(this.recordingsPath, `${sanitizedScanId}_metadata.json`);
+    this.validatePathWithinRecordings(metadataPath);
+    
     await fs.writeFile(metadataPath, JSON.stringify(recordingInfo, null, 2));
   }
 

@@ -287,7 +287,20 @@ class WorkerIdentityManager {
    * @private
    */
   async saveWorkerKey(workerId, workerInfo) {
-    const keyPath = path.join(this.keystorePath, `${workerId}.json`);
+    // Sanitize workerId to prevent path traversal
+    const sanitizedWorkerId = workerId.replace(/[^a-zA-Z0-9_-]/g, '');
+    if (sanitizedWorkerId !== workerId) {
+      throw new Error('Invalid workerId: contains illegal characters');
+    }
+    
+    const keyPath = path.join(this.keystorePath, `${sanitizedWorkerId}.json`);
+    
+    // Verify the resolved path is within the keystore directory
+    const resolvedPath = path.resolve(keyPath);
+    const resolvedKeystorePath = path.resolve(this.keystorePath);
+    if (!resolvedPath.startsWith(resolvedKeystorePath)) {
+      throw new Error('Invalid workerId: path traversal detected');
+    }
     const keyData = {
       workerId: workerInfo.workerId,
       publicKey: workerInfo.publicKey,
