@@ -4,7 +4,8 @@
  */
 
 import { RemediationEngine, FixRequest } from '../../services/RemediationEngine';
-import { createMockFixRequest, createMockPrismaClient } from '../helpers/mockData';
+import { createMockFixRequest } from '../helpers/mockData';
+import { prisma } from '../../lib/db';
 
 // Mock AIService
 jest.mock('../../services/AIService', () => ({
@@ -17,12 +18,31 @@ import { aiService } from '../../services/AIService';
 const mockAIService = aiService as jest.Mocked<typeof aiService>;
 
 // Mock prisma
-const mockPrisma = createMockPrismaClient();
 jest.mock('../../lib/db', () => ({
-  prisma: mockPrisma,
+  prisma: {
+    fixTemplate: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
+    fix: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    fixApplication: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+    },
+  },
 }));
 
 describe('RemediationEngine', () => {
+  const mockPrisma = prisma as jest.Mocked<typeof prisma>;
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
