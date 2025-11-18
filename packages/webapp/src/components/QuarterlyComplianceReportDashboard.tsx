@@ -8,6 +8,8 @@
 import React, { useState, useEffect } from 'react';
 import type { QuarterlyReport } from '../types';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
 export function QuarterlyComplianceReportDashboard() {
   const [reports, setReports] = useState<QuarterlyReport[]>([]);
   const [selectedReport, setSelectedReport] = useState<QuarterlyReport | null>(null);
@@ -22,7 +24,7 @@ export function QuarterlyComplianceReportDashboard() {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('/api/quarterly-reports');
+      const response = await fetch(`${API_BASE_URL}/quarterly-reports`);
       const data = await response.json();
       
       if (data.success) {
@@ -44,7 +46,7 @@ export function QuarterlyComplianceReportDashboard() {
 
   async function handleExport(reportId: string) {
     try {
-      const response = await fetch(`/api/quarterly-reports/${reportId}/export?format=markdown`);
+      const response = await fetch(`${API_BASE_URL}/quarterly-reports/${reportId}/export?format=markdown`);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
