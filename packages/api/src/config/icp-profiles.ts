@@ -260,7 +260,7 @@ export const LAW_FIRMS_ICP: ICP = {
 
   preferredChannels: ['email', 'phone', 'linkedin'],
   bestTimeToContact: 'Tuesday-Thursday, 11am-1pm',
-  frequencyTolerance: 'biweekly',
+  frequencyTolerance: 'weekly',
 
   tier: 'tier-1',
   priority: 9,
