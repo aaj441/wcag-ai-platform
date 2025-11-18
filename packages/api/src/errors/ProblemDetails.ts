@@ -83,6 +83,7 @@ export class BaseError extends Error implements ProblemDetails {
   public readonly requestId?: string;
   public readonly timestamp: string;
   public readonly isOperational: boolean; // Operational vs programmer errors
+  public override readonly cause?: Error;
 
   constructor(options: {
     type: string;
@@ -93,7 +94,7 @@ export class BaseError extends Error implements ProblemDetails {
     isOperational?: boolean;
     cause?: Error;
   }) {
-    super(options.detail || options.title);
+    super(options.detail || options.title, { cause: options.cause });
 
     this.name = this.constructor.name;
     this.type = options.type;
@@ -109,7 +110,9 @@ export class BaseError extends Error implements ProblemDetails {
       this.cause = options.cause;
     }
 
-    Error.captureStackTrace(this, this.constructor);
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, this.constructor);
+    }
   }
 
   toJSON(): ProblemDetails {

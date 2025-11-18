@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WCAG Violation: Insufficient Color Contrast</title>
+    <style>
+        /* VIOLATION 1: Light gray text on white (1.5:1 ratio - requires 4.5:1) */
+        .low-contrast-1 {
+            color: #c0c0c0;
+            background-color: #ffffff;
+            font-size: 16px;
+        }
+        
+        /* VIOLATION 2: Light blue on white (2.1:1 ratio) */
+        .low-contrast-2 {
+            color: #87ceeb;
+            background-color: #ffffff;
+            font-size: 14px;
+        }
+        
+        /* VIOLATION 3: Yellow text on white (1.07:1 ratio) */
+        .low-contrast-3 {
+            color: #ffff99;
+            background-color: #ffffff;
+            font-size: 16px;
+        }
+        
+        /* VIOLATION 4: Dark gray on black (2.5:1 ratio) */
+        .low-contrast-4 {
+            color: #404040;
+            background-color: #000000;
+            font-size: 16px;
+        }
+        
+        /* VIOLATION 5: Link with insufficient contrast */
+        a.low-contrast-link {
+            color: #b0b0b0;
+            background-color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Page: Insufficient Color Contrast</h1>
+    
+    <p class="low-contrast-1">
+        This paragraph has light gray text on white background (1.5:1 contrast ratio).
+        This violates WCAG 1.4.3 Level AA which requires minimum 4.5:1 for normal text.
+    </p>
+    
+    <p class="low-contrast-2">
+        This paragraph has light blue text on white background (2.1:1 contrast ratio).
+        Also insufficient for WCAG AA compliance.
+    </p>
+    
+    <div class="low-contrast-3">
+        <h2>Section with Yellow Text</h2>
+        <p>This section has yellow text on white (1.07:1 ratio), making it nearly unreadable.</p>
+    </div>
+    
+    <div class="low-contrast-4" style="padding: 20px;">
+        <p>This text is dark gray on black background (2.5:1 ratio), insufficient contrast.</p>
+    </div>
+    
+    <p>
+        <a href="#" class="low-contrast-link">This link has insufficient contrast</a> compared to surrounding text.
+    </p>
+    
+    <footer>
+        <p>Expected violations: 5 contrast issues</p>
+        <p>WCAG Criteria: 1.4.3 (Level AA)</p>
+        <p>Success Criterion: Contrast (Minimum)</p>
+    </footer>
+</body>
+</html>

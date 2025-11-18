@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WCAG Compliant: Proper Alt Text</title>
+</head>
+<body>
+    <h1>Test Page: Proper Alt Text Implementation</h1>
+    
+    <!-- COMPLIANT 1: Informative image with descriptive alt -->
+    <img src="company-logo.png" alt="WCAGAI - Web Content Accessibility Guidelines AI Platform" width="200" height="100">
+    
+    <!-- COMPLIANT 2: Decorative image with empty alt -->
+    <img src="decorative-divider.png" alt="" width="400" height="10" role="presentation">
+    
+    <!-- COMPLIANT 3: Chart with detailed alt text -->
+    <img src="sales-chart.png" alt="Bar chart showing sales growth from Q1 to Q4 2024. Q1: $10k, Q2: $15k, Q3: $22k, Q4: $30k" width="500" height="400">
+    
+    <!-- COMPLIANT 4: Button with image and text alternative -->
+    <button aria-label="Save document">
+        <img src="save-icon.png" alt="" role="presentation">
+        <span class="visually-hidden">Save</span>
+    </button>
+    
+    <!-- COMPLIANT 5: Linked image with descriptive alt -->
+    <a href="/products">
+        <img src="product-category.png" alt="View electronics products - cameras, laptops, and accessories" width="150" height="150">
+    </a>
+    
+    <p>This page demonstrates proper implementation of WCAG 1.1.1 (Non-text Content) Level A.</p>
+    
+    <footer>
+        <p>Expected violations: 0</p>
+        <p>WCAG Criteria: 1.1.1 (Level A) - COMPLIANT</p>
+    </footer>
+</body>
+</html>

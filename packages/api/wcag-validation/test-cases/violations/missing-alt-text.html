@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WCAG Violation: Missing Alt Text</title>
+</head>
+<body>
+    <h1>Test Page: Missing Alt Text on Images</h1>
+    
+    <!-- VIOLATION 1: Image without alt attribute -->
+    <img src="logo.png" width="200" height="100">
+    
+    <!-- VIOLATION 2: Image with empty alt when it's not decorative -->
+    <img src="chart.png" alt="" width="400" height="300">
+    
+    <!-- VIOLATION 3: Informative image without alt -->
+    <img src="data-visualization.png" width="500" height="400">
+    
+    <!-- VIOLATION 4: Button with image icon but no alt -->
+    <button>
+        <img src="save-icon.png">
+    </button>
+    
+    <!-- VIOLATION 5: Linked image without alt -->
+    <a href="/products">
+        <img src="product-category.png" width="150" height="150">
+    </a>
+    
+    <p>This page contains 5 images that violate WCAG 1.1.1 (Non-text Content) Level A.</p>
+    
+    <footer>
+        <p>Expected violations: 5</p>
+        <p>WCAG Criteria: 1.1.1 (Level A)</p>
+        <p>Success Criterion: Non-text Content</p>
+    </footer>
+</body>
+</html>

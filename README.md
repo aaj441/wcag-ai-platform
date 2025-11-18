@@ -6,6 +6,24 @@
 
 **💰** [Consultant Quick Start Guide](CONSULTANT_QUICKSTART.md) | [Business Playbook](CONSULTANT_BUSINESS_GUIDE.md)
 
+### 🔒 **Enterprise Security & Compliance**
+
+[![SOC 2](https://img.shields.io/badge/SOC%202-In%20Progress-yellow)](./COMPLIANCE.md)
+[![GDPR Compliant](https://img.shields.io/badge/GDPR-Compliant-green)](./COMPLIANCE.md#gdpr-compliance)
+[![WCAG 2.1 AA](https://img.shields.io/badge/WCAG%202.1-AA%20Compliant-green)](./COMPLIANCE.md#wcag-21-aa-compliance)
+[![Security](https://img.shields.io/badge/Security-Hardened-blue)](./SECURITY.md)
+
+**📋 Documentation:** [Security Policy](./SECURITY.md) | [Vulnerability Disclosure](./VULNERABILITY_DISCLOSURE.md) | [Compliance](./COMPLIANCE.md) | [Incident Response](./INCIDENT_RESPONSE.md)
+
+### ⚙️ **CI/CD & Quality**
+
+[![Code Quality](https://github.com/aaj441/wcag-ai-platform/actions/workflows/code-quality-checks.yml/badge.svg)](https://github.com/aaj441/wcag-ai-platform/actions/workflows/code-quality-checks.yml)
+[![Railway Deploy](https://github.com/aaj441/wcag-ai-platform/actions/workflows/railway-deploy.yml/badge.svg)](https://github.com/aaj441/wcag-ai-platform/actions/workflows/railway-deploy.yml)
+[![Accessibility](https://github.com/aaj441/wcag-ai-platform/actions/workflows/accessibility.yml/badge.svg)](https://github.com/aaj441/wcag-ai-platform/actions/workflows/accessibility.yml)
+[![Production Monitoring](https://github.com/aaj441/wcag-ai-platform/actions/workflows/production-monitoring.yml/badge.svg)](https://github.com/aaj441/wcag-ai-platform/actions/workflows/production-monitoring.yml)
+
+**🔧 Workflows:** [Workflow Documentation](./.github/workflows/README.md) | [Deployment Scripts](./deployment/scripts)
+
 ---
 
 ## **🎯 What Is This?**

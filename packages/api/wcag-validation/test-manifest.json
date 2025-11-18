@@ -1,0 +1,121 @@
+{
+  "testSuite": {
+    "name": "WCAG Accuracy Validation Test Suite",
+    "version": "1.0.0",
+    "created": "2025-11-17",
+    "wcagVersion": "2.1",
+    "conformanceLevel": "AA",
+    "totalTests": 8
+  },
+  "testCases": {
+    "violations": [
+      {
+        "id": "V001",
+        "file": "violations/missing-alt-text.html",
+        "name": "Missing Alt Text on Images",
+        "wcagCriteria": ["1.1.1"],
+        "level": "A",
+        "expectedViolations": 5,
+        "violationTypes": [
+          "image-alt",
+          "button-name",
+          "link-name"
+        ],
+        "description": "Images without alt attributes or with inappropriate empty alt text"
+      },
+      {
+        "id": "V002",
+        "file": "violations/insufficient-color-contrast.html",
+        "name": "Insufficient Color Contrast",
+        "wcagCriteria": ["1.4.3"],
+        "level": "AA",
+        "expectedViolations": 5,
+        "violationTypes": [
+          "color-contrast"
+        ],
+        "description": "Text with contrast ratios below 4.5:1 (normal text) or 3:1 (large text)"
+      },
+      {
+        "id": "V003",
+        "file": "violations/missing-form-labels.html",
+        "name": "Missing Form Labels",
+        "wcagCriteria": ["1.3.1", "3.3.2"],
+        "level": "A",
+        "expectedViolations": 6,
+        "violationTypes": [
+          "label",
+          "form-field-multiple-labels"
+        ],
+        "description": "Form controls without programmatically associated labels"
+      },
+      {
+        "id": "V004",
+        "file": "violations/broken-heading-hierarchy.html",
+        "name": "Broken Heading Hierarchy",
+        "wcagCriteria": ["1.3.1", "2.4.6"],
+        "level": "AA",
+        "expectedViolations": 5,
+        "violationTypes": [
+          "heading-order",
+          "page-has-heading-one"
+        ],
+        "description": "Headings that skip levels or have multiple H1 elements"
+      },
+      {
+        "id": "V005",
+        "file": "violations/missing-keyboard-access.html",
+        "name": "Missing Keyboard Accessibility",
+        "wcagCriteria": ["2.1.1", "2.1.2"],
+        "level": "A",
+        "expectedViolations": 5,
+        "violationTypes": [
+          "nested-interactive",
+          "scrollable-region-focusable"
+        ],
+        "description": "Interactive elements not accessible via keyboard"
+      }
+    ],
+    "compliant": [
+      {
+        "id": "C001",
+        "file": "compliant/proper-alt-text.html",
+        "name": "Proper Alt Text Implementation",
+        "wcagCriteria": ["1.1.1"],
+        "level": "A",
+        "expectedViolations": 0,
+        "description": "Correct use of alt text for informative, decorative, and functional images"
+      },
+      {
+        "id": "C002",
+        "file": "compliant/sufficient-color-contrast.html",
+        "name": "Sufficient Color Contrast",
+        "wcagCriteria": ["1.4.3"],
+        "level": "AA",
+        "expectedViolations": 0,
+        "description": "Text with contrast ratios exceeding WCAG AA/AAA requirements"
+      },
+      {
+        "id": "C003",
+        "file": "compliant/proper-form-labels.html",
+        "name": "Proper Form Labels",
+        "wcagCriteria": ["1.3.1", "3.3.2"],
+        "level": "A",
+        "expectedViolations": 0,
+        "description": "Form controls with proper programmatic labels and fieldsets"
+      }
+    ]
+  },
+  "accuracyTargets": {
+    "precision": 0.90,
+    "recall": 0.85,
+    "f1Score": 0.875,
+    "description": "Minimum acceptable accuracy metrics for production deployment"
+  },
+  "notes": [
+    "Test cases created based on WCAG 2.1 Level A and AA success criteria",
+    "Each violation test case contains multiple instances of the same issue type",
+    "Compliant test cases demonstrate correct implementation",
+    "Accuracy measured against axe-core as the reference scanner",
+    "Test suite should be expanded to 100+ cases for comprehensive validation"
+  ]
+}

@@ -39,8 +39,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: 'packages/api/package-lock.json'
+          
 
       - name: Install dependencies
         working-directory: packages/api

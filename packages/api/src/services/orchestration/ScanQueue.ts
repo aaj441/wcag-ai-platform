@@ -246,6 +246,26 @@ export class ScanQueue {
   }
 
   /**
+   * Get job counts (alias for getStats for backwards compatibility)
+   */
+  async getJobCounts(): Promise<{
+    waiting: number;
+    active: number;
+    completed: number;
+    failed: number;
+    delayed?: number;
+  }> {
+    return this.getStats();
+  }
+
+  /**
+   * Get Redis client (for health checks)
+   */
+  get client() {
+    return this.queue.client;
+  }
+
+  /**
    * Get recent jobs
    */
   async getRecentJobs(

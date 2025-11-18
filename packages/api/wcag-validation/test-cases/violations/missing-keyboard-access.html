@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WCAG Violation: Missing Keyboard Accessibility</title>
+    <script>
+        function handleClick() {
+            alert('Clicked!');
+        }
+    </script>
+</head>
+<body>
+    <h1>Test Page: Missing Keyboard Accessibility</h1>
+    
+    <!-- VIOLATION 1: Div with onclick but not focusable -->
+    <div onclick="handleClick()" style="cursor: pointer; padding: 10px; background: #eee;">
+        Click me (but not keyboard accessible)
+    </div>
+    
+    <!-- VIOLATION 2: Span with onclick, no tabindex, no role -->
+    <span onclick="handleClick()" style="cursor: pointer;">
+        Interactive span without keyboard access
+    </span>
+    
+    <!-- VIOLATION 3: Custom dropdown without keyboard navigation -->
+    <div class="custom-select" onclick="this.classList.toggle('open')">
+        <div class="select-selected">Select an option</div>
+        <div class="select-items">
+            <div>Option 1</div>
+            <div>Option 2</div>
+            <div>Option 3</div>
+        </div>
+    </div>
+    
+    <!-- VIOLATION 4: Image map without keyboard accessible alternative -->
+    <map name="imagemap">
+        <area shape="rect" coords="0,0,100,100" href="#section1" alt="Section 1">
+        <area shape="rect" coords="100,0,200,100" href="#section2" alt="Section 2">
+    </map>
+    <img src="map.png" usemap="#imagemap" alt="Site map">
+    
+    <!-- VIOLATION 5: Modal dialog without focus trap -->
+    <div id="modal" style="display: none; position: fixed; top: 50%; left: 50%;">
+        <h2>Modal Title</h2>
+        <p>This modal doesn't trap focus or handle Escape key</p>
+        <button onclick="document.getElementById('modal').style.display='none'">Close</button>
+    </div>
+    
+    <footer>
+        <p>Expected violations: 5+ keyboard accessibility issues</p>
+        <p>WCAG Criteria: 2.1.1 (Level A), 2.1.2 (Level A)</p>
+        <p>Success Criterion: Keyboard, No Keyboard Trap</p>
+    </footer>
+</body>
+</html>

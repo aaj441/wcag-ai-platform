@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WCAG Violation: Broken Heading Hierarchy</title>
+</head>
+<body>
+    <!-- VIOLATION 1: Page starts with H2 instead of H1 -->
+    <h2>Welcome to Our Website</h2>
+    
+    <p>This page has several heading hierarchy violations.</p>
+    
+    <!-- VIOLATION 2: Skipped from H2 to H4 -->
+    <h4>Section Title</h4>
+    <p>This heading skips H3, breaking the hierarchy.</p>
+    
+    <!-- VIOLATION 3: Multiple H1 elements -->
+    <h1>First Main Heading</h1>
+    <p>Content under first H1</p>
+    
+    <h1>Second Main Heading</h1>
+    <p>Multiple H1s confuse document structure</p>
+    
+    <!-- VIOLATION 4: Heading used for styling, not structure -->
+    <h3 style="font-size: 12px;">Small text that looks like a paragraph</h3>
+    <p>But it's marked as a heading for visual styling only.</p>
+    
+    <!-- VIOLATION 5: Heading hierarchy goes backwards -->
+    <h2>Section Two</h2>
+    <h3>Subsection</h3>
+    <h5>Sub-subsection that skips H4</h5>
+    
+    <footer>
+        <p>Expected violations: 5+ heading hierarchy issues</p>
+        <p>WCAG Criteria: 1.3.1 (Level A), 2.4.6 (Level AA)</p>
+        <p>Success Criterion: Info and Relationships, Headings and Labels</p>
+    </footer>
+</body>
+</html>
