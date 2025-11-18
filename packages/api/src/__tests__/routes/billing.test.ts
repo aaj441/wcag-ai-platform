@@ -425,10 +425,6 @@ describe('Billing Routes', () => {
 
   describe('Webhook idempotency', () => {
     it('should handle duplicate webhook events safely', async () => {
-      const mockSubscription = {
-        id: 'sub_123',
-        metadata: { clientId: 'client-123' },
-      };
 
       (prisma.client.update as jest.Mock).mockResolvedValue({
         id: 'client-123',
