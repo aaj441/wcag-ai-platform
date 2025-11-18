@@ -7,6 +7,7 @@ import { getAllDrafts, getDraftById, createDraft, updateDraft, deleteDraft } fro
 import { ApiResponse, EmailDraft } from '../types';
 import { autoTagDraft } from '../services/keywordExtractor';
 import { generateAlertsForDraft, getDraftsNeedingAttention, getAlertStats } from '../services/keywordAlerting';
+import { validate, createDraftSchema, updateDraftSchema } from '../middleware/validation';
 
 const router = Router();
 
@@ -109,19 +110,11 @@ router.get('/:id', (req: Request, res: Response) => {
 /**
  * POST /api/drafts
  * Create a new email draft
+ * SECURITY: Input validation with Zod
  */
-router.post('/', (req: Request, res: Response) => {
+router.post('/', validate({ body: createDraftSchema }), (req: Request, res: Response) => {
   try {
     const { recipient, subject, body, violations, recipientName, company, tags, notes, keywordTags } = req.body;
-
-    // Validation
-    if (!recipient || !subject || !body) {
-      const response: ApiResponse = {
-        success: false,
-        error: 'Missing required fields: recipient, subject, body',
-      };
-      return res.status(400).json(response);
-    }
 
     // Auto-extract keywords from violations and body
     const violationList = violations || [];
@@ -160,8 +153,9 @@ router.post('/', (req: Request, res: Response) => {
 /**
  * PUT /api/drafts/:id
  * Update an existing draft
+ * SECURITY: Input validation with Zod
  */
-router.put('/:id', (req: Request, res: Response) => {
+router.put('/:id', validate({ body: updateDraftSchema }), (req: Request, res: Response) => {
   try {
     const updates = req.body;
     

@@ -3,6 +3,7 @@
  * Parallel WCAG accessibility scanning (MVP version without axe-core)
  */
 
+import { randomUUID } from 'crypto';
 import puppeteer, { Browser } from 'puppeteer';
 import { log } from '../utils/logger';
 
@@ -43,10 +44,10 @@ export class BatchAuditService {
   private static browserPool: Browser[] = [];
 
   /**
-   * Create a new batch audit job
+   * Create a new batch audit job (SECURITY: using crypto.randomUUID())
    */
   static createAuditJob(websites: string[]): AuditJob {
-    const jobId = `audit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const jobId = `audit_${randomUUID()}`;
 
     const job: AuditJob = {
       jobId,
