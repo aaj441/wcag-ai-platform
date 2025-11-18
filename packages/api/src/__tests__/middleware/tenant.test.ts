@@ -210,11 +210,13 @@ describe('Tenant Isolation Middleware', () => {
     });
 
     it('should handle errors gracefully', async () => {
-      mockReq.client = {
-        get scansRemaining() {
+      // Simulate an error by setting client to an object that throws when accessed
+      Object.defineProperty(mockReq, 'client', {
+        get() {
           throw new Error('Property access error');
         },
-      };
+        configurable: true,
+      });
 
       await checkScanQuota(mockReq as Request, mockRes as Response, mockNext);
 

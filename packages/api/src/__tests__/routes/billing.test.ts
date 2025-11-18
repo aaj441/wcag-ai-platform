@@ -4,7 +4,6 @@
  */
 
 import { describe, it, expect, beforeEach, jest, beforeAll } from '@jest/globals';
-import request from 'supertest';
 import express, { Express } from 'express';
 import Stripe from 'stripe';
 import prisma from '../../lib/prisma';
@@ -68,17 +67,6 @@ describe('Billing Routes', () => {
     });
 
     it('should reject webhook without signature', async () => {
-      const mockEvent = {
-        type: 'customer.subscription.created',
-        data: {
-          object: {
-            id: 'sub_123',
-            customer: 'cus_123',
-            metadata: { clientId: 'client-123' },
-          },
-        },
-      };
-
       mockStripe.webhooks.constructEvent.mockImplementation(() => {
         throw new Error('No signature');
       });
@@ -88,18 +76,6 @@ describe('Billing Routes', () => {
     });
 
     it('should handle subscription created event', async () => {
-      const mockSubscription: Partial<Stripe.Subscription> = {
-        id: 'sub_123',
-        customer: 'cus_123',
-        status: 'active',
-        items: {
-          data: [{
-            price: { id: 'price_pro' },
-          }],
-        } as any,
-        metadata: { clientId: 'client-123' },
-      };
-
       (prisma.client.update as jest.Mock).mockResolvedValue({
         id: 'client-123',
         subscriptionId: 'sub_123',
@@ -163,25 +139,12 @@ describe('Billing Routes', () => {
     });
 
     it('should handle payment succeeded event', async () => {
-      const mockClient = {
-        id: 'client-123',
-        email: 'test@example.com',
-        tier: 'pro',
-        stripeCustomerId: 'cus_123',
-      };
-
       // Mock is set up in setup.ts, just verify the structure
       expect(prisma).toBeDefined();
       expect(mockStripe.webhooks.constructEvent).toBeDefined();
     });
 
     it('should handle payment failed event and suspend client', async () => {
-      const mockClient = {
-        id: 'client-123',
-        email: 'test@example.com',
-        stripeCustomerId: 'cus_123',
-      };
-
       // Mock is set up in setup.ts, just verify the structure
       expect(prisma).toBeDefined();
       expect(prisma.client).toBeDefined();
@@ -425,11 +388,6 @@ describe('Billing Routes', () => {
 
   describe('Webhook idempotency', () => {
     it('should handle duplicate webhook events safely', async () => {
-      const mockSubscription = {
-        id: 'sub_123',
-        metadata: { clientId: 'client-123' },
-      };
-
       (prisma.client.update as jest.Mock).mockResolvedValue({
         id: 'client-123',
         subscriptionId: 'sub_123',

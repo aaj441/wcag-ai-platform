@@ -72,9 +72,11 @@ global.ResizeObserver = class ResizeObserver {
   unobserve() {}
 } as any;
 
-// Suppress console errors and warnings in tests (can be overridden per test)
+// Suppress console output during tests (can be overridden per test)
 global.console = {
   ...console,
-  error: vi.fn(),
-  warn: vi.fn(),
+  log: vi.fn(),
+  debug: vi.fn(),
+  info: vi.fn(),
+  // Keep error and warn visible for debugging test failures
 };

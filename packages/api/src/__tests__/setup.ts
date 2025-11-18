@@ -106,16 +106,13 @@ jest.mock('puppeteer', () => ({
   })),
 }));
 
-// Global test utilities
+// Suppress console output during tests (can be overridden per test)
 global.console = {
   ...console,
-  // Suppress console logs during tests (can be overridden per test)
   log: jest.fn(),
   debug: jest.fn(),
   info: jest.fn(),
-  // Keep error and warn for debugging
-  error: console.error,
-  warn: console.warn,
+  // Keep error and warn visible for debugging test failures
 };
 
 // Cleanup after each test

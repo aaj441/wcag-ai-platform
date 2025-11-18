@@ -21,7 +21,9 @@ describe('BatchAuditService', () => {
   let mockPage: any;
 
   beforeEach(() => {
-    // Reset the internal state
+    // Reset the internal state by accessing private member
+    // This is necessary for test isolation as BatchAuditService uses a singleton pattern
+    // with static state that persists between tests
     (BatchAuditService as any).jobs = new Map();
 
     // Create mock page
@@ -39,7 +41,7 @@ describe('BatchAuditService', () => {
     };
 
     // Mock puppeteer.launch
-    (puppeteer.launch as jest.Mock).mockResolvedValue(mockBrowser);
+    (puppeteer.launch as jest.MockedFunction<typeof puppeteer.launch>).mockResolvedValue(mockBrowser);
 
     jest.clearAllMocks();
   });
@@ -148,7 +150,9 @@ describe('BatchAuditService', () => {
 
       const job = BatchAuditService.createAuditJob(['https://example.com']);
 
-      // Wait for processing
+      // Wait for asynchronous processing to complete
+      // Note: This uses a fixed delay which may be flaky on slower systems
+      // TODO: Consider using Jest fake timers or polling job status for more reliable tests
       await new Promise(resolve => setTimeout(resolve, 100));
 
       const status = BatchAuditService.getJobStatus(job.jobId);
