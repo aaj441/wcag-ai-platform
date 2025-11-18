@@ -18,7 +18,7 @@ Requirements:
 import os
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 import argparse
 
@@ -30,7 +30,7 @@ try:
 except ImportError as e:
     print(f"Missing dependency: {e}")
     print("Install with: pip install spotipy requests anthropic")
-    exit(1)
+    import sys; sys.exit(1)
 
 # Configure logging
 logging.basicConfig(
@@ -117,7 +117,7 @@ class MusicMetadataSync:
                     }
                     for album in albums['items']
                 ],
-                'fetched_at': datetime.utcnow().isoformat(),
+                'fetched_at': datetime.now(datetime.timezone.utc).isoformat(),
             }
             
             logger.info(f"Fetched Spotify data: {len(metadata['top_tracks'])} tracks, {len(metadata['albums'])} albums")
@@ -135,7 +135,7 @@ class MusicMetadataSync:
         logger.info(f"Fetching Last.fm metadata for: {artist_name}")
         
         try:
-            url = 'http://ws.audioscrobbler.com/2.0/'
+            url = 'https://ws.audioscrobbler.com/2.0/'
             params = {
                 'method': 'artist.getinfo',
                 'artist': artist_name,
@@ -163,7 +163,7 @@ class MusicMetadataSync:
                     'tags': [tag['name'] for tag in artist.get('tags', {}).get('tag', [])],
                     'image': artist.get('image', [{}])[-1].get('#text'),
                 },
-                'fetched_at': datetime.utcnow().isoformat(),
+                'fetched_at': datetime.now(datetime.timezone.utc).isoformat(),
             }
             
             logger.info(f"Fetched Last.fm data: {metadata['artist']['listeners']} listeners")
@@ -222,7 +222,7 @@ Output only the description, no preamble."""
                 'tags': [],
             },
             'accessible_description': '',
-            'synced_at': datetime.utcnow().isoformat(),
+            'synced_at': datetime.now(datetime.timezone.utc).isoformat(),
         }
         
         # Add platform-specific data
