@@ -275,6 +275,52 @@ router.patch('/:id/reject', (req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/drafts/approve-all
+ * Bulk approve all drafts with pending_review status
+ */
+router.post('/approve-all', (req: Request, res: Response) => {
+  try {
+    const { approvedBy } = req.body;
+    const allDrafts = getAllDrafts();
+    
+    // Filter only pending_review drafts
+    const pendingDrafts = allDrafts.filter(d => d.status === 'pending_review');
+    
+    if (pendingDrafts.length === 0) {
+      const response: ApiResponse = {
+        success: true,
+        data: { count: 0, drafts: [] },
+        message: 'No pending drafts to approve',
+      };
+      return res.json(response);
+    }
+    
+    // Approve each draft
+    const approvedDrafts = pendingDrafts.map(draft => {
+      return updateDraft(draft.id, {
+        status: 'approved',
+        approvedBy: approvedBy || 'admin@wcag-ai.com',
+        approvedAt: new Date(),
+      });
+    }).filter(d => d !== null);
+    
+    const response: ApiResponse = {
+      success: true,
+      data: { count: approvedDrafts.length, drafts: approvedDrafts },
+      message: `${approvedDrafts.length} draft(s) approved successfully`,
+    };
+    
+    res.json(response);
+  } catch (error) {
+    const response: ApiResponse = {
+      success: false,
+      error: 'Failed to approve drafts',
+    };
+    res.status(500).json(response);
+  }
+});
+
+/**
  * PATCH /api/drafts/:id/send
  * Mark draft as sent
  */
