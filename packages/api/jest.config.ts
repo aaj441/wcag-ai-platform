@@ -32,10 +32,8 @@ const config: Config = {
   transformIgnorePatterns: [
     'node_modules/(?!(supertest)/)',
   ],
-  globals: {
-    'ts-jest': {
-      isolatedModules: true,
-    },
+  transform: {
+    '^.+\\.ts$': ['ts-jest', { isolatedModules: true }],
   },
 };
 
