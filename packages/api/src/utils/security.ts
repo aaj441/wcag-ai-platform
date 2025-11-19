@@ -5,7 +5,7 @@
 
 import path from 'path';
 import crypto from 'crypto';
-
+import sanitizeHtmlLib from 'sanitize-html';
 /**
  * Sanitize file path to prevent path traversal attacks
  * @param basePath - The base directory that should contain the file
@@ -118,12 +118,8 @@ export function safeRegexExec(
  * @returns Sanitized HTML
  */
 export function sanitizeHtml(html: string): string {
-  // Remove script tags and event handlers
-  return html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
-    .replace(/on\w+\s*=\s*[^\s>]*/gi, '')
-    .replace(/javascript:/gi, '');
+  // Use sanitize-html to remove any unsafe HTML, including scripts and event handlers
+  return sanitizeHtmlLib(html);
 }
 
 /**
