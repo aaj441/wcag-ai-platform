@@ -6,6 +6,8 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import draftsRouter from './routes/drafts';
 import violationsRouter from './routes/violations';
 import leadsRouter from './routes/leads';
@@ -26,13 +28,15 @@ import { initializeSentry, sentryErrorHandler } from './services/monitoring';
 import { getScanQueue } from './services/orchestration/ScanQueue';
 import { getPuppeteerService } from './services/orchestration/PuppeteerService';
 import { log } from './utils/logger';
+import { apiLimiter, scanLimiter } from './middleware/security';
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
+// SECURITY: Default to localhost in development, require explicit CORS_ORIGIN in production
+const CORS_ORIGIN = process.env.CORS_ORIGIN || (process.env.NODE_ENV === 'production' ? 'https://yourdomain.com' : 'http://localhost:3000');
 
 // ============================================================================
 // MONITORING INITIALIZATION
@@ -45,15 +49,51 @@ initializeSentry(app);
 // MIDDLEWARE
 // ============================================================================
 
-// CORS configuration
+// Security headers (MUST be first)
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for API responses
+      imgSrc: ["'self'", 'data:', 'https:'],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+    },
+  },
+  hsts: {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+    preload: true,
+  },
+  frameguard: {
+    action: 'deny',
+  },
+  noSniff: true,
+  xssFilter: true,
+  referrerPolicy: {
+    policy: 'strict-origin-when-cross-origin',
+  },
+}));
+
+// CORS configuration (restricted origins)
 app.use(cors({
   origin: CORS_ORIGIN,
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'x-tenant-id'],
+  maxAge: 86400, // 24 hours
 }));
 
-// Body parsing
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Body parsing (with size limits)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Global rate limiting for all API routes
+app.use('/api', apiLimiter);
 
 // Request logging
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -129,13 +169,26 @@ app.use((req: Request, res: Response) => {
   });
 });
 
-// Global error handler
+// Global error handler (SECURITY: Never leak stack traces in production)
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error('Error:', err);
+
+  // Log full error details internally
+  log.error('Unhandled error', err, {
+    path: req.path,
+    method: req.method,
+    ip: req.ip,
+  });
+
+  // Return sanitized error to client
   res.status(500).json({
     success: false,
     error: 'Internal server error',
-    message: process.env.NODE_ENV === 'development' ? err.message : undefined,
+    // Only expose error details in development
+    ...(process.env.NODE_ENV === 'development' && {
+      message: err.message,
+      // Stack traces are NEVER sent, even in development
+    }),
   });
 });
 

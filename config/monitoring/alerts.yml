@@ -1,0 +1,163 @@
+# Alert Configuration for WCAG AI Platform
+# Auto-rollback triggers and incident notifications
+
+alerts:
+  # Critical - Immediate Action Required
+  - name: high_error_rate
+    severity: critical
+    condition: "error_rate > 5% for 5 minutes"
+    query: "(sum:wcagai.errors.count{env:production}.as_rate() / sum:wcagai.requests.count{env:production}.as_rate()) * 100 > 5"
+    notification:
+      - pagerduty: production-oncall
+      - slack: "#incidents"
+    action:
+      - auto_rollback: true
+      - create_incident: true
+
+  - name: api_down
+    severity: critical
+    condition: "health_check fails for 2 minutes"
+    query: "avg(last_5m):avg:wcagai.health.status{env:production} < 1"
+    notification:
+      - pagerduty: production-oncall
+      - slack: "#incidents"
+    action:
+      - create_incident: true
+
+  - name: database_connection_failure
+    severity: critical
+    condition: "database connection fails"
+    query: "avg(last_2m):avg:wcagai.database.health{env:production} < 1"
+    notification:
+      - pagerduty: production-oncall
+      - slack: "#incidents"
+
+  # High - Action Required Soon
+  - name: high_response_time
+    severity: high
+    condition: "p95 response time > 1000ms for 10 minutes"
+    query: "avg(last_10m):avg:wcagai.response_time.p95{env:production} > 1000"
+    notification:
+      - slack: "#alerts"
+    action:
+      - create_incident: false
+
+  - name: scan_failure_rate_high
+    severity: high
+    condition: "scan failure rate > 10% for 15 minutes"
+    query: "(sum:wcagai.scans.failed{env:production}.as_rate() / sum:wcagai.scans.created{env:production}.as_rate()) * 100 > 10"
+    notification:
+      - slack: "#alerts"
+      - email: engineering@wcagai.com
+
+  - name: memory_leak_detected
+    severity: high
+    condition: "heap memory continuously increasing for 30 minutes"
+    query: "avg(last_30m):avg:wcagai.process.heap_used{env:production} > 1024"
+    notification:
+      - slack: "#alerts"
+
+  # Medium - Monitor and Investigate
+  - name: elevated_response_time
+    severity: medium
+    condition: "p95 response time > 500ms for 15 minutes"
+    query: "avg(last_15m):avg:wcagai.response_time.p95{env:production} > 500"
+    notification:
+      - slack: "#monitoring"
+
+  - name: rate_limit_violations_high
+    severity: medium
+    condition: "rate limit violations > 100/hour"
+    query: "sum(last_1h):sum:wcagai.rate_limit.exceeded{env:production} > 100"
+    notification:
+      - slack: "#security"
+
+  - name: failed_auth_attempts_spike
+    severity: medium
+    condition: "failed auth attempts > 50/hour"
+    query: "sum(last_1h):sum:wcagai.auth.failed{env:production} > 50"
+    notification:
+      - slack: "#security"
+
+  # Low - Informational
+  - name: deployment_complete
+    severity: low
+    condition: "deployment event"
+    notification:
+      - slack: "#deployments"
+
+  - name: daily_metrics_report
+    severity: low
+    condition: "daily at 9am UTC"
+    notification:
+      - email: team@wcagai.com
+    report:
+      - total_scans: sum(last_24h):wcagai.scans.created
+      - total_errors: sum(last_24h):wcagai.errors.count
+      - average_response_time: avg(last_24h):wcagai.response_time.p95
+      - uptime: avg(last_24h):wcagai.uptime
+
+# Auto-Rollback Configuration
+auto_rollback:
+  enabled: true
+  triggers:
+    - error_rate_threshold: 5  # percentage
+      duration_minutes: 5
+    - response_time_threshold: 2000  # milliseconds (p95)
+      duration_minutes: 10
+    - health_check_failures: 3
+      duration_minutes: 2
+
+  actions:
+    - notify_team: true
+    - create_incident: true
+    - rollback_deployment: true
+    - post_rollback_verify: true
+
+  notification_channels:
+    - slack: "#incidents"
+    - pagerduty: "production-oncall"
+    - email: "oncall@wcagai.com"
+
+# SLA Tracking
+sla:
+  uptime_target: 99.9  # percentage
+  response_time_target: 500  # ms (p95)
+  error_rate_target: 1  # percentage
+
+  reporting:
+    - frequency: daily
+      recipients:
+        - email: leadership@wcagai.com
+    - frequency: monthly
+      recipients:
+        - email: stakeholders@wcagai.com
+
+# Incident Management
+incident:
+  severity_levels:
+    critical:
+      response_time: "15 minutes"
+      resolution_time: "4 hours"
+      escalation: "immediate"
+
+    high:
+      response_time: "1 hour"
+      resolution_time: "24 hours"
+      escalation: "if not acknowledged in 30min"
+
+    medium:
+      response_time: "4 hours"
+      resolution_time: "7 days"
+      escalation: "if not resolved in 48h"
+
+    low:
+      response_time: "24 hours"
+      resolution_time: "30 days"
+      escalation: "none"
+
+  post_mortem_required:
+    - critical: always
+    - high: if user-impacting
+    - medium: optional
+    - low: no

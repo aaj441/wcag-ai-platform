@@ -11,7 +11,7 @@
 import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { getCircuitBreakerHealth } from '../services/orchestration/ExternalAPIClient';
-import { scanQueue } from '../services/orchestration/ScanQueue';
+import { getScanQueue } from '../services/orchestration/ScanQueue';
 
 const router = Router();
 
@@ -36,9 +36,6 @@ router.get('/detailed', async (req: Request, res: Response) => {
     status: 'healthy',
     checks: {
       database: { status: 'unknown', responseTime: 0 },
-      stripe: { status: 'unknown' },
-      sendgrid: { status: 'unknown' },
-      clerk: { status: 'unknown' },
       redis: { status: 'unknown' },
     },
     circuitBreakers: {},
@@ -77,25 +74,15 @@ router.get('/detailed', async (req: Request, res: Response) => {
     };
   }
 
-  // Stripe check
-  checks.checks.stripe = {
-    status: process.env.STRIPE_SECRET_KEY ? 'configured' : 'not_configured'
-  };
-
-  // SendGrid check
-  checks.checks.sendgrid = {
-    status: process.env.SENDGRID_API_KEY ? 'configured' : 'not_configured'
-  };
-
-  // Clerk check
-  checks.checks.clerk = {
-    status: process.env.CLERK_SECRET_KEY ? 'configured' : 'not_configured'
-  };
+  // SECURITY: Don't expose environment variable configuration status
+  // External service checks removed to prevent information disclosure
+  // Monitoring should be done through internal dashboards, not public endpoints
 
   // Redis check (via queue)
   try {
-    if (scanQueue) {
-      const queueClient = await scanQueue.client;
+    const scanQueue = getScanQueue();
+    if (scanQueue && 'client' in scanQueue) {
+      const queueClient = await (scanQueue as any).client;
       await queueClient.ping();
       checks.checks.redis = { status: 'healthy' };
     } else {
@@ -125,9 +112,10 @@ router.get('/detailed', async (req: Request, res: Response) => {
 
   // Queue Capacity Tracking (MEGA PROMPT 1)
   try {
-    if (scanQueue) {
-      const counts = await scanQueue.getJobCounts();
-      const stats = scanQueue.getStats();
+    const scanQueue = getScanQueue();
+    if (scanQueue && 'getJobCounts' in scanQueue) {
+      const counts = await (scanQueue as any).getJobCounts();
+      const stats = (scanQueue as any).getStats();
 
       const maxCapacity = 100; // Configure based on your system
       const totalJobs = counts.waiting + counts.active;

@@ -1,10 +1,11 @@
 /**
  * Site Transformation Service
- * 
+ *
  * Extracts, transforms, and rebuilds websites to be WCAG compliant
  * Implements the strategic pivot to AI-powered site remediation
  */
 
+import { randomUUID } from 'crypto';
 import { log } from '../utils/logger';
 import { aiService } from './AIService';
 import { RemediationEngine } from './RemediationEngine';
@@ -416,10 +417,10 @@ For questions or issues, contact support@wcagai.com
   }
 
   /**
-   * Generate unique ID
+   * Generate unique ID (SECURITY: using crypto.randomUUID())
    */
   private generateId(): string {
-    return `transform_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return `transform_${randomUUID()}`;
   }
 }
 

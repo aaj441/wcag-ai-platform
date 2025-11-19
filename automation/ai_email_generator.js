@@ -18,6 +18,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const Anthropic = require('@anthropic-ai/sdk').default;
 const axios = require('axios');
+const { sanitizeFilename, safePathJoin } = require('../backend/src/utils/securityUtils');
 
 // Configuration
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
@@ -331,17 +332,26 @@ class EmailGenerator {
    * Save email to file
    */
   async saveEmail(email, companyName) {
-    const filename = `${companyName.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${Date.now()}.json`;
-    const filepath = path.join(this.outputDir, filename);
+    try {
+      // Sanitize company name to prevent path traversal
+      const sanitizedName = companyName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+      const filename = `${sanitizedName}-${Date.now()}.json`;
 
-    await fs.writeFile(filepath, JSON.stringify(email, null, 2));
-    console.log(`[EmailGenerator] Saved to ${filepath}`);
+      // Use safe path joining to prevent path traversal
+      const filepath = safePathJoin(this.outputDir, filename);
 
-    // Also save plain text version
-    const txtFilename = filename.replace('.json', '.txt');
-    const txtFilepath = path.join(this.outputDir, txtFilename);
-    const plainText = `Subject: ${email.subject}\n\n${email.body}`;
-    await fs.writeFile(txtFilepath, plainText);
+      await fs.writeFile(filepath, JSON.stringify(email, null, 2));
+      console.log(`[EmailGenerator] Saved to ${filepath}`);
+
+      // Also save plain text version
+      const txtFilename = filename.replace('.json', '.txt');
+      const txtFilepath = safePathJoin(this.outputDir, txtFilename);
+      const plainText = `Subject: ${email.subject}\n\n${email.body}`;
+      await fs.writeFile(txtFilepath, plainText);
+    } catch (error) {
+      console.error(`[EmailGenerator] Error saving email for ${companyName}: ${error.message}`);
+      throw error;
+    }
   }
 
   /**
@@ -372,7 +382,8 @@ class EmailGenerator {
     console.log(`\n[EmailGenerator] Batch complete: ${successful}/${prospects.length} successful`);
 
     // Save summary
-    const summaryPath = path.join(this.outputDir, `batch-summary-${Date.now()}.json`);
+    const summaryFilename = `batch-summary-${Date.now()}.json`;
+    const summaryPath = safePathJoin(this.outputDir, summaryFilename);
     await fs.writeFile(summaryPath, JSON.stringify(results, null, 2));
     console.log(`[EmailGenerator] Summary saved to ${summaryPath}`);
 

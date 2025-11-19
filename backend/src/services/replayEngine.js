@@ -15,6 +15,7 @@ const crypto = require('crypto');
 const fs = require('fs').promises;
 const path = require('path');
 const { diff } = require('deep-diff');
+const { sanitizeIdentifier, safePathJoin } = require('../utils/securityUtils');
 
 // Register adapters and persisters
 Polly.register(NodeHttpAdapter);
@@ -360,21 +361,24 @@ class ReplayEngine {
    * @param {string} scanId - Scan identifier
    */
   async deleteRecording(scanId) {
-    const recording = this.recordingIndex.get(scanId);
-    if (!recording) {
-      throw new Error(`Recording not found: ${scanId}`);
-    }
-
     try {
-      // Delete recording files
-      const recordingPath = path.join(this.recordingsPath, `${recording.recordingName}.har`);
-      const metadataPath = path.join(this.recordingsPath, `${scanId}_metadata.json`);
-      
+      // Sanitize scanId to prevent path traversal
+      const sanitizedScanId = sanitizeIdentifier(scanId);
+
+      const recording = this.recordingIndex.get(sanitizedScanId);
+      if (!recording) {
+        throw new Error(`Recording not found: ${scanId}`);
+      }
+
+      // Delete recording files using safe path joining
+      const recordingPath = safePathJoin(this.recordingsPath, `${recording.recordingName}.har`);
+      const metadataPath = safePathJoin(this.recordingsPath, `${sanitizedScanId}_metadata.json`);
+
       await fs.unlink(recordingPath).catch(() => {});
       await fs.unlink(metadataPath).catch(() => {});
 
-      this.recordingIndex.delete(scanId);
-      
+      this.recordingIndex.delete(sanitizedScanId);
+
       console.log(`🗑️  Recording deleted: ${scanId}`);
     } catch (error) {
       console.error(`Failed to delete recording ${scanId}:`, error);
@@ -388,23 +392,31 @@ class ReplayEngine {
    * @returns {Object} Exported recording data
    */
   async exportRecording(scanId) {
-    const recording = this.recordingIndex.get(scanId);
-    if (!recording) {
-      throw new Error(`Recording not found: ${scanId}`);
+    try {
+      // Sanitize scanId to prevent path traversal
+      const sanitizedScanId = sanitizeIdentifier(scanId);
+
+      const recording = this.recordingIndex.get(sanitizedScanId);
+      if (!recording) {
+        throw new Error(`Recording not found: ${scanId}`);
+      }
+
+      const recordingPath = safePathJoin(this.recordingsPath, `${recording.recordingName}.har`);
+      const harContent = await fs.readFile(recordingPath, 'utf8');
+
+      return {
+        scanId: sanitizedScanId,
+        recordedAt: recording.recordedAt,
+        metadata: recording.metadata,
+        events: recording.events,
+        finalState: recording.finalState,
+        harFile: harContent,
+        duration: recording.duration
+      };
+    } catch (error) {
+      console.error(`Failed to export recording ${scanId}:`, error);
+      throw error;
     }
-
-    const recordingPath = path.join(this.recordingsPath, `${recording.recordingName}.har`);
-    const harContent = await fs.readFile(recordingPath, 'utf8');
-
-    return {
-      scanId,
-      recordedAt: recording.recordedAt,
-      metadata: recording.metadata,
-      events: recording.events,
-      finalState: recording.finalState,
-      harFile: harContent,
-      duration: recording.duration
-    };
   }
 
   /**
@@ -422,8 +434,15 @@ class ReplayEngine {
    * @private
    */
   async saveRecordingMetadata(scanId, recordingInfo) {
-    const metadataPath = path.join(this.recordingsPath, `${scanId}_metadata.json`);
-    await fs.writeFile(metadataPath, JSON.stringify(recordingInfo, null, 2));
+    try {
+      // Sanitize scanId to prevent path traversal
+      const sanitizedScanId = sanitizeIdentifier(scanId);
+      const metadataPath = safePathJoin(this.recordingsPath, `${sanitizedScanId}_metadata.json`);
+      await fs.writeFile(metadataPath, JSON.stringify(recordingInfo, null, 2));
+    } catch (error) {
+      console.error(`Failed to save metadata for ${scanId}:`, error);
+      throw error;
+    }
   }
 
   /**
@@ -436,9 +455,17 @@ class ReplayEngine {
       const metadataFiles = files.filter(f => f.endsWith('_metadata.json'));
 
       for (const file of metadataFiles) {
-        const metadataPath = path.join(this.recordingsPath, file);
-        const metadata = JSON.parse(await fs.readFile(metadataPath, 'utf8'));
-        this.recordingIndex.set(metadata.scanId, metadata);
+        try {
+          // Safe path joining - file comes from fs.readdir
+          const metadataPath = safePathJoin(this.recordingsPath, file);
+          const metadata = JSON.parse(await fs.readFile(metadataPath, 'utf8'));
+
+          // Sanitize scanId from metadata
+          const sanitizedScanId = sanitizeIdentifier(metadata.scanId);
+          this.recordingIndex.set(sanitizedScanId, metadata);
+        } catch (error) {
+          console.warn(`Failed to load metadata file ${file}:`, error.message);
+        }
       }
 
       console.log(`📦 Loaded ${this.recordingIndex.size} recordings`);
