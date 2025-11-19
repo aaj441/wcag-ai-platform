@@ -803,10 +803,367 @@
 
 ---
 
+## Mega Prompt #11: 100% Reproducibility & Determinism Engineering
+
+**Objective:** Achieve cryptographically-verifiable, 100% reproducible builds and tests across all environments, enabling zero-trust deployment confidence and deterministic fix generation.
+
+**Current State:**
+- Railway auto-scaling deployments
+- GitHub Actions CI/CD (13 workflows)
+- Node.js + TypeScript builds
+- Jest testing framework
+- Docker containerization
+- PostgreSQL migrations
+- Frontend bundle generation
+- Manual reproducibility verification
+
+**Requirements:**
+
+### **Pillar 1: Dependency Lockfile Integrity Audit**
+1. **Lockfile Verification**:
+   - Verify all dependency files present (package-lock.json, yarn.lock, etc.)
+   - Ensure lockfiles up-to-date with manifest files
+   - Confirm lockfiles committed to repository
+
+2. **Reproducible Installation**:
+   - Fresh clone in temporary directory
+   - Install dependencies using ONLY lockfile
+   - Repeat 3 times in isolated environments
+   - Generate SHA-256 hash of dependency tree
+   - Verify all 3 hashes match exactly
+
+3. **Lockfile Analysis**:
+   - Document version resolution ambiguities
+   - Identify missing lockfiles
+   - Flag any transitive dependency conflicts
+   - Track dependency tree changes over time
+
+**Deliverable:** Automated lockfile integrity CI check
+
+### **Pillar 2: Container Build Idempotency Test**
+1. **Deterministic Docker Builds**:
+   - Build container 3 times from scratch with `docker build --no-cache`
+   - Use exact same commit hash for each build
+   - Tag builds uniquely (build-1, build-2, build-3)
+   - Capture image layer hashes with `docker inspect`
+   - Compare environment variables and metadata
+
+2. **Idempotency Verification**:
+   - Byte-for-byte comparison of all three builds
+   - Identify timestamp injections or dynamic values
+   - Trace non-determinism to source:
+     - Package index updates
+     - Timestamp injection
+     - Non-deterministic build steps
+     - Ordering issues in file systems
+
+3. **Layer Forensics**:
+   - Analyze each layer individually
+   - Generate checksums per layer
+   - Document any layer variance
+   - Archive build artifacts for audit trail
+
+**Deliverable:** Docker reproducible build verification workflow
+
+### **Pillar 3: Build Artifact Cryptographic Verification**
+1. **Triple-Build Validation**:
+   - Execute full build process 3 times in isolated environments
+   - Fresh container or VM for each build
+   - Compile, bundle, and package in each run
+   - Generate SHA-256 checksums for ALL artifacts:
+     - Binaries and executables
+     - JavaScript bundles
+     - CSS outputs
+     - Distribution packages
+     - Source maps
+
+2. **Determinism Analysis**:
+   - Compare checksums across all 3 runs
+   - Identify any artifact differences
+   - Use binary diffing to pinpoint non-determinism
+   - Flag sources:
+     - Timestamps
+     - File paths
+     - Random values
+     - Parallel ordering issues
+     - Source map generation
+
+3. **Artifact Inventory**:
+   - Generate manifest of all build outputs
+   - Track artifact sizes and types
+   - Archive checksums for reproducibility proof
+   - Create audit trail of build process
+
+**Deliverable:** Build artifact verification system with cryptographic hashing
+
+### **Pillar 4: Test Suite Determinism Deep-Dive**
+1. **Flaky Test Detection**:
+   - Run complete test suite 10 times sequentially
+   - Identical environment for each run
+   - Capture execution order, duration, and output
+   - Use diff tools to compare ALL outputs
+
+2. **Test Variance Analysis**:
+   - Identify any test with non-identical output
+   - Audit flaky tests for:
+     - Race conditions
+     - Reliance on system time
+     - Unordered data structures
+     - Network calls or external state
+     - Improperly seeded randomness
+     - Test order dependencies
+
+3. **Determinism Enforcement**:
+   - Flag any test that doesn't produce identical results 10/10 times
+   - Generate test flakiness report
+   - Block CI if any test shows variance
+   - Create incident for flaky test investigation
+
+**Deliverable:** Automated test determinism CI check (10-run validation)
+
+### **Pillar 5: Randomness and Seeding Audit**
+1. **Codebase Randomness Audit**:
+   - Search entire codebase for randomness sources:
+     - `Math.random()`
+     - `random` module imports
+     - `uuid` generation
+     - Hash salting
+     - Cryptographic nonce generation
+     - `Date.now()` usage
+     - Any time-based operations
+
+2. **Seeding Verification**:
+   - Verify each randomness source:
+     - Uses explicitly seeded pseudorandom generator, OR
+     - Documents why true randomness is required
+   - For each seeded instance:
+     - Log first 10 generated values
+     - Run twice, verify identical output
+     - Document seed value in code
+
+3. **Unseeded Detection**:
+   - Fail build if unseeded randomness detected
+   - Provide remediation guidance
+   - Create audit of all randomness in system
+   - Track seed values and their sources
+
+**Deliverable:** Randomness audit and seeding verification system
+
+### **Pillar 6: Documentation vs. Reality Synchronization Test**
+1. **Documentation Audit**:
+   - Read README setup instructions literally
+   - No assumed knowledge, no external docs
+   - Document every ambiguous step
+   - Note missing prerequisites
+   - Flag implicit assumptions
+
+2. **Automation Verification**:
+   - Convert documented steps into executable script
+   - Run script on fresh environment (container/VM)
+   - Verify results match documented expectations
+   - Compare manual process vs. automated process
+   - Flag any deviations
+
+3. **Contributor Onboarding Validation**:
+   - Test docs with first-time contributor (or simulator)
+   - Measure steps to successful setup
+   - Track time to first successful build
+   - Generate onboarding difficulty score
+   - Auto-update docs with clarifications
+
+**Deliverable:** Automated documentation validation and contributor onboarding script
+
+### **Pillar 7: CI/CD Pipeline Temporal Isolation Test**
+1. **External Dependency Pinning**:
+   - Examine CI configuration files:
+     - `.github/workflows/`
+     - `.gitlab-ci.yml`
+     - `.circleci/config.yml`
+   - Identify all external dependencies:
+     - `latest` tags
+     - Unpinned action versions
+     - Rolling release repositories
+     - API calls to external services
+   - Lock to specific immutable versions/hashes
+
+2. **Temporal Consistency Verification**:
+   - Create pinned version of CI config
+   - Run pipeline on same commit across 3 different days
+   - Verify output consistency regardless of date
+   - Identify time-dependent operations:
+     - Package repository updates
+     - Action version changes
+     - Cached dependencies expiring
+     - Scheduled jobs
+
+3. **CI Reproducibility Attestation**:
+   - Archive CI logs with checksums
+   - Document all CI decisions
+   - Track CI environment (runner OS, Docker versions)
+   - Create audit trail of CI behavior
+
+**Deliverable:** Pinned CI configuration with temporal isolation verification
+
+### **Pillar 8: Data and Asset Fingerprinting Verification**
+1. **Asset Inventory**:
+   - Identify all test data and assets:
+     - JSON fixtures
+     - Sample images/media
+     - Database dumps
+     - Static datasets
+     - Configuration files
+   - Generate MD5/SHA checksums for each file
+
+2. **Integrity Verification**:
+   - Verify assets committed in binary mode (not git-lfs)
+   - Confirm no preprocessing transforms assets
+   - Check for platform-specific variations:
+     - Line ending conversion
+     - Image re-encoding
+     - Sorting instability
+     - Timestamp metadata
+
+3. **Asset Mutation Detection**:
+   - Track asset checksums over time
+   - Alert on unexpected asset changes
+   - Document intentional asset updates
+   - Create asset audit log
+
+**Deliverable:** Asset fingerprinting and mutation detection system
+
+### **Pillar 9: Timestamp and Version Injection Elimination**
+1. **Dynamic Injection Audit**:
+   - Search build process for dynamic metadata injection:
+     - Webpack plugins
+     - Compiler flags
+     - Build scripts
+     - Version injection
+   - Identify every location injecting:
+     - Timestamps
+     - Build dates
+     - Git commit hashes
+     - Build duration
+     - System information
+
+2. **Static Versioning**:
+   - Replace dynamic values with static placeholders
+   - Version metadata from committed VERSION file
+   - Implement git tag versioning for releases
+   - Document all versioned values
+
+3. **Injection Elimination Verification**:
+   - Build twice
+   - Verify only explicitly versioned values differ
+   - Document every metadata injection point
+   - Create audit trail of version changes
+
+**Deliverable:** Timestamp elimination and static versioning system
+
+### **Pillar 10: Cross-Platform Path and Environment Normalization**
+1. **Multi-Platform Testing**:
+   - Build on 3 OS environments:
+     - Linux (Ubuntu)
+     - macOS
+     - Windows
+   - Use same commit hash for all builds
+   - Capture environment before each build:
+     - All environment variables
+     - File paths
+     - Shell configurations
+     - System information
+
+2. **Normalization and Comparison**:
+   - Normalize path separators and environment reporting
+   - Compare build outputs across platforms
+   - Identify platform-specific issues:
+     - Hardcoded paths
+     - Platform-specific shell commands
+     - Case-sensitivity assumptions
+     - Line ending differences
+
+3. **Cross-Platform Artifact Verification**:
+   - Verify functionally identical artifacts
+   - Document any necessary platform differences
+   - Test on actual devices/containers per platform
+   - Create cross-platform compatibility matrix
+
+**Deliverable:** Cross-platform build verification and normalization system
+
+### **Pillar 11: Reproducibility Attestation System**
+1. **Build Attestation**:
+   - Generate digital attestation for every build
+   - Include in attestation:
+     - Exact source code hash
+     - Full dependency tree
+     - Build environment details
+     - Artifact checksums
+     - Timestamp of build
+     - Builder identification
+
+2. **Attestation Signing**:
+   - Sign attestations with project key
+   - Store attestations in verifiable format
+   - Enable consumer verification:
+     - "This exact binary came from this exact source"
+     - "All dependencies match this pinned list"
+     - "Build was performed in verified environment"
+
+3. **Verification Tooling**:
+   - Create reproducibility verification tool
+   - Enable consumers to verify builds locally
+   - Generate verification reports
+   - Provide audit trail proof
+
+**Deliverable:** Reproducibility attestation and verification system
+
+**Deliverables:**
+- 10 automated reproducibility audit workflows
+- Reproducibility testing framework and utilities
+- CI/CD pipeline reproducibility integration
+- Build artifact verification system
+- Test determinism enforcement
+- Randomness audit and seeding verification
+- Cross-platform build verification
+- Documentation validation automation
+- Reproducibility attestation system
+- Agent-executable meta-prompts (10 detailed audit prompts)
+- Reproducibility dashboard and reporting
+
+**Success Metrics:**
+- 100% deterministic builds (3/3 triple-build match rate)
+- 100% test determinism (10/10 test runs identical)
+- 0 flaky tests in CI
+- 100% lockfile integrity verification
+- 0 dynamic timestamps in artifacts
+- 0 unseeded randomness detected
+- 0 platform-specific build failures
+- 100% reproducibility attestation coverage
+- Zero "works on my machine" incidents
+- 100% documentation accuracy vs. reality
+- Cross-platform build consistency: 99.9%+
+
+**Business Impact:**
+- **Legal Defense**: Prove every fix came from exact source code
+- **Client Trust**: Transparent build verification and attestation
+- **Team Efficiency**: No "works on my machine" debugging
+- **Deployment Confidence**: Zero-trust reproducibility verification
+- **Compliance**: Auditable evidence of deterministic builds
+- **Cost Reduction**: Effective caching and artifact reuse
+
+---
+
 ## Implementation Priorities & Dependencies
 
-**Phase 1 (Weeks 1-3):** Foundation & Stability
-- Mega Prompt #3: Deployment Safety (improves reliability)
+**Phase 0 (Weeks 1-2):** Reproducibility Foundation
+- **Mega Prompt #11: 100% Reproducibility & Determinism** (CRITICAL - enables everything)
+  - Lockfile integrity (Pillar 1)
+  - Build artifact verification (Pillar 3)
+  - Test determinism (Pillar 4)
+  - Randomness audit (Pillar 5)
+  - *Prerequisite for all subsequent phases*
+
+**Phase 1 (Weeks 3-5):** Foundation & Stability
+- Mega Prompt #3: Deployment Safety (improves reliability - depends on #11)
 - Mega Prompt #7: Observability (enables everything else)
 - Mega Prompt #9: Error Handling (foundational)
 

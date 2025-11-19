@@ -1,0 +1,158 @@
+name: '[Reproducibility] Audit #9 - Timestamp & Version Injection Elimination'
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  schedule:
+    - cron: '0 10 * * *' # Daily at 10 AM UTC
+
+jobs:
+  timestamp-injection-audit:
+    name: Detect & Eliminate Dynamic Injection
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@a5ac7e51b41094c7467c0ff5b3978800b1f668f8 # v4.1.6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@60edb5dd545a775178fbb3ce5cbf6238cac20061 # v4.0.2
+        with:
+          node-version: '20'
+
+      - name: Meta Prompt #9 - Search for Dynamic Injection Points
+        id: injection_search
+        run: |
+          echo "## Timestamp & Version Injection Audit" >> $GITHUB_STEP_SUMMARY
+
+          mkdir -p /tmp/injection-audit
+
+          # Search for timestamp injection patterns
+          echo "### Dynamic Timestamp Injections" >> $GITHUB_STEP_SUMMARY
+          grep -r "Date\.now()\|new Date()\|Date\.getTime()" \
+            --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" \
+            src/ build/ webpack.config.js vite.config.js 2>/dev/null | \
+            grep -v "test\|spec\|mock" | tee /tmp/timestamp-injections.txt >> $GITHUB_STEP_SUMMARY
+
+          # Search for git commit hash injection
+          echo "### Git Commit Hash Injections" >> $GITHUB_STEP_SUMMARY
+          grep -r "process\.env\.GIT\|process\.env\.COMMIT\|git rev-parse" \
+            --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" \
+            . 2>/dev/null | tee /tmp/git-hash-injections.txt >> $GITHUB_STEP_SUMMARY
+
+          # Search for build date injection
+          echo "### Build Date Injections" >> $GITHUB_STEP_SUMMARY
+          grep -r "BUILD_DATE\|BUILD_TIME\|COMPILE_TIME" \
+            --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" \
+            . 2>/dev/null | tee /tmp/build-date-injections.txt >> $GITHUB_STEP_SUMMARY
+
+          # Count total injection points
+          TOTAL_INJECTIONS=$(cat /tmp/*-injections.txt 2>/dev/null | wc -l)
+          echo "Total dynamic injection points found: $TOTAL_INJECTIONS" >> $GITHUB_STEP_SUMMARY
+
+      - name: Meta Prompt #9 - Check for VERSION File
+        run: |
+          echo "### Version File Audit" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f "VERSION" ] || [ -f "version.txt" ] || [ -f ".version" ]; then
+            echo "✅ Centralized VERSION file found" >> $GITHUB_STEP_SUMMARY
+            cat VERSION version.txt .version 2>/dev/null >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ No centralized VERSION file found" >> $GITHUB_STEP_SUMMARY
+            echo "Consider creating VERSION file for static versioning" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Check package.json version
+          echo "### package.json Version" >> $GITHUB_STEP_SUMMARY
+          grep '"version"' package.json >> $GITHUB_STEP_SUMMARY
+
+      - name: Meta Prompt #9 - Build Process Inspection
+        run: |
+          echo "### Build Configuration Inspection" >> $GITHUB_STEP_SUMMARY
+
+          # Check webpack/vite config for injection
+          if [ -f "webpack.config.js" ]; then
+            echo "Webpack config for injection points:" >> $GITHUB_STEP_SUMMARY
+            grep -i "timestamp\|date\|build" webpack.config.js >> $GITHUB_STEP_SUMMARY || echo "No obvious injections" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ -f "vite.config.ts" ] || [ -f "vite.config.js" ]; then
+            echo "Vite config for injection points:" >> $GITHUB_STEP_SUMMARY
+            grep -i "timestamp\|date\|build\|define" vite.config.ts vite.config.js 2>/dev/null >> $GITHUB_STEP_SUMMARY || echo "No obvious injections" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Check build scripts
+          echo "### Build Scripts" >> $GITHUB_STEP_SUMMARY
+          grep '"build"' package.json | head -5 >> $GITHUB_STEP_SUMMARY
+
+      - name: Meta Prompt #9 - Generate Remediation Guide
+        if: failure()
+        run: |
+          cat > /tmp/timestamp-remediation.md << 'EOF'
+          # Timestamp & Version Injection Remediation Guide
+
+          ## Identified Injections
+
+          ### Issue 1: Dynamic Timestamps
+          **Location:** [identified locations]
+          **Impact:** Different build timestamps = different artifacts
+
+          **Solution:**
+          Replace:
+          ```typescript
+          const buildTime = new Date().toISOString();
+          ```
+
+          With:
+          ```typescript
+          const buildTime = process.env.BUILD_TIMESTAMP || '0000-00-00T00:00:00Z';
+          ```
+
+          Then in build:
+          ```bash
+          BUILD_TIMESTAMP="2025-01-01T00:00:00Z" npm run build
+          ```
+
+          ### Issue 2: Git Commit Injection
+          **Impact:** Commit hash in artifacts = non-reproducible
+
+          **Solution:**
+          Move commit info to external metadata file, not embedded in artifact.
+
+          ### Issue 3: Build Duration/Metadata
+          **Impact:** Runtime variations in artifacts
+
+          **Solution:**
+          Remove from build output, store in separate metadata.
+
+          ## Verification Steps
+
+          1. Build twice on same commit
+          2. Diff artifacts
+          3. Only VERSION-related differences allowed
+          4. Run twice more to confirm consistency
+
+          EOF
+
+          cat /tmp/timestamp-remediation.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Meta Prompt #9 - Verify Static Versioning
+        run: |
+          echo "### Static Versioning Verification" >> $GITHUB_STEP_SUMMARY
+
+          # Create two builds and diff them
+          echo "Build attempt 1:" >> $GITHUB_STEP_SUMMARY
+          npm run build 2>&1 | grep -i "version\|build\|time" || echo "Build completed" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f "VERSION" ]; then
+            echo "Static VERSION used: $(cat VERSION)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Archive Audit Results
+        if: always()
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: timestamp-injection-audit
+          path: |
+            /tmp/*-injections.txt
+            /tmp/timestamp-remediation.md

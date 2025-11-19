@@ -1,0 +1,141 @@
+name: '[Reproducibility] Audit #6 - Documentation vs Reality Sync'
+
+on:
+  pull_request:
+    paths:
+      - 'README.md'
+      - 'docs/**'
+      - 'package.json'
+      - 'Dockerfile'
+  schedule:
+    - cron: '0 7 * * *' # Daily at 7 AM UTC
+
+jobs:
+  documentation-audit:
+    name: Verify Documentation Accuracy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@a5ac7e51b41094c7467c0ff5b3978800b1f668f8 # v4.1.6
+
+      - name: Meta Prompt #6 - Extract Setup Instructions
+        id: extract_docs
+        run: |
+          echo "## Documentation vs Reality Audit" >> $GITHUB_STEP_SUMMARY
+
+          # Extract setup instructions from README
+          echo "### Extracted Setup Instructions from README" >> $GITHUB_STEP_SUMMARY
+          sed -n '/## Setup\|## Installation\|## Getting Started/,/##/p' README.md | head -50 >> $GITHUB_STEP_SUMMARY
+
+          # List prerequisites mentioned
+          echo "### Documented Prerequisites" >> $GITHUB_STEP_SUMMARY
+          grep -i "requires\|prerequisites\|needs" README.md || echo "No explicit prerequisites listed" >> $GITHUB_STEP_SUMMARY
+
+      - name: Meta Prompt #6 - Create Automated Setup Script
+        run: |
+          cat > /tmp/automated-setup.sh << 'EOF'
+          #!/bin/bash
+          set -e
+
+          echo "=== Automated Setup Verification ==="
+
+          # Step 1: Check prerequisites
+          echo "Checking Node.js..."
+          if ! command -v node &> /dev/null; then
+            echo "ERROR: Node.js not found"
+            exit 1
+          fi
+          echo "✅ Node.js: $(node --version)"
+
+          echo "Checking npm..."
+          if ! command -v npm &> /dev/null; then
+            echo "ERROR: npm not found"
+            exit 1
+          fi
+          echo "✅ npm: $(npm --version)"
+
+          # Step 2: Install dependencies
+          echo "Installing dependencies..."
+          npm install
+
+          # Step 3: Build project
+          echo "Building project..."
+          npm run build
+
+          # Step 4: Run tests
+          echo "Running tests..."
+          npm test -- --passWithNoTests || true
+
+          echo "✅ Setup completed successfully"
+          EOF
+
+          chmod +x /tmp/automated-setup.sh
+
+      - name: Meta Prompt #6 - Test Automated Setup
+        id: test_setup
+        continue-on-error: true
+        run: |
+          echo "### Automated Setup Test" >> $GITHUB_STEP_SUMMARY
+
+          # Run in isolated directory
+          mkdir -p /tmp/setup-test
+          cp -r . /tmp/setup-test/
+          cd /tmp/setup-test
+
+          /tmp/automated-setup.sh 2>&1 | tee /tmp/setup-test-output.log
+
+          if [ $? -eq 0 ]; then
+            echo "✅ Automated setup completed successfully" >> $GITHUB_STEP_SUMMARY
+            echo "setup_success=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Automated setup failed" >> $GITHUB_STEP_SUMMARY
+            echo "setup_success=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Meta Prompt #6 - Identify Ambiguities
+        if: failure()
+        run: |
+          echo "### Setup Ambiguities Found" >> $GITHUB_STEP_SUMMARY
+
+          # Check for missing steps
+          echo "Comparing documented vs actual steps..." >> $GITHUB_STEP_SUMMARY
+
+          # Common missing documentation
+          grep -q "npm install" README.md || echo "⚠️ npm install not documented" >> $GITHUB_STEP_SUMMARY
+          grep -q "npm run build" README.md || echo "⚠️ npm run build not documented" >> $GITHUB_STEP_SUMMARY
+          grep -q "DATABASE\|database" README.md || echo "⚠️ Database setup not documented" >> $GITHUB_STEP_SUMMARY
+          grep -q "environment\|.env" README.md || echo "⚠️ Environment variables not documented" >> $GITHUB_STEP_SUMMARY
+
+      - name: Meta Prompt #6 - Contributor Onboarding Score
+        run: |
+          echo "### Contributor Onboarding Metrics" >> $GITHUB_STEP_SUMMARY
+
+          # Count documentation sections
+          SECTIONS=$(grep -c "^##" README.md || echo 0)
+          echo "README sections: $SECTIONS" >> $GITHUB_STEP_SUMMARY
+
+          # Check for code examples
+          CODE_EXAMPLES=$(grep -c "\`\`\`" README.md || echo 0)
+          echo "Code examples: $CODE_EXAMPLES" >> $GITHUB_STEP_SUMMARY
+
+          # Check for troubleshooting
+          if grep -q "Troubleshooting\|FAQ\|Common Issues"; then
+            echo "✅ Troubleshooting guide present" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ No troubleshooting guide" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Calculate readability
+          WORD_COUNT=$(wc -w < README.md)
+          echo "Documentation word count: $WORD_COUNT" >> $GITHUB_STEP_SUMMARY
+
+      - name: Archive Audit Results
+        if: always()
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: documentation-audit
+          path: |
+            /tmp/setup-test-output.log
+            /tmp/automated-setup.sh

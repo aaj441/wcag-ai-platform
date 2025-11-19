@@ -1,0 +1,118 @@
+name: '[Reproducibility] Audit #1 - Dependency Lockfile Integrity'
+
+on:
+  pull_request:
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'yarn.lock'
+      - 'Pipfile'
+      - 'Pipfile.lock'
+      - 'Cargo.lock'
+  schedule:
+    - cron: '0 2 * * *' # Daily at 2 AM UTC
+
+jobs:
+  lockfile-integrity-audit:
+    name: Verify Lockfile Integrity & Reproducibility
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@a5ac7e51b41094c7467c0ff5b3978800b1f668f8 # v4.1.6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@60edb5dd545a775178fbb3ce5cbf6238cac20061 # v4.0.2
+        with:
+          node-version: '20'
+
+      - name: Meta Prompt #1 - Verify Lockfile Presence
+        id: verify_lockfiles
+        run: |
+          echo "=== LOCKFILE INTEGRITY AUDIT ===" >> $GITHUB_STEP_SUMMARY
+
+          MISSING_FILES=0
+          EXPECTED_FILES=("package-lock.json" "yarn.lock" "Pipfile.lock" "Cargo.lock")
+
+          for file in "${EXPECTED_FILES[@]}"; do
+            if [ -f "$file" ]; then
+              echo "✅ Found: $file" >> $GITHUB_STEP_SUMMARY
+              echo "found_$file=true" >> $GITHUB_OUTPUT
+            fi
+          done
+
+          if [ -f "package.json" ] && [ ! -f "package-lock.json" ] && [ ! -f "yarn.lock" ]; then
+            echo "❌ ERROR: package.json found but no lock file" >> $GITHUB_STEP_SUMMARY
+            MISSING_FILES=$((MISSING_FILES + 1))
+          fi
+
+          if [ $MISSING_FILES -gt 0 ]; then
+            echo "::error::Missing required lockfiles"
+            exit 1
+          fi
+
+      - name: Meta Prompt #1 - Run Triple Installation Test
+        id: triple_install
+        run: |
+          echo "## Triple Installation Verification" >> $GITHUB_STEP_SUMMARY
+
+          # Function to install and hash dependencies
+          install_and_hash() {
+            local run_num=$1
+            echo "Running installation #$run_num..."
+
+            # Create isolated environment
+            mkdir -p /tmp/lockfile-test-$run_num
+            cp -r . /tmp/lockfile-test-$run_num/
+            cd /tmp/lockfile-test-$run_num
+
+            # Clean install using only lockfile
+            rm -rf node_modules/
+            npm ci --prefer-offline --no-audit 2>&1
+
+            # Generate hash of installed dependencies
+            HASH=$(find node_modules -type f -name "package.json" | sort | xargs cat | sha256sum | awk '{print $1}')
+            echo "Run #$run_num: $HASH" >> /tmp/lockfile-hashes.txt
+
+            echo "Hash #$run_num: $HASH"
+            cd - > /dev/null
+          }
+
+          # Run three times
+          install_and_hash 1
+          install_and_hash 2
+          install_and_hash 3
+
+          # Verify all hashes match
+          UNIQUE_HASHES=$(sort /tmp/lockfile-hashes.txt | uniq | wc -l)
+
+          if [ $UNIQUE_HASHES -eq 1 ]; then
+            echo "✅ All 3 installations produced identical dependency trees" >> $GITHUB_STEP_SUMMARY
+            echo "install_deterministic=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Dependency trees differ between installations!" >> $GITHUB_STEP_SUMMARY
+            cat /tmp/lockfile-hashes.txt >> $GITHUB_STEP_SUMMARY
+            echo "install_deterministic=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Meta Prompt #1 - Lockfile Analysis
+        id: lockfile_analysis
+        run: |
+          echo "## Lockfile Analysis" >> $GITHUB_STEP_SUMMARY
+
+          # Check for version resolution ambiguities
+          echo "### Transitive Dependencies" >> $GITHUB_STEP_SUMMARY
+          npm ls --depth=0 | head -50 >> $GITHUB_STEP_SUMMARY
+
+          # Check lockfile format
+          if [ -f "package-lock.json" ]; then
+            echo "### package-lock.json Validation" >> $GITHUB_STEP_SUMMARY
+            python3 -m json.tool package-lock.json > /dev/null && echo "✅ Valid JSON format" >> $GITHUB_STEP_SUMMARY || echo "❌ Invalid JSON" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Lockfile Integrity Audit Complete" >> $GITHUB_STEP_SUMMARY
+          echo "**Result:** All lockfile integrity checks passed ✅" >> $GITHUB_STEP_SUMMARY

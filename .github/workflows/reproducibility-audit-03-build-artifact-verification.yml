@@ -1,0 +1,117 @@
+name: '[Reproducibility] Audit #3 - Build Artifact Cryptographic Verification'
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  schedule:
+    - cron: '0 4 * * *' # Daily at 4 AM UTC
+
+jobs:
+  build-artifact-audit:
+    name: Verify Build Artifact Determinism
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@a5ac7e51b41094c7467c0ff5b3978800b1f668f8 # v4.1.6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@60edb5dd545a775178fbb3ce5cbf6238cac20061 # v4.0.2
+        with:
+          node-version: '20'
+
+      - name: Meta Prompt #3 - Install Dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Meta Prompt #3 - Triple Build Process
+        id: triple_build_artifacts
+        run: |
+          echo "## Build Artifact Cryptographic Verification" >> $GITHUB_STEP_SUMMARY
+
+          # Function to build and generate checksums
+          build_and_checksum() {
+            local BUILD_NUM=$1
+            echo "=== Build #$BUILD_NUM ===" >> $GITHUB_STEP_SUMMARY
+
+            # Clean previous build
+            rm -rf dist/ build/ .next/ out/ 2>/dev/null || true
+
+            # Run build
+            npm run build 2>&1 | tail -20
+
+            # Generate checksums for all artifacts
+            mkdir -p /tmp/build-${BUILD_NUM}-artifacts
+            find dist build .next out -type f 2>/dev/null | while read file; do
+              if [ -f "$file" ]; then
+                sha256sum "$file" >> /tmp/build-${BUILD_NUM}-checksums.txt
+              fi
+            done
+
+            # Sort checksums for comparison
+            sort /tmp/build-${BUILD_NUM}-checksums.txt > /tmp/build-${BUILD_NUM}-checksums-sorted.txt
+            cp -r dist build .next out /tmp/build-${BUILD_NUM}-artifacts/ 2>/dev/null || true
+
+            echo "Generated $(wc -l < /tmp/build-${BUILD_NUM}-checksums.txt) artifact checksums" >> $GITHUB_STEP_SUMMARY
+          }
+
+          # Run three builds
+          build_and_checksum 1
+          build_and_checksum 2
+          build_and_checksum 3
+
+          # Compare checksums
+          echo "### Artifact Checksum Comparison" >> $GITHUB_STEP_SUMMARY
+
+          if diff /tmp/build-1-checksums-sorted.txt /tmp/build-2-checksums-sorted.txt > /dev/null && \
+             diff /tmp/build-2-checksums-sorted.txt /tmp/build-3-checksums-sorted.txt > /dev/null; then
+            echo "✅ All 3 builds produced identical artifacts" >> $GITHUB_STEP_SUMMARY
+            echo "artifacts_deterministic=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Artifacts differ between builds!" >> $GITHUB_STEP_SUMMARY
+            echo "Differences:" >> $GITHUB_STEP_SUMMARY
+            diff /tmp/build-1-checksums-sorted.txt /tmp/build-2-checksums-sorted.txt >> $GITHUB_STEP_SUMMARY || true
+            echo "artifacts_deterministic=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Meta Prompt #3 - Artifact Inventory & Analysis
+        if: always()
+        run: |
+          echo "### Artifact Inventory" >> $GITHUB_STEP_SUMMARY
+
+          # Count artifacts by type
+          for BUILD_NUM in 1 2 3; do
+            if [ -f "/tmp/build-${BUILD_NUM}-checksums.txt" ]; then
+              TOTAL=$(wc -l < /tmp/build-${BUILD_NUM}-checksums.txt)
+              JS=$(grep -c '\.js$' /tmp/build-${BUILD_NUM}-checksums.txt || echo 0)
+              CSS=$(grep -c '\.css$' /tmp/build-${BUILD_NUM}-checksums.txt || echo 0)
+              OTHER=$((TOTAL - JS - CSS))
+
+              echo "Build #$BUILD_NUM: $TOTAL total (JS: $JS, CSS: $CSS, Other: $OTHER)" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+          # Archive checksums for audit trail
+          cp /tmp/build-1-checksums-sorted.txt checksums-audit-$(date +%s).txt
+
+      - name: Meta Prompt #3 - Identify Non-Determinism Sources
+        if: failure()
+        run: |
+          echo "### Non-Determinism Analysis" >> $GITHUB_STEP_SUMMARY
+
+          # Check for timestamp patterns
+          echo "Checking for timestamp injections..." >> $GITHUB_STEP_SUMMARY
+          grep -r "Build Date\|Built at\|Compiled at" dist/ || echo "No obvious timestamps found" >> $GITHUB_STEP_SUMMARY
+
+          # Check for file path references
+          echo "Checking for embedded paths..." >> $GITHUB_STEP_SUMMARY
+          grep -r "/home/\|/tmp/" dist/ || echo "No absolute paths found" >> $GITHUB_STEP_SUMMARY
+
+      - name: Archive Artifacts
+        if: failure()
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: build-comparison
+          path: |
+            /tmp/build-*-checksums-sorted.txt
+            checksums-audit-*.txt

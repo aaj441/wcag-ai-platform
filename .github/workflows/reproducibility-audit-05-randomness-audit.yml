@@ -1,0 +1,126 @@
+name: '[Reproducibility] Audit #5 - Randomness & Seeding Audit'
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  schedule:
+    - cron: '0 6 * * *' # Daily at 6 AM UTC
+
+jobs:
+  randomness-audit:
+    name: Audit Randomness Sources & Seeding
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@a5ac7e51b41094c7467c0ff5b3978800b1f668f8 # v4.1.6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@60edb5dd545a775178fbb3ce5cbf6238cac20061 # v4.0.2
+        with:
+          node-version: '20'
+
+      - name: Meta Prompt #5 - Identify Randomness Sources
+        id: randomness_search
+        run: |
+          echo "## Codebase Randomness & Seeding Audit" >> $GITHUB_STEP_SUMMARY
+
+          mkdir -p /tmp/randomness-audit
+
+          # Search for Math.random()
+          echo "### Math.random() Usage" >> $GITHUB_STEP_SUMMARY
+          grep -r "Math\.random()" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" . || echo "✅ No Math.random() found" >> $GITHUB_STEP_SUMMARY
+
+          # Search for uuid generation
+          echo "### UUID Generation" >> $GITHUB_STEP_SUMMARY
+          grep -r "uuid\|randomUUID\|v4()" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" . || echo "✅ No uuid generation found" >> $GITHUB_STEP_SUMMARY
+
+          # Search for Date.now() in sensitive contexts
+          echo "### Date.now() Usage" >> $GITHUB_STEP_SUMMARY
+          grep -r "Date\.now()\|new Date()" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" . | grep -v "timestamp\|log\|console" | head -20 || echo "✅ No suspicious Date.now() found" >> $GITHUB_STEP_SUMMARY
+
+          # Search for random module imports
+          echo "### Random Module Imports" >> $GITHUB_STEP_SUMMARY
+          grep -r "import.*random\|require.*random" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" . || echo "✅ No random imports found" >> $GITHUB_STEP_SUMMARY
+
+          # Search for crypto.getRandomValues
+          echo "### Cryptographic Randomness" >> $GITHUB_STEP_SUMMARY
+          grep -r "getRandomValues\|randomBytes" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" . || echo "✅ No crypto randomness found" >> $GITHUB_STEP_SUMMARY
+
+      - name: Meta Prompt #5 - Seeding Verification
+        id: seeding_check
+        run: |
+          echo "### Seeding Verification" >> $GITHUB_STEP_SUMMARY
+
+          # Check for explicit seeding
+          echo "Searching for seeded PRNG usage..." >> $GITHUB_STEP_SUMMARY
+
+          # Check for seed files
+          if [ -f "src/utils/seed.ts" ] || [ -f "src/config/seeds.json" ]; then
+            echo "✅ Seed configuration found" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ No centralized seed configuration found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Look for documented randomness
+          grep -r "// RANDOM:\|// SEEDED:" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" . | tee /tmp/documented-randomness.txt || echo "No documented randomness" >> $GITHUB_STEP_SUMMARY
+
+      - name: Meta Prompt #5 - Check Test Fixtures for Seeding
+        run: |
+          echo "### Test Fixture Seeding" >> $GITHUB_STEP_SUMMARY
+
+          # Check jest configuration
+          if grep -q "testEnvironment\|seed" package.json; then
+            echo "✅ Jest seeding configured" >> $GITHUB_STEP_SUMMARY
+            grep "seed\|testEnvironment" package.json >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Jest seeding not explicitly configured" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Check test files for hardcoded seeds
+          SEEDED_TESTS=$(grep -r "beforeEach\|beforeAll" --include="*.test.ts" --include="*.test.js" . | grep -i "seed\|random" | wc -l)
+          echo "Test files with explicit seeding: $SEEDED_TESTS" >> $GITHUB_STEP_SUMMARY
+
+      - name: Meta Prompt #5 - Document Findings
+        if: always()
+        run: |
+          cat > /tmp/randomness-audit-report.md << 'EOF'
+          # Randomness & Seeding Audit Report
+
+          ## Summary
+          This audit identifies all sources of randomness in the codebase
+          and verifies that they are properly seeded for reproducibility.
+
+          ## Findings
+
+          ### Sources Requiring Seeding
+          - Math.random() - Must use seeded PRNG
+          - uuid generation - Must use deterministic mode in tests
+          - Cryptographic randomness - Document why true randomness required
+          - Date/time-dependent operations - Should use fixed timestamps in tests
+
+          ### Verification Steps
+          1. For each randomness source, verify seeding
+          2. Log first 10 generated values
+          3. Re-run with same seed, verify identical output
+          4. Document any unseeded randomness
+
+          ## Remediation
+          For any unseeded randomness found:
+          1. Identify the need (true random vs. deterministic)
+          2. If deterministic: Add seeding mechanism
+          3. If true random: Document the business justification
+          4. Update this report
+
+          EOF
+
+          cat /tmp/randomness-audit-report.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Archive Audit Results
+        if: always()
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: randomness-audit
+          path: |
+            /tmp/documented-randomness.txt
+            /tmp/randomness-audit-report.md
