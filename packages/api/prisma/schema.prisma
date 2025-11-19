@@ -10,669 +10,238 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Main Scan Model with Confidence Scoring
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String   @unique
+  password  String
+  firstName String?
+  lastName  String?
+  role      UserRole @default(USER)
+  isActive  Boolean  @default(true)
+  lastLogin  DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  organizations OrganizationMember[]
+  scans         Scan[]
+  reports       Report[]
+  sessions      UserSession[]
+  auditLogs     AuditLog[]
+
+  @@map("users")
+}
+
+model Organization {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  logo        String?
+  website     String?
+  plan        Plan     @default(FREE)
+  maxUsers    Int      @default(5)
+  maxScans    Int      @default(10)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  members    OrganizationMember[]
+  scans      Scan[]
+  projects   Project[]
+
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id             String            @id @default(cuid())
+  userId         String
+  organizationId String
+  role           OrgMemberRole     @default(MEMBER)
+  joinedAt       DateTime          @default(now())
+  
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@map("organization_members")
+}
+
+model Project {
+  id             String   @id @default(cuid())
+  name           String
+  description    String?
+  url            String?
+  organizationId String
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  scans        Scan[]
+
+  @@map("projects")
+}
+
 model Scan {
-  id                  String   @id @default(cuid())
-  websiteUrl          String   @db.VarChar(2048)
-
-  // Multi-Tenant Relation (Optional - for paid clients)
-  clientId          String?   @db.VarChar(255)
-  client            Client?   @relation(fields: [clientId], references: [id])
-
-  // Raw scan results (WCAG violations found)
-  scanResults         String   @db.Text
-
-  // Confidence Scoring (0.0-1.0)
-  aiConfidenceScore   Float    @default(0.0)
-  confidenceDetails   Json     @default("{}")
-
-  // Consultant Review Fields
-  reviewed            Boolean  @default(false)
-  reviewedBy          String?  @db.VarChar(255)
-  reviewedAt          DateTime?
-  approvalStatus      String   @default("pending") // pending, approved, disputed, rejected
-
-  // Report Generation
-  reportPdf           String?  @db.VarChar(2048)
-  reportGeneratedAt   DateTime?
-
-  // Metadata
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id             String    @id @default(cuid())
+  url            String
+  title          String?
+  description    String?
+  projectId      String?
+  userId         String
+  organizationId String?
+  status         ScanStatus @default(PENDING)
+  progress       Float     @default(0)
+  totalIssues    Int       @default(0)
+  criticalIssues Int       @default(0)
+  seriousIssues  Int       @default(0)
+  moderateIssues Int       @default(0)
+  minorIssues    Int       @default(0)
+  score          Float     @default(0)
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   // Relations
-  violations          Violation[]
-  reviewLogs          ReviewLog[]
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project      Project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  issues       Issue[]
+  reports      Report[]
 
-  @@index([approvalStatus])
-  @@index([aiConfidenceScore])
-  @@index([createdAt])
-  @@index([clientId])
+  @@map("scans")
 }
 
-// WCAG Violation Details
-model Violation {
-  id              String   @id @default(cuid())
-
-  // Foreign Key
-  scanId          String
-  scan            Scan     @relation(fields: [scanId], references: [id], onDelete: Cascade)
-
-  // WCAG Violation Details
-  wcagCriteria    String   @db.VarChar(10) // e.g., "1.4.3", "2.1.1"
-  severity        String   @db.VarChar(20) // critical, high, medium, low
-  description     String   @db.Text
-
-  // AI Confidence for Individual Violation (0.0-1.0)
-  aiConfidence    Float    @default(0.0)
-  humanReviewed   Boolean  @default(false)
-
-  // Evidence
-  elementSelector String?  @db.VarChar(2048)
-  screenshot      String?  @db.VarChar(2048) // S3 URL
-  codeSnippet     String?  @db.Text // HTML sample
-
-  // Metadata
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+model Issue {
+  id          String     @id @default(cuid())
+  scanId      String
+  type        IssueType
+  severity    Severity
+  rule        String
+  selector    String?
+  message     String
+  impact      String?
+  help        String?
+  helpUrl     String?
+  xpath       String?
+  screenshot  String?
+  element     Json?
+  context     Json?
+  tags        String[]
+  wcagLevel   String?
+  wcagSection String?
+  createdAt   DateTime   @default(now())
 
   // Relations
-  fix             Fix?
+  scan Scan @relation(fields: [scanId], references: [id], onDelete: Cascade)
 
-  @@index([scanId])
-  @@index([wcagCriteria])
-  @@index([aiConfidence])
+  @@map("issues")
 }
 
-// Audit Trail for Compliance & Transparency
-model ReviewLog {
-  id              String   @id @default(cuid())
-
-  // Foreign Key
-  scanId          String
-  scan            Scan     @relation(fields: [scanId], references: [id], onDelete: Cascade)
-
-  // Action Details
-  action          String   @db.VarChar(50) // reviewed, approved, disputed, rejected, exported
-  consultantEmail String   @db.VarChar(255)
-  timestamp       DateTime @default(now())
-
-  // Flexible details field for action-specific data
-  details         Json     @default("{}")
-  // Can contain: { "reason": "...", "notes": "...", "violationId": "...", etc }
-
-  @@index([scanId])
-  @@index([timestamp])
-  @@index([action])
-}
-
-// Optional: Consultant Profile (future use)
-model Consultant {
-  id              String   @id @default(cuid())
-
-  // Identity
-  email           String   @unique @db.VarChar(255)
-  name            String   @db.VarChar(255)
-
-  // Professional Info
-  wcagCertified   Boolean  @default(false)
-  yearsExperience Int      @default(0)
-  specialization  String?  @db.VarChar(255)
-
-  // Status
-  isActive        Boolean  @default(true)
-
-  // Performance Metrics
-  totalAuditsReviewed Int  @default(0)
-  accuracyScore   Float    @default(0.0) // 0.0-1.0
-
-  // Metadata
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@index([email])
-  @@index([isActive])
-}
-
-// Company Database (Global lead source)
-model Company {
-  id              String   @id @default(cuid())
-  tenantId        String?  // NULL = global database, can be assigned to tenant
-
-  // Identity
-  name            String
-  website         String   @unique @db.VarChar(2048)
-  domain          String   @unique @db.VarChar(255)
-
-  // Company Info
-  industry        String   @db.VarChar(255)
-  description     String?  @db.Text
-  yearsInBusiness Int?
-  employeeCount   Int?     // 1, 10, 50, 100, 500, 1000, 5000, 10000+
-  revenue         String?  @db.VarChar(50) // "1M-10M", "10M-50M", etc
-
-  // Contact Info
-  contactEmail    String?  @db.VarChar(255)
-  contactPhone    String?  @db.VarChar(20)
-  linkedinUrl     String?  @db.VarChar(2048)
-  crunchbaseUrl   String?  @db.VarChar(2048)
-
-  // Sourcing
-  source          String   @db.VarChar(50)  // "apollo", "hunter", "manual", "web_scrape"
-  sourceId        String?  @db.VarChar(255) // ID from source (e.g., Apollo contact ID)
-
-  // Verification
-  verified        Boolean  @default(false)
-  verifiedAt      DateTime?
-
-  // Metadata
-  metadata        Json     @default("{}")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+model Report {
+  id          String      @id @default(cuid())
+  scanId      String      @unique
+  userId      String
+  name        String
+  description String?
+  format      ReportFormat @default(PDF)
+  status      ReportStatus @default(PENDING)
+  fileUrl     String?
+  fileSize    Int?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   // Relations
-  leads           Lead[]
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scan Scan @relation(fields: [scanId], references: [id], onDelete: Cascade)
 
-  @@index([tenantId])
-  @@index([industry])
-  @@index([employeeCount])
-  @@index([domain])
+  @@map("reports")
 }
 
-// Lead (Prospect from keyword search)
-model Lead {
-  id              String   @id @default(cuid())
-  tenantId        String
-  companyId       String
-  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  // Lead Info
-  name            String   @db.VarChar(255)
-  email           String   @db.VarChar(255)
-  title           String?  @db.VarChar(255)
-  phone           String?  @db.VarChar(20)
-  linkedinUrl     String?  @db.VarChar(2048)
-
-  // Relevance
-  keywordMatches  String[] // ["fintech", "accessibility"]
-  relevanceScore  Float    @default(0.0)  // 0.0-1.0
-  priorityTier    String   @default("medium")  // low, medium, high
-
-  // Status
-  status          String   @default("new")  // new, contacted, interested, qualified, won, lost
-  lastContacted   DateTime?
-  nextFollowUp    DateTime?
-
-  // Notes & Tags
-  notes           String?  @db.Text
-  tags            String[]
-
-  // Outcomes
-  scansRequested  Int      @default(0)
-  conversionDate  DateTime?
-
-  // Metadata
-  metadata        Json     @default("{}")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@unique([tenantId, email])
-  @@index([tenantId, status])
-  @@index([tenantId, relevanceScore])
-  @@index([tenantId, createdAt])
-}
-
-// Keyword Search History (for analytics)
-model KeywordSearch {
-  id              String   @id @default(cuid())
-  tenantId        String
-
-  keywords        String[]
-  resultsCount    Int
-  leadsCreated    Int
-
-  createdAt       DateTime @default(now())
-
-  @@index([tenantId, createdAt])
-}
-
-// AI-Generated Fix for WCAG Violation
-model Fix {
-  id              String   @id @default(cuid())
-  tenantId        String
-  violationId     String
-  violation       Violation @relation(fields: [violationId], references: [id], onDelete: Cascade)
-
-  // Fix Details
-  wcagCriteria    String   @db.VarChar(10)  // e.g., "1.4.3" (color contrast)
-  issueType       String   @db.VarChar(100) // "missing_alt_text", "low_contrast", "missing_aria", etc
-
-  // Generated Code
-  codeLanguage    String   @default("html") // html, css, javascript, react, vue
-  originalCode    String?  @db.Text        // Original problematic code
-  fixedCode       String   @db.Text        // AI-generated fixed code
-  explanation     String   @db.Text        // Why this fix works
-
-  // Quality & Confidence
-  confidenceScore Float    @default(0.0)   // 0.0-1.0: How confident is the fix correct?
-  reviewStatus    String   @default("pending") // pending, approved, rejected, applied
-
-  // Human Review
-  reviewedBy      String?
-  reviewedAt      DateTime?
-  reviewNotes     String?  @db.Text
-
-  // GitHub Integration (Phase 2)
-  githubBranchName String?
-  githubPRUrl     String?
-  githubCommitSha String?
-
-  // Metadata
-  generatedBy     String   @default("gpt-4") // Model used for generation
-  generationCost  Float    @default(0.0)    // USD cost of generation
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  applications    FixApplication[]
-
-  @@unique([violationId])
-  @@index([tenantId, reviewStatus])
-  @@index([wcagCriteria])
-  @@index([confidenceScore])
-}
-
-// Track when a fix is applied
-model FixApplication {
-  id              String   @id @default(cuid())
-  tenantId        String
-  fixId           String
-  fix             Fix      @relation(fields: [fixId], references: [id], onDelete: Cascade)
-
-  // Application Details
-  appliedBy       String   // User email
-  appliedAt       DateTime @default(now())
-
-  // Where it was applied
-  repository      String?  // GitHub repo URL
-  filePath        String?  // Path in repo
-  branch          String?  // Git branch
-
-  // Outcome
-  success         Boolean  @default(true)
-  errorMessage    String?  @db.Text
-
-  // Verification
-  verificationStatus String @default("pending") // pending, verified, failed
-  verifiedAt      DateTime?
-
-  metadata        Json     @default("{}")
-
-  @@index([tenantId, appliedAt])
-  @@index([fixId])
-}
-
-// Pre-built fix templates for common violations
-model FixTemplate {
-  id              String   @id @default(cuid())
-
-  // Violation this template fixes
-  wcagCriteria    String   @db.VarChar(10)
-  issueType       String   @db.VarChar(100) // e.g., "missing_alt_text", "low_contrast"
-
-  // Template Info
-  name            String   @db.VarChar(255)
-  description     String   @db.Text
-
-  // Code Templates
-  codeLanguages   String[] // ["html", "css", "javascript", "react"]
-  templates       Json     // { "html": "...", "css": "...", etc }
-
-  // Context & Examples
-  examples        Json     // Before/after examples
-  testCases       Json?    // How to verify the fix works
-
-  // Usage
-  usageCount      Int      @default(0)
-  successRate     Float    @default(0.0) // 0-1, from actual applications
-
-  // Maintenance
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@index([wcagCriteria])
-  @@index([isActive])
-}
-
-// ============================================================================
-// NATIONWIDE DEMOGRAPHIC TARGETING SYSTEM
-// ============================================================================
-
-// Metropolitan Area Configuration (350+ US metros)
-model Metro {
-  id                    String   @id @default(cuid())
-  metroId               String   @unique @db.VarChar(100) // e.g., "denver-co", "nyc-ny"
-  name                  String   @db.VarChar(255) // "Denver, CO"
-  state                 String   @db.VarChar(2)
-  population            Int
-  businessCount         Int      @default(0) // Estimated total businesses
-  adaLawsuitTrend       String   @default("stable") // increasing, stable, decreasing
-  regionalHooks         String[] // ["Colorado tech boom", "Denver small business growth"]
-  dataSourcesAvailable  String[] // ["Chamber", "BBB", "LinkedIn", "ZocDoc"]
-
-  // Relationships
-  industries            IndustryProfile[]
-  prospects             Prospect[]
-
-  // Metadata
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-
-  @@index([state])
-  @@index([population])
-  @@index([adaLawsuitTrend])
-  // Composite index for filtering
-  @@index([state, adaLawsuitTrend])
-}
-
-// Industry Vertical Profile per Metro
-model IndustryProfile {
-  id                    String   @id @default(cuid())
-  metroId               String
-  metro                 Metro    @relation(fields: [metroId], references: [id], onDelete: Cascade)
-
-  verticalId            String   @db.VarChar(100) // "medical", "legal", "financial"
-  name                  String   @db.VarChar(255) // "Medical & Dental"
-  subCategories         String[] // ["dental", "orthopedic", "pediatric"]
-  estimatedProspectsInMetro Int
-  adaRiskLevel          String   @default("medium") // critical, high, medium, low
-  typicalRevenue        String?  // "$1M-$5M"
-  typicalEmployeeCount  Int      @default(0)
-  recentLawsuitCount    Int      @default(0) // past 24 months
-  searchQueries         String[] // Google search patterns
-  keyDirectories        String[] // ZocDoc, HealthGrades, etc
-
-  // Relationship
-  prospects             Prospect[]
-
-  // Metadata
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-
-  @@unique([metroId, verticalId])
-  @@index([metroId])
-  @@index([adaRiskLevel])
-}
-
-// Prospect (Target Company)
-model Prospect {
-  id                    String   @id @default(cuid())
-  metroId               String
-  metro                 Metro    @relation(fields: [metroId], references: [id], onDelete: Cascade)
-
-  industryId            String
-  industry              IndustryProfile @relation(fields: [industryId], references: [id], onDelete: Cascade)
-
-  // Business Info
-  businessName          String   @db.VarChar(500)
-  industry              String   @db.VarChar(100)
-  website               String   @unique @db.VarChar(2048)
-  ownerName             String?  @db.VarChar(255)
-  email                 String?  @db.VarChar(255)
-  phone                 String?  @db.VarChar(20)
-  address               String?  @db.VarChar(500)
-  city                  String   @db.VarChar(100)
-
-  // Business Intelligence
-  revenue               String?  // "$1M-$5M"
-  employeeCount         Int?
-  foundedYear           Int?
-  websiteLastUpdated    DateTime?
-
-  // Compliance & Scanning
-  complianceScore       Int      @default(0) // 0-100
-  violationCount        Int      @default(0)
-  redFlags              String[] // ["non-responsive", "no-alt-text", "outdated-copyright"]
-  lastScanned           DateTime?
-  audit                 AccessibilityAudit?
-
-  // Risk & Scoring
-  riskScore             Int      @default(50) // 1-100 (lawsuit probability)
-  priority              Int      @default(2) // 1 = highest, 3 = lowest
-  suggestedHook         String?  // "lawsuit-risk", "peer-pressure", "trust", "compliance"
-
-  // Outreach
-  emailsSent            Int      @default(0)
-  lastContacted         DateTime?
-  responseStatus        String?  // "no_response", "interested", "not_interested", "converted"
-  outreachEmails        OutreachEmail[]
-
-  // Metadata
-  dataSource            String   @default("auto-discovery") // "auto-discovery", "manual", "import"
-  sourceUrl             String?  @db.VarChar(2048)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-
-  @@index([metroId])
-  @@index([industryId])
-  @@index([priority])
-  @@index([riskScore])
-  @@index([complianceScore])
-  @@index([responseStatus])
-  @@index([city])
-  // Composite indexes for performance (<5s query requirement)
-  @@index([metroId, priority, riskScore])
-  @@index([metroId, industryId, riskScore])
-  @@index([metroId, complianceScore])
-}
-
-// Accessibility Audit Results
-model AccessibilityAudit {
-  id                    String   @id @default(cuid())
-  prospectId            String   @unique
-  prospect              Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
-
-  // Scan Results
-  violations            Json     // Array of violations from axe-core
-  redFlags              String[]
-  accessibilityScore    Int
-  wcagLevel             String?  // "A", "AA", "AAA"
-
-  // Device Testing
-  mobileResponsive      Boolean  @default(false)
-  viewportMeta          Boolean  @default(false)
-  hasHttps              Boolean  @default(false)
-
-  // Performance
-  pageLoadTime          Int?     // milliseconds
-  lighthouseScore       Int?     // 0-100
-
-  // Screenshots
-  beforeScreenshot      String?  @db.VarChar(2048) // S3 URL
-  afterScreenshot       String?  @db.VarChar(2048) // S3 URL
-
-  // Metadata
-  scannedAt             DateTime @default(now())
-  scanStatus            String   @default("completed") // "pending", "in_progress", "completed", "failed"
-  scanError             String?  @db.Text
-
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-
-  @@index([prospectId])
-  @@index([scannedAt])
-}
-
-// Outreach Email Tracking
-model OutreachEmail {
-  id                    String   @id @default(cuid())
-  prospectId            String
-  prospect              Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
-
-  // Email Content
-  subject               String   @db.VarChar(500)
-  body                  String   @db.Text
-  hook                  String   @db.VarChar(100) // "lawsuit-risk", "peer-pressure", etc
-  localReferences       String[] // ["Colorado tech boom mention"]
-
-  // Delivery
-  status                String   @default("draft") // "draft", "scheduled", "sent", "bounced", "opened", "clicked"
-  scheduledFor          DateTime?
-  sentAt                DateTime?
-  bouncedAt             DateTime?
-
-  // Engagement
-  openCount             Int      @default(0)
-  clickCount            Int      @default(0)
-  responseReceived      Boolean  @default(false)
-  responseReceivedAt    DateTime?
-
-  // Tracking
-  trackingId            String?  @unique @db.VarChar(255)
-  emailProvider         String?  @db.VarChar(50) // "sendgrid", "mailgun", etc
-
-  // Metadata
-  generatedBy           String?  // Template ID or manual
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-
-  @@index([prospectId])
-  @@index([status])
-  @@index([sentAt])
-// Multi-Tenant Client Management
-model Client {
-  id                String    @id @default(cuid())
-
-  // Identity
-  email             String    @unique @db.VarChar(255)
-  company           String    @db.VarChar(255)
-
-  // Subscription & Billing
-  tier              String    @default("basic") // basic, pro, enterprise
-  scansRemaining    Int       @default(10)
-  subscriptionId    String?   @db.VarChar(255)
-  stripeCustomerId  String?   @db.VarChar(255)
-
-  // Status
-  status            String    @default("active") // active, inactive, suspended
-
-  // API Access
-  apiKey            String?   @unique @db.VarChar(255)
-
-  // Metadata
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+model UserSession {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 
   // Relations
-  scans             Scan[]
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([email])
-  @@index([stripeCustomerId])
-  @@index([apiKey])
+  @@map("user_sessions")
 }
 
-// Target Demographic - Industry Categories
-model Industry {
-  id                    String   @id @default(cuid())
-  name                  String   @unique @db.VarChar(255)
-  description           String?  @db.Text
-
-  // Risk & Characteristics
-  adariskLevel          String   @default("medium") @db.VarChar(50) // low, medium, high
-  typicalRevenueMin     Int      @default(1000000)
-  typicalRevenueMax     Int      @default(10000000)
-  typicalEmployeeMin    Int      @default(5)
-  typicalEmployeeMax    Int      @default(100)
-
-  // Tech Adoption Profile
-  techOrientationScore  Float    @default(0.5) // 0.0 (not tech-oriented) to 1.0 (highly tech-oriented)
-  techAdoptionSpeed     String   @default("slow") @db.VarChar(50) // slow, medium, fast
-  isBlueCollar          Boolean  @default(true)
-
-  // Metadata
-  location              String?  @db.VarChar(255) // Pittsburgh, Ohio, etc.
-  notes                 String?  @db.Text
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+model AuditLog {
+  id        String      @id @default(cuid())
+  userId    String?
+  action    String
+  resource  String
+  details   Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime    @default(now())
 
   // Relations
-  targetBusinesses      TargetBusiness[]
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  @@index([adariskLevel])
-  @@index([techOrientationScore])
-  @@index([techAdoptionSpeed])
-  @@index([name])
+  @@map("audit_logs")
 }
 
-// Target Demographic - Individual Businesses
-model TargetBusiness {
-  id                    String   @id @default(cuid())
-  name                  String   @db.VarChar(255)
-  website               String?  @db.VarChar(2048)
-
-  // Industry Relation
-  industryId            String
-  industry              Industry @relation(fields: [industryId], references: [id], onDelete: Cascade)
-
-  // Location
-  location              String   @db.VarChar(255)
-  city                  String   @db.VarChar(100)
-  state                 String   @db.VarChar(2)
-
-  // Business Details
-  revenue               Int?
-  employeeCount         Int?
-
-  // Contact Information
-  ownerName             String?  @db.VarChar(255)
-  email                 String?  @db.VarChar(255)
-  phone                 String?  @db.VarChar(20)
-
-  // WCAG Accessibility Status
-  wcagScore             Float?
-  wcagViolationCount    Int      @default(0)
-  lastScanned           DateTime?
-
-  // Targeting & Outreach
-  matchScore            Float    @default(0.0) // 0.0-1.0 how well they match ideal profile
-  outreachStatus        String   @default("not_contacted") @db.VarChar(50) // not_contacted, contacted, interested, client, rejected
-  outreachAttempts      Int      @default(0)
-  lastOutreachDate      DateTime?
-  notes                 String?  @db.Text
-
-  // Metadata
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-
-  // Relations
-  violations            TargetBusinessViolation[]
-
-  @@unique([website])
-  @@index([industryId])
-  @@index([city])
-  @@index([wcagScore])
-  @@index([matchScore])
-  @@index([outreachStatus])
-  @@index([createdAt])
+// Enums
+enum UserRole {
+  ADMIN
+  USER
 }
 
-// Target Business WCAG Violations
-model TargetBusinessViolation {
-  id                    String   @id @default(cuid())
-  businessId            String
-  business              TargetBusiness @relation(fields: [businessId], references: [id], onDelete: Cascade)
+enum OrgMemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
 
-  // Violation Details
-  wcagCriteria          String   @db.VarChar(10)
-  severity              String   @db.VarChar(20)
-  description           String   @db.Text
-  count                 Int      @default(1)
+enum Plan {
+  FREE
+  PRO
+  ENTERPRISE
+}
 
-  // Metadata
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+enum ScanStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
 
-  @@index([businessId])
-  @@index([wcagCriteria])
-  @@index([severity])
+enum IssueType {
+  VIOLATION
+  WARNING
+  INFO
+  PASS
+}
+
+enum Severity {
+  CRITICAL
+  SERIOUS
+  MODERATE
+  MINOR
+}
+
+enum ReportFormat {
+  PDF
+  HTML
+  CSV
+  JSON
+}
+
+enum ReportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
 }
