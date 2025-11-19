@@ -1,192 +1,225 @@
-# Railway Deployment Quick Reference
+# Railway Quick Start Guide - WCAG AI Platform
 
-## 🚀 Quick Deploy
+**Goal**: Get your app deployed to Railway in under 30 minutes.
 
+---
+
+## 🚀 Prerequisites
+
+1. **Railway Account**: Sign up at https://railway.app
+2. **GitHub Repository**: Your code must be in GitHub
+3. **Railway CLI** (optional but recommended):
+   ```bash
+   npm i -g @railway/cli
+   railway login
+   ```
+
+---
+
+## ⚡ Quick Deploy (5 Steps)
+
+### Step 1: Create Railway Project
+
+**Option A: Via Dashboard**
+1. Go to https://railway.app/new
+2. Click "Deploy from GitHub repo"
+3. Select `aaj441/wcag-ai-platform`
+4. Click "Deploy Now"
+
+**Option B: Via CLI**
 ```bash
-# Install CLI
-npm install -g @railway/cli
-
-# Login
-railway login
-
-# Deploy API
-cd packages/api && railway up
-
-# Deploy Webapp
-cd packages/webapp && railway up
+cd wcag-ai-platform
+railway init
+railway link
 ```
 
-## ✅ Pre-Deployment Checklist
+### Step 2: Add PostgreSQL Database
 
-- [ ] All builds passing (`npm run build`)
-- [ ] Tests passing (22/22)
-- [ ] Health check working (`/health`)
-- [ ] Environment variables configured
-- [ ] Railway CLI installed
-- [ ] Authenticated to Railway
+**Via Dashboard**:
+1. Click "+ New" in your project
+2. Select "Database"
+3. Choose "PostgreSQL"
+4. Wait for provisioning (~30 seconds)
 
-## 🧪 Test Before Deploy
-
+**Via CLI**:
 ```bash
-# Run simulation test
-./deployment/scripts/test-railway-simulation.sh
-
-# Run dry-run
-./deployment/scripts/deploy-dry-run.sh
-
-# Expected: All tests passed ✅
+railway add postgresql
 ```
 
-## 📋 Essential Commands
+### Step 3: Add Redis (Optional but Recommended)
 
-### Deployment
+**Via Dashboard**:
+1. Click "+ New"
+2. Select "Database"
+3. Choose "Redis"
+
+**Via CLI**:
 ```bash
-railway up           # Deploy current directory
-railway restart      # Restart service
-railway down         # Stop service
+railway add redis
 ```
 
-### Monitoring
+### Step 4: Set Environment Variables
+
+**Required Variables**:
 ```bash
-railway logs         # View logs
-railway logs --tail  # Follow logs
-railway status       # Service status
-railway metrics      # Usage metrics
+railway variables set NODE_ENV=production
+railway variables set PORT=3001
 ```
 
-### Configuration
+**Optional but Recommended**:
 ```bash
-railway variables                    # List variables
-railway variables set KEY=value      # Set variable
-railway domain                       # Get URL
+railway variables set OPENAI_API_KEY=your-key-here
+railway variables set ANTHROPIC_API_KEY=your-key-here
+railway variables set CLERK_SECRET_KEY=your-key-here
+railway variables set STRIPE_SECRET_KEY=your-key-here
 ```
 
-### Rollback
+**Via Dashboard**:
+1. Go to your service
+2. Click "Variables"
+3. Add each variable
+
+### Step 5: Deploy!
+
+**Via Dashboard**:
+- Railway auto-deploys on push to main branch
+- Or click "Deploy" button
+
+**Via CLI**:
 ```bash
-railway deployments                  # List deployments
-railway rollback --deployment ID     # Rollback
+railway up
 ```
 
-## 🔧 Environment Variables
+---
 
-### API Required
+## ✅ Verify Deployment
+
+### Check Health Endpoint
 ```bash
-NODE_ENV=production
-PORT=8080
+# Get your Railway URL
+railway domain
+
+# Test health endpoint
+curl https://your-app.railway.app/health
 ```
 
-### Webapp Required
-```bash
-NODE_ENV=production
-PORT=3000
-VITE_API_BASE_URL=https://your-api.railway.app
-```
-
-## 🏥 Health Check
-
-**Endpoint:** `GET /health`
-
-**Configuration:** `railway.json`
+Expected response:
 ```json
 {
-  "healthcheck": {
-    "path": "/health",
-    "intervalSeconds": 30,
-    "timeoutSeconds": 10
+  "status": "healthy",
+  "timestamp": "2025-11-18T...",
+  "uptime": 123.45,
+  "environment": "production"
+}
+```
+
+### Check Logs
+```bash
+# Via CLI
+railway logs
+
+# Via Dashboard
+# Click "Deployments" → "View Logs"
+```
+
+---
+
+## 🔧 Common Issues & Fixes
+
+### Issue 1: Build Fails
+
+**Error**: `Cannot find module 'dist/server.js'`
+
+**Fix**:
+```bash
+# Check if build script exists
+cat packages/api/package.json | grep "build"
+
+# Should see:
+# "build": "prisma generate && tsc"
+```
+
+If missing, update `packages/api/package.json`:
+```json
+{
+  "scripts": {
+    "build": "prisma generate && tsc",
+    "start": "node dist/server.js"
   }
 }
 ```
 
-**Test:**
-```bash
-curl https://your-api.railway.app/health
+### Issue 2: Database Connection Failed
+
+**Error**: `Can't reach database server`
+
+**Fix**:
+1. Check DATABASE_URL is set:
+   ```bash
+   railway variables
+   ```
+2. Verify PostgreSQL is running:
+   ```bash
+   railway status
+   ```
+3. Check Prisma schema:
+   ```bash
+   cat packages/api/prisma/schema.prisma
+   ```
+
+### Issue 3: Port Binding Error
+
+**Error**: `EADDRINUSE: address already in use`
+
+**Fix**: Update `packages/api/src/server.ts`:
+```typescript
+const PORT = process.env.PORT || 3001;
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
+});
 ```
 
-## 🐛 Troubleshooting
+### Issue 4: Health Check Timeout
 
-| Issue | Command | Fix |
-|-------|---------|-----|
-| Build fails | `railway logs` | Check TypeScript errors |
-| Won't start | `railway status` | Verify PORT variable |
-| Health check fails | `curl .../health` | Check endpoint |
-| Variables missing | `railway variables` | Set required vars |
+**Error**: `Health check failed after 300s`
 
-## 📊 Deployment Status
-
-✅ **READY FOR PRODUCTION**
-
-- API Build: ✅ 0 errors
-- Webapp Build: ✅ All assets
-- Server Tests: ✅ 22/22 passed
-- Health Checks: ✅ Operational
-- Configuration: ✅ Validated
-
-## 🔗 URLs
-
-After deployment, get URLs:
-```bash
-# API
-cd packages/api && railway domain
-
-# Webapp
-cd packages/webapp && railway domain
+**Fix**: Increase timeout in `railway.toml`:
+```toml
+[deploy]
+healthcheckTimeout = 600
 ```
 
-## 📝 Deployment Flow
+### Issue 5: Prisma Client Not Generated
 
-```mermaid
-graph TD
-    A[Install Railway CLI] --> B[Login]
-    B --> C[Navigate to package]
-    C --> D[railway up]
-    D --> E[Build & Deploy]
-    E --> F{Health Check}
-    F -->|Pass| G[✅ Live]
-    F -->|Fail| H[Check logs]
-    H --> D
+**Error**: `@prisma/client did not initialize yet`
+
+**Fix**: Add postinstall script to `packages/api/package.json`:
+```json
+{
+  "scripts": {
+    "postinstall": "prisma generate"
+  }
+}
 ```
-
-## 🎯 Success Criteria
-
-- [ ] Health endpoint returns 200
-- [ ] API endpoints respond
-- [ ] Webapp loads in browser
-- [ ] No error logs
-- [ ] Metrics look good
-
-## 💡 Pro Tips
-
-1. **Test Locally First**
-   ```bash
-   npm run build && npm start
-   ```
-
-2. **Check Logs Immediately**
-   ```bash
-   railway logs --tail
-   ```
-
-3. **Set Variables Before Deploy**
-   ```bash
-   railway variables set NODE_ENV=production
-   ```
-
-4. **Use Environments**
-   ```bash
-   railway environment select production
-   ```
-
-5. **Monitor Health**
-   ```bash
-   watch -n 5 'curl -s https://your-api.railway.app/health'
-   ```
-
-## 📞 Getting Help
-
-- Railway Docs: https://docs.railway.app
-- Discord: https://discord.gg/railway
-- GitHub Issues: Repository issues tab
 
 ---
 
-**Ready to deploy?** Run: `railway login && cd packages/api && railway up`
+## 🎉 Success!
+
+If you see this in your logs:
+```
+✅ Database ready!
+🚀 Starting server...
+🚀 Server running on port 3001
+```
+
+**Congratulations! Your app is live on Railway! 🎊**
+
+Access it at: `https://your-app.railway.app`
+
+---
+
+**Last Updated**: November 18, 2025  
+**Deployment Time**: ~15-30 minutes  
+**Difficulty**: Easy ⭐⭐☆☆☆

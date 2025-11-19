@@ -1,0 +1,23 @@
+# Nixpacks Configuration for Railway
+# Optimized for Node.js monorepo with TypeScript
+
+[phases.setup]
+nixPkgs = ["nodejs-20_x", "python3", "openssl"]
+
+[phases.install]
+cmds = [
+  "npm ci --include=dev",
+  "cd packages/api && npm ci --include=dev"
+]
+
+[phases.build]
+cmds = [
+  "cd packages/api && npx prisma generate",
+  "cd packages/api && npm run build"
+]
+
+[start]
+cmd = "cd packages/api && npx prisma migrate deploy && node dist/server.js"
+
+[variables]
+NODE_ENV = "production"

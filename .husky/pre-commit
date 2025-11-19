@@ -1,0 +1,31 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Running pre-commit security checks..."
+
+# Check for secrets
+echo "Checking for exposed secrets..."
+if git diff --cached --name-only | xargs grep -E "sk_live_[a-zA-Z0-9]{48}|pk_live_[a-zA-Z0-9]{48}|AKIA[0-9A-Z]{16}" 2>/dev/null; then
+    echo "❌ ERROR: Exposed API keys detected!"
+    echo "Please remove secrets before committing."
+    exit 1
+fi
+
+# Check for hardcoded passwords
+if git diff --cached --name-only | xargs grep -E "password\s*=\s*['\"][^'\"]+['\"]" 2>/dev/null | grep -v "process.env" | grep -v ".example" | grep -v "template"; then
+    echo "⚠️  WARNING: Potential hardcoded password detected!"
+    echo "Please use environment variables instead."
+    exit 1
+fi
+
+# Check for TODO/FIXME in security-critical files
+if git diff --cached --name-only | grep -E "(auth|security|crypto)" | xargs grep -E "TODO|FIXME" 2>/dev/null; then
+    echo "⚠️  WARNING: TODO/FIXME found in security-critical files!"
+    echo "Please resolve before committing."
+fi
+
+# Run linting
+echo "Running linters..."
+npm run lint-staged
+
+echo "✅ Pre-commit checks passed!"
