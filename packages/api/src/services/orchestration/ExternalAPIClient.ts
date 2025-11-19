@@ -143,8 +143,8 @@ export class ProtectedHTTPClient {
       const retries = options?.retries || 0;
 
       for (let attempt = 0; attempt <= retries; attempt++) {
+        const startTime = Date.now();
         try {
-          const startTime = Date.now();
           const response = await axios.request<T>(finalConfig);
           const duration = Date.now() - startTime;
 

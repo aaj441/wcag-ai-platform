@@ -10,7 +10,8 @@
  */
 
 import * as Sentry from '@sentry/node';
-import { ProfilingIntegration } from '@sentry/profiling-node';
+import { nodeProfilingIntegration } from '@sentry/profiling-node';
+import { httpIntegration, expressIntegration } from '@sentry/node';
 import { Express } from 'express';
 
 const ENVIRONMENT = process.env.NODE_ENV || 'development';
@@ -38,11 +39,9 @@ export function initializeSentry(app?: Express): void {
     profilesSampleRate: ENVIRONMENT === 'production' ? 0.1 : 1.0,
     
     integrations: [
-      new ProfilingIntegration(),
-      ...(app ? [
-        new Sentry.Integrations.Http({ tracing: true }),
-        new Sentry.Integrations.Express({ app }),
-      ] : []),
+      nodeProfilingIntegration(),
+      httpIntegration(),
+      ...(app ? [expressIntegration()] : []),
     ],
 
     ignoreErrors: [
@@ -90,9 +89,16 @@ export function captureException(error: Error, context?: Record<string, any>): s
   return error.message;
 }
 
-export const sentryErrorHandler = Sentry.Handlers.errorHandler();
-export const sentryRequestHandler = Sentry.Handlers.requestHandler();
-export const sentryTracingHandler = Sentry.Handlers.tracingHandler();
+// Sentry middleware handlers
+export const sentryRequestHandler = Sentry.expressErrorHandler;
+
+export const sentryTracingHandler = () => {
+  return (req: any, res: any, next: any) => {
+    Sentry.startSpan({ name: req.path, op: 'http.server' }, () => {
+      next();
+    });
+  };
+};
 
 export async function closeSentry(): Promise<void> {
   await Sentry.close(2000);
