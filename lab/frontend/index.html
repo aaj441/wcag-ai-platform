@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>WCAG AI Lab - Full-Stack Application</title>
+  <style>
+    :root {
+      --color-background: #0f172a;
+      --color-surface: #1e293b;
+      --color-primary: #06b6d4;
+      --color-primary-hover: #0891b2;
+      --color-border: rgba(148, 163, 184, 0.2);
+      --color-text: #f1f5f9;
+      --color-text-muted: #94a3b8;
+      --space-4: 1rem;
+      --space-6: 1.5rem;
+      --radius: 0.5rem;
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--color-background);
+      color: var(--color-text);
+      line-height: 1.6;
+    }
+    header {
+      background: linear-gradient(135deg, #0e7490 0%, #06b6d4 100%);
+      padding: 2rem 1rem;
+      text-align: center;
+      box-shadow: var(--shadow-lg);
+    }
+    h1 { margin: 0 0 1.5rem 0; font-size: 2rem; }
+    nav {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    nav button {
+      background: rgba(6, 182, 212, 0.1);
+      border: 2px solid transparent;
+      color: var(--color-primary);
+      padding: 0.75rem 1.5rem;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    nav button:hover {
+      background: rgba(6, 182, 212, 0.2);
+      border-color: var(--color-primary);
+    }
+    nav button.active {
+      background: var(--color-primary);
+      color: #0f172a;
+    }
+    main {
+      max-width: 1200px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .card {
+      background: var(--color-surface);
+      border-radius: var(--radius);
+      padding: var(--space-6);
+      margin-bottom: var(--space-4);
+      border: 1px solid var(--color-border);
+    }
+    h3 {
+      margin-top: 0;
+      color: var(--color-primary);
+      font-size: 1.5rem;
+      border-bottom: 2px solid rgba(6, 182, 212, 0.3);
+      padding-bottom: 0.5rem;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      font-size: 0.875rem;
+      letter-spacing: 0.05em;
+    }
+    input, textarea {
+      width: 100%;
+      max-width: 500px;
+      padding: 0.75rem;
+      border: 2px solid var(--color-border);
+      border-radius: var(--radius);
+      background: #0f172a;
+      color: var(--color-text);
+      font-size: 1rem;
+      margin-bottom: 1rem;
+    }
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.3);
+    }
+    button.primary {
+      background: var(--color-primary);
+      color: #0f172a;
+      border: none;
+      padding: 0.875rem 2rem;
+      border-radius: var(--radius);
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    button.primary:hover {
+      background: var(--color-primary-hover);
+      transform: translateY(-2px);
+    }
+    .loading {
+      display: inline-block;
+      margin-left: 0.5rem;
+      color: var(--color-primary);
+    }
+    .error {
+      background: rgba(239, 68, 68, 0.1);
+      border: 2px solid #ef4444;
+      color: #fca5a5;
+      padding: 1rem;
+      border-radius: var(--radius);
+      margin: 1rem 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+      background: #0f172a;
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    th, td {
+      padding: 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--color-border);
+    }
+    th {
+      background: linear-gradient(135deg, #0e7490 0%, #0891b2 100%);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.875rem;
+      letter-spacing: 0.05em;
+    }
+    tr:hover { background: rgba(6, 182, 212, 0.05); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🧪 WCAG AI Laboratory - Full-Stack</h1>
+    <nav>
+      <button class="active" onclick="showTab('scanner')">Scanner</button>
+      <button onclick="showTab('discovery')">Discovery</button>
+      <button onclick="showTab('health')">Health</button>
+      <button onclick="showTab('about')">About</button>
+    </nav>
+  </header>
+  <main>
+    <!-- Scanner Tab -->
+    <div id="tab-scanner" class="tab-content active">
+      <div class="card">
+        <h3>URL Scanner</h3>
+        <label for="scan-url">Website URL</label>
+        <input id="scan-url" type="url" placeholder="https://example.com" />
+        <button class="primary" onclick="runScan()">Scan Now</button>
+        <span id="scan-loading" class="loading" style="display:none">⏳ Scanning...</span>
+      </div>
+      <div id="scan-results"></div>
+    </div>
+
+    <!-- Discovery Tab -->
+    <div id="tab-discovery" class="tab-content">
+      <div class="card">
+        <h3>Keyword Discovery</h3>
+        <label for="keywords">Keywords (comma-separated)</label>
+        <input id="keywords" type="text" placeholder="hospital, healthcare" />
+        <label for="location">Location</label>
+        <input id="location" type="text" placeholder="Boston" />
+        <button class="primary" onclick="runDiscovery()">Discover</button>
+        <span id="discovery-loading" class="loading" style="display:none">⏳ Searching...</span>
+      </div>
+      <div id="discovery-results"></div>
+    </div>
+
+    <!-- Health Tab -->
+    <div id="tab-health" class="tab-content">
+      <div class="card">
+        <h3>System Health</h3>
+        <button class="primary" onclick="checkHealth()">Check Health</button>
+      </div>
+      <div id="health-results"></div>
+    </div>
+
+    <!-- About Tab -->
+    <div id="tab-about" class="tab-content">
+      <div class="card">
+        <h3>About This Lab</h3>
+        <p>This is a <strong>full-stack, production-ready</strong> WCAG AI Platform laboratory.</p>
+        <ul>
+          <li>✅ Real Express TypeScript backend</li>
+          <li>✅ Railway deployable</li>
+          <li>✅ Security hardened (Helmet, CORS, Rate Limiting)</li>
+          <li>✅ Structured logging with Pino</li>
+          <li>✅ OpenTelemetry tracing ready</li>
+          <li>✅ Docker & docker-compose included</li>
+        </ul>
+        <p><strong>API Base URL:</strong> <code id="api-url">http://localhost:3001</code></p>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const API_BASE = window.location.hostname === 'localhost' 
+      ? 'http://localhost:3001'
+      : 'https://your-app.railway.app';
+    
+    document.getElementById('api-url').textContent = API_BASE;
+
+    function showTab(tab) {
+      ['scanner', 'discovery', 'health', 'about'].forEach(t => {
+        document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+        document.querySelector(`nav button:nth-child(${['scanner', 'discovery', 'health', 'about'].indexOf(t) + 1})`)
+          .classList.toggle('active', t === tab);
+      });
+    }
+
+    async function runScan() {
+      const url = document.getElementById('scan-url').value;
+      if (!url) return alert('Please enter a URL');
+      
+      document.getElementById('scan-loading').style.display = 'inline';
+      
+      try {
+        const response = await fetch(`${API_BASE}/api/scan`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          displayScanResults(data.data);
+        } else {
+          showError('scan-results', data.error);
+        }
+      } catch (error) {
+        showError('scan-results', 'Failed to connect to backend. Is the server running?');
+      } finally {
+        document.getElementById('scan-loading').style.display = 'none';
+      }
+    }
+
+    async function runDiscovery() {
+      const keywords = document.getElementById('keywords').value.split(',').map(k => k.trim()).filter(Boolean);
+      const location = document.getElementById('location').value;
+      
+      if (!keywords.length) return alert('Please enter keywords');
+      
+      document.getElementById('discovery-loading').style.display = 'inline';
+      
+      try {
+        const response = await fetch(`${API_BASE}/api/discovery/search`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ keywords, location, limit: 10 })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          displayDiscoveryResults(data.data);
+        } else {
+          showError('discovery-results', data.error);
+        }
+      } catch (error) {
+        showError('discovery-results', 'Failed to connect to backend');
+      } finally {
+        document.getElementById('discovery-loading').style.display = 'none';
+      }
+    }
+
+    async function checkHealth() {
+      try {
+        const response = await fetch(`${API_BASE}/health/detailed`);
+        const data = await response.json();
+        displayHealthResults(data);
+      } catch (error) {
+        showError('health-results', 'Backend is not responding');
+      }
+    }
+
+    function displayScanResults(data) {
+      const html = `
+        <div class="card">
+          <h3>Scan Results: ${data.url}</h3>
+          <p><strong>Total Violations:</strong> ${data.summary.totalViolations}</p>
+          <table>
+            <tr><th>Issue</th><th>WCAG</th><th>Severity</th><th>Count</th></tr>
+            ${data.violations.map(v => `
+              <tr>
+                <td>${v.description}</td>
+                <td>${v.wcagCriterion}</td>
+                <td>${v.severity}</td>
+                <td>${v.count}</td>
+              </tr>
+            `).join('')}
+          </table>
+        </div>
+      `;
+      document.getElementById('scan-results').innerHTML = html;
+    }
+
+    function displayDiscoveryResults(data) {
+      const html = `
+        <div class="card">
+          <h3>Discovered ${data.totalFound} Sites</h3>
+          <p><strong>Query:</strong> ${data.query} in ${data.location}</p>
+          <p><strong>TAM:</strong> ${data.tam.totalAddressableMarket}</p>
+          <table>
+            <tr><th>Company</th><th>URL</th><th>Industry</th></tr>
+            ${data.websites.slice(0, 10).map(w => `
+              <tr>
+                <td>${w.title}</td>
+                <td><a href="${w.url}" target="_blank">${w.url}</a></td>
+                <td>${w.industry}</td>
+              </tr>
+            `).join('')}
+          </table>
+        </div>
+      `;
+      document.getElementById('discovery-results').innerHTML = html;
+    }
+
+    function displayHealthResults(data) {
+      const html = `
+        <div class="card">
+          <h3>✅ System Healthy</h3>
+          <table>
+            <tr><td>Status</td><td>${data.status}</td></tr>
+            <tr><td>Version</td><td>${data.version}</td></tr>
+            <tr><td>Environment</td><td>${data.config.environment}</td></tr>
+            <tr><td>Uptime</td><td>${Math.floor(data.system.uptime / 60)} minutes</td></tr>
+            <tr><td>Memory</td><td>${data.system.memory.used}MB / ${data.system.memory.total}MB</td></tr>
+          </table>
+        </div>
+      `;
+      document.getElementById('health-results').innerHTML = html;
+    }
+
+    function showError(containerId, message) {
+      document.getElementById(containerId).innerHTML = `
+        <div class="error">❌ ${message}</div>
+      `;
+    }
+  </script>
+</body>
+</html>
