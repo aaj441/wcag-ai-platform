@@ -363,6 +363,7 @@ model Metro {
   // Relationships
   industries            IndustryProfile[]
   prospects             Prospect[]
+  lawsuits              Lawsuit[]
 
   // Metadata
   createdAt             DateTime @default(now())
@@ -446,6 +447,9 @@ model Prospect {
   lastContacted         DateTime?
   responseStatus        String?  // "no_response", "interested", "not_interested", "converted"
   outreachEmails        OutreachEmail[]
+  personalizedEmails    PersonalizedEmail[]
+  outreachEnrollments   OutreachEnrollment[]
+  mlPredictions         MLPrediction[]
 
   // Metadata
   dataSource            String   @default("auto-discovery") // "auto-discovery", "manual", "import"
@@ -675,4 +679,335 @@ model TargetBusinessViolation {
   @@index([businessId])
   @@index([wcagCriteria])
   @@index([severity])
+}
+
+// ============================================================================
+// ENHANCEMENT 1: REAL DATA INTEGRATIONS
+// ============================================================================
+
+// API Integration Logs (track API usage and costs)
+model APIIntegrationLog {
+  id                String   @id @default(cuid())
+  provider          String   @db.VarChar(50) // "apollo", "hunter", "google_maps", "clearbit"
+  endpoint          String   @db.VarChar(255)
+  requestData       Json
+  responseData      Json?
+  status            String   @db.VarChar(20) // "success", "failed", "rate_limited"
+  costUsd           Float    @default(0.0)
+  responseTimeMs    Int
+  errorMessage      String?  @db.Text
+  createdAt         DateTime @default(now())
+
+  @@index([provider, createdAt])
+  @@index([status])
+}
+
+// ============================================================================
+// ENHANCEMENT 2: AI-POWERED EMAIL PERSONALIZATION
+// ============================================================================
+
+// Personalized Email Templates (AI-generated)
+model PersonalizedEmail {
+  id                String   @id @default(cuid())
+  prospectId        String
+  prospect          Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+
+  // Email Content (AI-generated)
+  subjectLines      String[] // 5 variants for A/B testing
+  emailBody         String   @db.Text
+  hook              String   @db.VarChar(100) // "lawsuit-risk", "peer-pressure", etc
+  personalizationFactors Json // What made this unique (e.g., {"website_issues": ["no_alt_text"], "local_context": "Denver lawsuits"})
+
+  // AI Generation Details
+  aiModel           String   @default("gpt-4") @db.VarChar(50)
+  generationCost    Float    @default(0.0)
+  confidenceScore   Float    @default(0.0) // 0.0-1.0 how confident AI is
+
+  // Performance Tracking
+  sentVariant       Int?     // Which subject line was used (0-4)
+  opened            Boolean  @default(false)
+  clicked           Boolean  @default(false)
+  replied           Boolean  @default(false)
+  converted         Boolean  @default(false)
+
+  // Metadata
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([prospectId])
+  @@index([hook])
+  @@index([opened, clicked, replied])
+}
+
+// ============================================================================
+// ENHANCEMENT 3: REAL-TIME LAWSUIT TRACKING
+// ============================================================================
+
+// ADA Lawsuit Records
+model Lawsuit {
+  id                String   @id @default(cuid())
+
+  // Case Details
+  caseNumber        String   @unique @db.VarChar(100)
+  plaintiffName     String   @db.VarChar(255)
+  defendantName     String   @db.VarChar(255)
+  defendantWebsite  String?  @db.VarChar(2048)
+  defendantIndustry String?  @db.VarChar(100)
+
+  // Location
+  metroId           String?
+  metro             Metro?   @relation(fields: [metroId], references: [id])
+  court             String   @db.VarChar(255)
+  state             String   @db.VarChar(2)
+
+  // Case Status
+  filedDate         DateTime
+  status            String   @default("active") @db.VarChar(50) // active, settled, dismissed, won_defendant, won_plaintiff
+  settlementAmount  Float?   // USD, if known
+  closedDate        DateTime?
+
+  // Violation Details
+  violations        String[] // WCAG criteria violated
+  allegationType    String   @db.VarChar(100) // "Title III ADA", "Section 508", etc
+
+  // Law Firm
+  plaintiffLawFirm  String?  @db.VarChar(255)
+  defendantLawFirm  String?  @db.VarChar(255)
+
+  // Source
+  dataSource        String   @db.VarChar(50) // "seyfarth", "usablenet", "manual", "scraper"
+  sourceUrl         String?  @db.VarChar(2048)
+
+  // Metadata
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([metroId, filedDate])
+  @@index([defendantIndustry, filedDate])
+  @@index([status])
+  @@index([filedDate])
+  @@index([state])
+}
+
+// ============================================================================
+// ENHANCEMENT 4: AUTOMATED OUTREACH SEQUENCING
+// ============================================================================
+
+// Outreach Sequence Configuration
+model OutreachSequence {
+  id                String   @id @default(cuid())
+
+  // Sequence Details
+  name              String   @db.VarChar(255)
+  description       String?  @db.Text
+  triggerEvent      String   @db.VarChar(100) // "audit_complete", "high_risk_score", "no_response_3days"
+  targetIndustries  String[] // Filter which industries this applies to
+  targetRiskScore   Int?     // Minimum risk score to trigger
+
+  // Status
+  isActive          Boolean  @default(true)
+
+  // Performance Metrics
+  totalProspects    Int      @default(0)
+  totalSent         Int      @default(0)
+  totalOpened       Int      @default(0)
+  totalClicked      Int      @default(0)
+  totalReplied      Int      @default(0)
+  totalConverted    Int      @default(0)
+
+  // Relations
+  steps             OutreachStep[]
+  enrollments       OutreachEnrollment[]
+
+  // Metadata
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([triggerEvent])
+}
+
+// Individual Steps in Sequence
+model OutreachStep {
+  id                String   @id @default(cuid())
+  sequenceId        String
+  sequence          OutreachSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+
+  // Step Configuration
+  stepNumber        Int      // 1, 2, 3, etc
+  channel           String   @db.VarChar(20) // "email", "sms", "linkedin", "voicemail"
+  delayDays         Int      // Days after previous step (0 for first step)
+  delayHours        Int      @default(0) // Additional hours
+
+  // Content
+  subject           String?  @db.VarChar(500) // For email
+  body              String   @db.Text
+  templateVariables Json     @default("{}") // Variables to replace (e.g., {{firstName}})
+
+  // Conditions
+  sendCondition     String?  @db.VarChar(100) // "if_not_opened", "if_not_clicked", "always"
+
+  // Metadata
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([sequenceId, stepNumber])
+}
+
+// Prospect Enrollment in Sequence
+model OutreachEnrollment {
+  id                String   @id @default(cuid())
+  prospectId        String
+  prospect          Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  sequenceId        String
+  sequence          OutreachSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+
+  // Status
+  status            String   @default("active") @db.VarChar(50) // active, paused, completed, unsubscribed
+  currentStep       Int      @default(0)
+
+  // Tracking
+  enrolledAt        DateTime @default(now())
+  lastStepSentAt    DateTime?
+  nextStepScheduledAt DateTime?
+  completedAt       DateTime?
+  unsubscribedAt    DateTime?
+
+  // Performance
+  stepsCompleted    Int      @default(0)
+  emailsOpened      Int      @default(0)
+  emailsClicked     Int      @default(0)
+  replied           Boolean  @default(false)
+  converted         Boolean  @default(false)
+
+  // Relations
+  activities        OutreachActivity[]
+
+  @@unique([prospectId, sequenceId])
+  @@index([sequenceId, status])
+  @@index([nextStepScheduledAt])
+}
+
+// Individual Outreach Activities (sent messages)
+model OutreachActivity {
+  id                String   @id @default(cuid())
+  enrollmentId      String
+  enrollment        OutreachEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  // Activity Details
+  stepNumber        Int
+  channel           String   @db.VarChar(20) // "email", "sms", "linkedin"
+  subject           String?  @db.VarChar(500)
+  body              String   @db.Text
+
+  // Delivery
+  status            String   @default("pending") @db.VarChar(50) // pending, sent, delivered, bounced, failed
+  scheduledFor      DateTime
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+
+  // Engagement
+  opened            Boolean  @default(false)
+  openedAt          DateTime?
+  clicked           Boolean  @default(false)
+  clickedAt         DateTime?
+  replied           Boolean  @default(false)
+  repliedAt         DateTime?
+
+  // External IDs (from SendGrid, Twilio, etc)
+  externalId        String?  @db.VarChar(255)
+  externalProvider  String?  @db.VarChar(50)
+
+  // Metadata
+  errorMessage      String?  @db.Text
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([enrollmentId])
+  @@index([scheduledFor])
+  @@index([status])
+}
+
+// ============================================================================
+// ENHANCEMENT 5: PREDICTIVE ML LEAD SCORING
+// ============================================================================
+
+// ML Model Metadata
+model MLModel {
+  id                String   @id @default(cuid())
+
+  // Model Details
+  name              String   @db.VarChar(255)
+  version           String   @db.VarChar(50)
+  algorithm         String   @db.VarChar(100) // "xgboost", "random_forest", "logistic_regression"
+  targetVariable    String   @db.VarChar(100) // "conversion_probability"
+
+  // Training Details
+  trainingDataSize  Int      // Number of records
+  trainingStartedAt DateTime
+  trainingCompletedAt DateTime?
+  trainingDurationSec Int?
+
+  // Performance Metrics
+  accuracy          Float?   // 0.0-1.0
+  precision         Float?
+  recall            Float?
+  f1Score           Float?
+  auc               Float?   // Area Under Curve
+
+  // Feature Importance
+  featureImportance Json     // {"industry": 0.35, "violations": 0.25, ...}
+
+  // Model Storage
+  modelPath         String?  @db.VarChar(500) // S3 path or file path
+
+  // Status
+  isActive          Boolean  @default(false)
+  deployedAt        DateTime?
+
+  // Relations
+  predictions       MLPrediction[]
+
+  // Metadata
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([version])
+}
+
+// ML Predictions for Prospects
+model MLPrediction {
+  id                String   @id @default(cuid())
+  prospectId        String
+  prospect          Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  modelId           String
+  model             MLModel  @relation(fields: [modelId], references: [id])
+
+  // Prediction Results
+  conversionProbability Float // 0.0-1.0
+  confidenceScore   Float    // 0.0-1.0 (how confident the model is)
+
+  // Recommendations
+  recommendedAction String   @db.VarChar(50) // "call", "email", "skip", "nurture"
+  estimatedDealValue Float?  // Predicted revenue if converted
+
+  // Feature Values (what the model saw)
+  featureValues     Json     // Snapshot of prospect data at prediction time
+
+  // Top Contributing Features
+  topFeatures       Json     // [{"feature": "industry_risk", "impact": 0.35}, ...]
+
+  // Actual Outcome (for model retraining)
+  actualConverted   Boolean?
+  actualDealValue   Float?
+  actualConvertedAt DateTime?
+
+  // Metadata
+  predictedAt       DateTime @default(now())
+
+  @@index([prospectId])
+  @@index([modelId])
+  @@index([conversionProbability])
+  @@index([recommendedAction])
 }
