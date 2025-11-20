@@ -92,6 +92,10 @@ evidence-vault/README.md
 !evidence-vault/attestations/.gitkeep
 !evidence-vault/reports/.gitkeep
 
+# Incident Reports (keep structure, exclude actual reports)
+incident-reports/*.md
+!incident-reports/.gitkeep
+
 # Test files
 test-page.html
 
