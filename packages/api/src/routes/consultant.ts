@@ -13,6 +13,7 @@ import { prisma } from "../lib/prisma";
 import { confidenceScorer } from "../services/ConfidenceScorer";
 import { log } from "../utils/logger";
 import type { Scan, Violation, ReviewLog } from "../types";
+import BusinessMetricsService from "../services/BusinessMetricsService";
 
 const router = express.Router();
 
@@ -403,6 +404,74 @@ router.get("/stats", async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: "Failed to fetch statistics",
+    });
+  }
+});
+
+/**
+ * GET /api/consultant/metrics
+ *
+ * Get business metrics for consultant dashboard
+ * (as documented in README.md)
+ */
+router.get("/metrics", async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.headers['x-tenant-id'] as string | undefined;
+
+    const metricsService = new BusinessMetricsService(prisma);
+    const metrics = await metricsService.calculateMetrics(tenantId);
+
+    log.info("Retrieved consultant metrics", {
+      totalProjects: metrics.totalProjects,
+      monthlyRevenue: metrics.monthlyRevenue,
+    });
+
+    res.json({
+      success: true,
+      totalProjects: metrics.totalProjects,
+      monthlyRevenue: metrics.monthlyRevenue,
+      activeClients: metrics.activeClients,
+      avgProjectValue: metrics.avgProjectValue,
+      maintenanceRevenue: metrics.maintenanceRevenue,
+      detailed: metrics.metrics,
+    });
+  } catch (error) {
+    log.error(
+      "Failed to fetch metrics",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch consultant metrics",
+    });
+  }
+});
+
+/**
+ * GET /api/consultant/metrics/history
+ *
+ * Get historical metrics for trend analysis
+ */
+router.get("/metrics/history", async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.headers['x-tenant-id'] as string | undefined;
+    const months = parseInt(req.query.months as string) || 12;
+
+    const metricsService = new BusinessMetricsService(prisma);
+    const history = await metricsService.getHistoricalMetrics(tenantId, months);
+
+    res.json({
+      success: true,
+      data: history,
+    });
+  } catch (error) {
+    log.error(
+      "Failed to fetch historical metrics",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch historical metrics",
     });
   }
 });
