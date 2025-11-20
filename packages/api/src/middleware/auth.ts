@@ -107,11 +107,6 @@ export const authMiddleware = async (
         success: false,
         message: 'Access token has expired',
         code: 'TOKEN_EXPIRED',
-      });
-    } else if (error instanceof jwt.JsonWebTokenError) {
-      res.status(401).json({
-        success: false,
-        message: 'Invalid access token',
         code: 'TOKEN_INVALID',
         code: 'TOKEN_EXPIRED',
       });
