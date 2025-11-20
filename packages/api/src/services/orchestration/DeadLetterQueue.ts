@@ -28,7 +28,7 @@
 import Bull, { Job } from 'bull';
 import { prisma } from '../../lib/prisma';
 import { log } from '../../utils/logger';
-import { ScanJobData, ScanJobResult } from './ScanQueue';
+import { ScanJobData } from './ScanQueue';
 import { getRequestContext } from '../../middleware/correlationId';
 
 // ============================================================================
@@ -466,8 +466,8 @@ export class DeadLetterQueue {
           ${record.requestId || null}
         )
         ON CONFLICT (job_id) DO UPDATE SET
-          attempts = ${record.attempts},
-          failed_at = ${record.failedAt}
+          attempts = EXCLUDED.attempts,
+          failed_at = EXCLUDED.failed_at
       `.catch(() => {
         // Silently fail if table doesn't exist
         // This allows DLQ to work without schema changes

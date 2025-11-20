@@ -22,8 +22,6 @@ import {
   ErrorFactory,
   isBaseError,
   isOperationalError,
-  InternalServerError,
-  ProblemDetails,
 } from '../errors/ProblemDetails';
 import { getRequestId } from './correlationId';
 
@@ -54,7 +52,7 @@ export const errorHandler: ErrorRequestHandler = (
     method: req.method,
     path: req.path,
     query: req.query,
-    body: req.body,
+    body: sanitizeBody(req.body),
     statusCode: problemDetails.status,
     errorType: problemDetails.type,
     userId: (req as any).auth?.userId,

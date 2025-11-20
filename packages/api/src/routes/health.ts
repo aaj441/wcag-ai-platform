@@ -96,8 +96,8 @@ router.get('/detailed', async (req: Request, res: Response) => {
   // Redis check (via queue)
   try {
     if (scanQueue) {
-      const queueClient = await scanQueue.client;
-      await queueClient.ping();
+      // Try to get stats as a basic health check
+      await scanQueue.getStats();
       checks.checks.redis = { status: 'healthy' };
     } else {
       checks.checks.redis = { status: 'not_configured' };
@@ -127,19 +127,18 @@ router.get('/detailed', async (req: Request, res: Response) => {
   // Queue Capacity Tracking (MEGA PROMPT 1)
   try {
     if (scanQueue) {
-      const counts = await scanQueue.getJobCounts();
-      const stats = scanQueue.getStats();
+      const stats = await scanQueue.getStats();
 
       const maxCapacity = 100; // Configure based on your system
-      const totalJobs = counts.waiting + counts.active;
+      const totalJobs = stats.waiting + stats.active;
       const utilizationPercent = Math.round((totalJobs / maxCapacity) * 100);
 
       checks.queue = {
-        capacity: utilizationPercent < 80 ? 'healthy' : utilizationPercent < 95 ? 'warning' : 'critical',
-        waiting: counts.waiting,
-        active: counts.active,
-        completed: counts.completed,
-        failed: counts.failed,
+        capacity: utilizationPercent < 80 ? 'healthy' : utilizationPercent < 95 ? 'degraded' : 'critical',
+        waiting: stats.waiting,
+        active: stats.active,
+        completed: stats.completed,
+        failed: stats.failed,
         utilizationPercent,
         maxCapacity,
         stats,

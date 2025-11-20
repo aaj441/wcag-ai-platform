@@ -36,7 +36,6 @@ const scanSuccess = new Rate('scan_success');
 const scanFailure = new Rate('scan_failure');
 const timeoutRate = new Rate('timeout_rate');
 const queuedScans = new Counter('queued_scans');
-const completedScans = new Counter('completed_scans');
 
 // ============================================================================
 // Configuration
@@ -270,10 +269,9 @@ export default function () {
     }
 
     // Extract scan ID for potential polling (in real scenario)
-    let scanId;
     try {
       const body = JSON.parse(scanRes.body);
-      scanId = body.scanId || body.data?.scanId;
+      // In a real scenario, you might poll for scan status using body.scanId or body.data?.scanId
     } catch (e) {
       // Ignore parse errors
     }
