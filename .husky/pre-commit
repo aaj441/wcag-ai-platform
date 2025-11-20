@@ -12,7 +12,7 @@ if git diff --cached --name-only | xargs grep -E "sk_live_[a-zA-Z0-9]{48}|pk_liv
 fi
 
 # Check for hardcoded passwords
-if git diff --cached --name-only | xargs grep -E "password\s*=\s*['&quot;][^'&quot;]+['&quot;]" 2>/dev/null | grep -v "process.env" | grep -v ".example" | grep -v "template"; then
+if git diff --cached --name-only | xargs grep -E "password\s*=\s*['\"][^'\"]+['\"]" 2>/dev/null | grep -v "process.env" | grep -v ".example" | grep -v "template"; then
     echo "⚠️  WARNING: Potential hardcoded password detected!"
     echo "Please use environment variables instead."
     exit 1
