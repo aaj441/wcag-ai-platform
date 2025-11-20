@@ -274,6 +274,7 @@ model Fix {
   updatedAt       DateTime @updatedAt
 
   applications    FixApplication[]
+  multiLLMValidations MultiLLMValidation[]
 
   @@unique([violationId])
   @@index([tenantId, reviewStatus])
@@ -675,4 +676,89 @@ model TargetBusinessViolation {
   @@index([businessId])
   @@index([wcagCriteria])
   @@index([severity])
+}
+
+// ============================================================================
+// MULTI-LLM VALIDATION SYSTEM
+// ============================================================================
+
+// Multi-LLM Validation Record
+model MultiLLMValidation {
+  id                    String   @id @default(cuid())
+  tenantId              String
+  fixId                 String?
+  fix                   Fix?     @relation(fields: [fixId], references: [id], onDelete: Cascade)
+
+  // Request Details
+  violationId           String
+  wcagCriteria          String   @db.VarChar(10)
+  issueType             String   @db.VarChar(100)
+  requestData           Json     // Original AIFixRequest
+
+  // Validation Results
+  majorityVoteResult    Json     // The majority vote AIFixResponse
+  criticReview          Json     // CriticReview with rationale and issues
+  consensusLevel        String   @db.VarChar(20) // high, medium, low
+  agreementScore        Float    @default(0.0)   // 0.0-1.0
+
+  // Performance Metrics
+  totalLatency          Int      @default(0)     // milliseconds
+  totalCost             Float    @default(0.0)   // USD
+  numProviders          Int      @default(0)     // Number of LLMs that responded
+
+  // Status
+  status                String   @default("completed") // pending, completed, failed
+  errorMessage          String?  @db.Text
+
+  // Metadata
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  providerResponses     LLMProviderResponse[]
+
+  @@index([tenantId])
+  @@index([fixId])
+  @@index([violationId])
+  @@index([consensusLevel])
+  @@index([agreementScore])
+  @@index([createdAt])
+}
+
+// Individual LLM Provider Response
+model LLMProviderResponse {
+  id                    String   @id @default(cuid())
+  validationId          String
+  validation            MultiLLMValidation @relation(fields: [validationId], references: [id], onDelete: Cascade)
+
+  // Provider Info
+  provider              String   @db.VarChar(50)  // openai, anthropic, sonar
+  model                 String   @db.VarChar(100) // GPT-4, Claude-3, Sonar
+
+  // Response Data
+  fixedCode             String   @db.Text
+  explanation           String   @db.Text
+  confidence            Float    @default(0.0)    // 0.0-1.0
+  alternativeFixes      String[] // Array of alternative solutions
+
+  // Performance
+  latency               Int      @default(0)      // milliseconds
+  cost                  Float    @default(0.0)    // USD
+
+  // Quality Assessment (from critic)
+  issues                String[] // Issues identified by critic
+  selectedAsBest        Boolean  @default(false)  // Whether critic chose this as best
+
+  // Status
+  status                String   @default("success") // success, failed
+  errorMessage          String?  @db.Text
+
+  // Metadata
+  createdAt             DateTime @default(now())
+
+  @@index([validationId])
+  @@index([provider])
+  @@index([selectedAsBest])
+  @@index([confidence])
+  @@index([createdAt])
 }
