@@ -237,8 +237,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         toast.success('Login successful!');
         
         // Redirect to intended page or dashboard
-        const redirect = router.query.redirect as string;
-        router.push(redirect || '/dashboard');
+        const redirect = typeof router.query.redirect === "string" ? router.query.redirect : "";
+        // Only allow internal redirects (with a leading slash, no protocol, not '//')
+        const isSafeRedirect = redirect.startsWith("/") && !redirect.startsWith("//") && !redirect.includes("://");
+        router.push(isSafeRedirect ? redirect : "/dashboard");
       } else {
         throw new Error(response.data.message || 'Login failed');
       }
