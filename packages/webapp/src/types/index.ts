@@ -186,3 +186,50 @@ export type StatusConfig = {
     icon: string;
   };
 };
+
+// ============================================================================
+// QUARTERLY COMPLIANCE REPORT - Compliance Dashboard
+// ============================================================================
+
+export interface QuarterlyMetric {
+  metric: string;
+  lastQuarter: number | string;
+  thisQuarter: number | string;
+  change: string;
+}
+
+export interface EvidenceVaultSummary {
+  datedScans: number;
+  remediationTickets: number;
+  manualAttestations: string[];
+}
+
+export interface QuarterlyReport {
+  id: string;
+  quarter: string; // e.g., "Q4 2024"
+  year: number;
+  startDate: Date;
+  endDate: Date;
+  clientId?: string;
+  clientName?: string;
+  
+  // Executive Summary
+  overallComplianceScore: number; // percentage
+  criticalIssuesResolved: number;
+  automatedScansPerformed: number;
+  manualReviewsCompleted: number;
+  legalRiskSnapshot: string;
+  
+  // Performance Metrics
+  metrics: QuarterlyMetric[];
+  
+  // Evidence Vault
+  evidenceVault: EvidenceVaultSummary;
+  
+  // Key Improvements
+  keyImprovements: string[];
+  nextSteps: string[];
+  
+  createdAt: Date;
+  updatedAt: Date;
+}
