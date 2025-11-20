@@ -7,7 +7,12 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "test": "jest --passWithNoTests",
+<<<<<<< Updated upstream
+  "test": "jest --passWithNoTests --config jest.config.cjs",
+=======
+    "test": "jest",
+    "test:ci": "jest --ci --reporters=default",
+>>>>>>> Stashed changes
     "lint": "eslint src --ext .ts"
   },
   "keywords": [
@@ -56,6 +61,11 @@
     "supertest": "^6.3.4",
     "ts-jest": "^29.2.5",
     "tsx": "^4.7.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "@types/jest": "^29.5.14",
+    "supertest": "^7.0.0",
+    "@types/supertest": "^2.0.16"
   }
 }

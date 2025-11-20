@@ -76,10 +76,7 @@ const ALERT_RULES = {
  * Check if a draft should trigger an alert
  */
 export function shouldTriggerAlert(draft: EmailDraft): boolean {
-  const allKeywords = [
-    ...(draft.keywords || []),
-    ...(draft.keywordTags || []),
-  ];
+  const allKeywords = draft.keywords || [];
   
   return containsPriorityKeywords(allKeywords);
 }
@@ -88,10 +85,7 @@ export function shouldTriggerAlert(draft: EmailDraft): boolean {
  * Generate alerts for a draft based on keywords
  */
 export function generateAlertsForDraft(draft: EmailDraft): Alert[] {
-  const allKeywords = [
-    ...(draft.keywords || []),
-    ...(draft.keywordTags || []),
-  ];
+  const allKeywords = draft.keywords || [];
   
   const priorityKeywords = getPriorityKeywords(allKeywords);
   const alerts: Alert[] = [];

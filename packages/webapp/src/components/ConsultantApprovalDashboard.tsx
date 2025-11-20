@@ -310,6 +310,7 @@ export const ConsultantApprovalDashboard: React.FC = () => {
                 <select
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value as EmailStatus | 'all')}
+                  aria-label="Filter by status"
                   className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-100 focus:outline-none focus:border-blue-600"
                 >
                   <option value="all">All Status</option>
@@ -321,6 +322,7 @@ export const ConsultantApprovalDashboard: React.FC = () => {
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                  aria-label="Sort by"
                   className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-100 focus:outline-none focus:border-blue-600"
                 >
                   <option value="date">Date</option>
@@ -492,6 +494,7 @@ export const ConsultantApprovalDashboard: React.FC = () => {
                           type="email"
                           value={editedRecipient}
                           onChange={(e) => setEditedRecipient(e.target.value)}
+                          aria-label="Recipient email address"
                           className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:border-blue-600"
                         />
                       ) : (
@@ -514,6 +517,7 @@ export const ConsultantApprovalDashboard: React.FC = () => {
                           type="text"
                           value={editedSubject}
                           onChange={(e) => setEditedSubject(e.target.value)}
+                          aria-label="Email subject"
                           className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:border-blue-600"
                         />
                       ) : (
@@ -533,6 +537,7 @@ export const ConsultantApprovalDashboard: React.FC = () => {
                           value={editedBody}
                           onChange={(e) => setEditedBody(e.target.value)}
                           rows={12}
+                          aria-label="Email message body"
                           className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-gray-100 font-mono text-sm focus:outline-none focus:border-blue-600 resize-none"
                         />
                       ) : (

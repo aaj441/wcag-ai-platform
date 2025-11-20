@@ -34,7 +34,7 @@ export async function generatePDFReport(
 }> {
   try {
     // Filter to high-confidence violations only
-    const filteredViolations = violations.filter((v) => v.aiConfidence >= 0.7);
+    const filteredViolations = violations.filter((v) => (v.aiConfidence ?? 0) >= 0.7);
 
     // Count violations by severity
     const summary = {
@@ -80,9 +80,9 @@ function generateHTMLReport(
 ): string {
   const reportDate = new Date().toLocaleDateString();
   const confidenceBadge =
-    scan.aiConfidenceScore >= 0.9
+    (scan.aiConfidenceScore ?? 0) >= 0.9
       ? "✅ High Confidence"
-      : scan.aiConfidenceScore >= 0.7
+      : (scan.aiConfidenceScore ?? 0) >= 0.7
         ? "⚠️ Medium Confidence"
         : "❓ Low Confidence";
 
@@ -120,7 +120,7 @@ function generateHTMLReport(
     <p><strong>Report ID:</strong> ${scan.id}</p>
     <p><strong>Website:</strong> ${scan.websiteUrl}</p>
     <p><strong>Date:</strong> ${reportDate}</p>
-    <p><strong>Confidence:</strong> ${confidenceBadge} (${(scan.aiConfidenceScore * 100).toFixed(0)}%)</p>
+    <p><strong>Confidence:</strong> ${confidenceBadge} (${((scan.aiConfidenceScore ?? 0) * 100).toFixed(0)}%)</p>
     ${scan.reviewedBy ? `<p><strong>Reviewed by:</strong> ${scan.reviewedBy}</p>` : ""}
   </div>
 

@@ -22,6 +22,31 @@ export interface Violation {
   affectedUsers?: string;
   keywords?: string[];
   priority: number;
+  // Additional fields for PDF/consultant routes
+  aiConfidence?: number;
+  elementSelector?: string;
+}
+
+// Alias for backwards compatibility
+export type LegacyViolation = Violation;
+
+// Stub types for routes that aren't in MVP scope
+export interface Scan {
+  id: string;
+  websiteUrl: string;
+  status: string;
+  violations?: Violation[];
+  aiConfidenceScore?: number;
+  reviewedBy?: string;
+}
+
+export interface ReviewLog {
+  id: string;
+  scanId: string;
+  reviewerId: string;
+  action: string;
+  notes?: string;
+  createdAt: Date;
 }
 
 export interface EmailDraft {
@@ -62,6 +87,9 @@ export interface Consultant {
   lastContacted?: Date;
   responseRate?: number;
 }
+
+// Alias for backwards compatibility
+export type ConsultantProfile = Consultant;
 
 export interface PaginatedResponse<T> extends ApiResponse<T[]> {
   pagination: {

@@ -20,7 +20,9 @@ import { getAllDrafts, updateDraft } from './data/store';
 // Load environment variables & initialize tracing
 dotenv.config();
 initializeTracing();
-const tracer = getTracer();
+const tracer = getTracer() as {
+  startActiveSpan: (name: string, fn: (span: { setAttribute: (key: string, value: unknown) => void; end: () => void }) => void) => void;
+};
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -55,7 +57,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   log.info(`${req.method} ${req.path}`, { correlationId, ip: req.ip });
 
   const endTimer = httpRequestDuration.startTimer({ method: req.method, route: req.path });
-  tracer.startActiveSpan(`http ${req.method} ${req.path}`, (span: any) => {
+  tracer.startActiveSpan(`http ${req.method} ${req.path}`, (span) => {
     span.setAttribute('http.method', req.method);
     span.setAttribute('http.target', req.path);
     span.setAttribute('http.correlation_id', correlationId);
@@ -69,9 +71,11 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 // Metrics endpoint
-app.get('/metrics', async (_req: Request, res: Response) => {
-  res.set('Content-Type', register.contentType);
-  res.send(await register.metrics());
+app.get('/metrics', (_req: Request, res: Response) => {
+  void (async () => {
+    res.set('Content-Type', register.contentType);
+    res.send(await register.metrics());
+  })();
 });
 
 // ============================================================================
@@ -89,21 +93,23 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 // Readiness check (dependencies & basic readiness heuristics)
-app.get('/ready', async (req: Request, res: Response) => {
-  try {
-    const uptimeOk = process.uptime() > 3; // basic warmup
-    // Try to compute a model config only if LD is configured; otherwise rely on defaults
-    const flagsOk = true;
-    const status = uptimeOk && flagsOk;
-    res.json({
-      success: status,
-      ready: status,
-      uptime: process.uptime(),
-      timestamp: new Date().toISOString(),
-    });
-  } catch (e) {
-    res.status(500).json({ success: false, ready: false, error: 'readiness check failed' });
-  }
+app.get('/ready', (req: Request, res: Response) => {
+  void (async () => {
+    try {
+      const uptimeOk = process.uptime() > 3; // basic warmup
+      // Try to compute a model config only if LD is configured; otherwise rely on defaults
+      const flagsOk = true;
+      const status = uptimeOk && flagsOk;
+      res.json({
+        success: status,
+        ready: status,
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString(),
+      });
+    } catch (e) {
+      res.status(500).json({ success: false, ready: false, error: 'readiness check failed' });
+    }
+  })();
 });
 
 // API routes

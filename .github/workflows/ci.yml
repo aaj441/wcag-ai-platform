@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      # API package
+      - name: Install deps (api)
+        working-directory: packages/api
+        run: |
+          npm ci || npm install
+
+      - name: Lint (api)
+        working-directory: packages/api
+        run: npm run lint
+
+      - name: Type-check (api)
+        working-directory: packages/api
+        run: npx tsc --noEmit
+
+      - name: Test (api)
+        working-directory: packages/api
+        run: npm run test:ci
+
+
+      - name: Build (api)
+        working-directory: packages/api
+        run: npm run build
+
+      - name: Upload API dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-dist
+          path: packages/api/dist
+
+      # Webapp package
+      - name: Install deps (webapp)
+        working-directory: packages/webapp
+        run: |
+          npm ci || npm install
+
+      - name: Lint (webapp)
+        working-directory: packages/webapp
+        run: npm run lint
+
+      - name: Type-check (webapp)
+        working-directory: packages/webapp
+        run: npm run type-check
+
+      - name: Build (webapp)
+        working-directory: packages/webapp
+        run: npm run build
+
+      - name: Test (webapp)
+        working-directory: packages/webapp
+        run: npm run test:ci
+
+      - name: Upload Webapp dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-dist
+          path: packages/webapp/dist

@@ -2,6 +2,7 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
+<<<<<<< Updated upstream
   roots: ['<rootDir>/src'],
   testMatch: ['**/__tests__/**/*.test.ts'],
   moduleFileExtensions: ['ts', 'js', 'json'],
@@ -10,4 +11,9 @@ module.exports = {
   },
   clearMocks: true,
   verbose: false,
+=======
+  testMatch: ['**/*.test.ts', '**/*.int.test.ts'],
+  roots: ['<rootDir>/src', '<rootDir>/test'],
+  moduleFileExtensions: ['ts', 'js', 'json'],
+>>>>>>> Stashed changes
 };

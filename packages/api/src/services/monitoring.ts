@@ -25,7 +25,7 @@ export function initializeSentry(app: Application): void {
     integrations: [
       nodeProfilingIntegration(),
     ],
-    beforeSend(event, hint) {
+    beforeSend(event: any, hint: any) {
       // Filter out specific errors if needed
       const error = hint.originalException;
       

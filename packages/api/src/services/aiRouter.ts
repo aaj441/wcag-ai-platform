@@ -60,6 +60,7 @@ class AIRouter {
     await this.initPromise;
 
     if (!this.ldClient) {
+      // Robust fallback when LaunchDarkly is not configured
       return this.getDefaultConfig();
     }
 
@@ -74,41 +75,80 @@ class AIRouter {
     };
 
     try {
-      // Get primary model
+      // Prefer new flag key, fall back to legacy key
       const primaryModel = await this.ldClient.variation(
+        'ai:model',
+        ldContext,
+        process.env.OPENAI_MODEL || 'gpt-4-turbo-2024-04-09'
+      ) ?? await this.ldClient.variation(
         'ai-model-primary',
         ldContext,
+<<<<<<< Updated upstream
         'gpt-4-turbo-2024-04-09'
+      ) as string;
+=======
+        process.env.OPENAI_MODEL || 'gpt-4-turbo-2024-04-09'
       );
+>>>>>>> Stashed changes
 
       // Check if shadow deployment is enabled
       const shadowEnabled = await this.ldClient.variation(
+        'ai:shadowEnabled',
+        ldContext,
+        false
+      ) ?? await this.ldClient.variation(
         'ai-shadow-deployment-enabled',
         ldContext,
         false
-      );
+      ) as boolean;
 
-      let shadowModel = null;
+<<<<<<< Updated upstream
+      let shadowModel: string | null = null;
+=======
+      let shadowModel = null as string | null;
+>>>>>>> Stashed changes
       if (shadowEnabled) {
         shadowModel = await this.ldClient.variation(
+          'ai:shadowModel',
+          ldContext,
+          null as unknown as string
+        ) ?? await this.ldClient.variation(
           'ai-model-shadow',
           ldContext,
           'gpt-4o-2024-11-20'
-        );
+        ) as string;
       }
 
       // Get model parameters
       const temperature = await this.ldClient.variation(
+        'ai:temperature',
+        ldContext,
+        Number(process.env.AI_TEMPERATURE_DEFAULT ?? 0.3)
+      ) ?? await this.ldClient.variation(
         'ai-model-temperature',
         ldContext,
+<<<<<<< Updated upstream
         0.3
+      ) as number;
+=======
+        Number(process.env.AI_TEMPERATURE_DEFAULT ?? 0.3)
       );
+>>>>>>> Stashed changes
 
       const maxTokens = await this.ldClient.variation(
+        'ai:maxTokens',
+        ldContext,
+        Number(process.env.AI_MAX_TOKENS_DEFAULT ?? 2000)
+      ) ?? await this.ldClient.variation(
         'ai-model-max-tokens',
         ldContext,
+<<<<<<< Updated upstream
         2000
+      ) as number;
+=======
+        Number(process.env.AI_MAX_TOKENS_DEFAULT ?? 2000)
       );
+>>>>>>> Stashed changes
 
       log.info('Model configuration retrieved', {
         scanId: context.scanId,
@@ -138,8 +178,8 @@ class AIRouter {
       model: process.env.OPENAI_MODEL || 'gpt-4-turbo-2024-04-09',
       shadowModel: null,
       shadowEnabled: false,
-      temperature: 0.3,
-      maxTokens: 2000,
+      temperature: Number(process.env.AI_TEMPERATURE_DEFAULT ?? 0.3),
+      maxTokens: Number(process.env.AI_MAX_TOKENS_DEFAULT ?? 2000),
     };
   }
 
@@ -147,8 +187,8 @@ class AIRouter {
    * Compare results from primary and shadow models
    */
   async compareResults(
-    primaryResult: any,
-    shadowResult: any,
+    primaryResult: { modelVersion?: string; violations?: unknown[] },
+    shadowResult: { modelVersion?: string; violations?: unknown[] },
     context: ScanContext
   ): Promise<number> {
     // Calculate drift score (0 = identical, 1 = completely different)
@@ -166,8 +206,8 @@ class AIRouter {
       log.warn('Significant model drift detected', {
         scanId: context.scanId,
         driftScore,
-        primaryModel: primaryResult.modelVersion,
-        shadowModel: shadowResult.modelVersion,
+        primaryModel: primaryResult.modelVersion || 'unknown',
+        shadowModel: shadowResult.modelVersion || 'unknown',
       });
     }
 
@@ -177,10 +217,13 @@ class AIRouter {
   /**
    * Calculate drift between two results
    */
-  private calculateDrift(primary: any, shadow: any): number {
+  private calculateDrift(
+    primary: { violations?: unknown[] },
+    shadow: { violations?: unknown[] }
+  ): number {
     // Simple implementation: compare violation counts
-    const primaryCount = primary.violations?.length || 0;
-    const shadowCount = shadow.violations?.length || 0;
+    const primaryCount = primary.violations?.length ?? 0;
+    const shadowCount = shadow.violations?.length ?? 0;
 
     if (primaryCount === 0 && shadowCount === 0) {
       return 0;
@@ -220,7 +263,7 @@ class AIRouter {
           key: userId,
         };
 
-        await this.ldClient.track('ai-feedback', ldContext, {
+        this.ldClient.track('ai-feedback', ldContext, {
           scanId,
           ...feedback,
         });
@@ -246,7 +289,7 @@ class AIRouter {
         key: userId,
       };
 
-      return await this.ldClient.variation(featureKey, ldContext, false);
+      return (await this.ldClient.variation(featureKey, ldContext, false)) as boolean;
     } catch (error) {
       log.error('Error checking feature flag', error as Error, { featureKey });
       return false;
@@ -258,7 +301,7 @@ class AIRouter {
    */
   async close(): Promise<void> {
     if (this.ldClient) {
-      await this.ldClient.close();
+      this.ldClient.close();
       log.info('LaunchDarkly connection closed');
     }
   }

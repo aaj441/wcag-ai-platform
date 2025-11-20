@@ -16,5 +16,31 @@
     "sourceMap": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "src/__tests__"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/__tests__",
+    "src/lib/**",
+    "src/middleware/tenant.ts",
+    "src/middleware/rbac.ts",
+    "src/routes/clients.ts",
+    "src/routes/consultant.ts",
+    "src/routes/demographics.ts",
+    "src/routes/health.ts",
+    "src/routes/leads.ts",
+    "src/routes/targetDemographics.ts",
+  "src/routes/fixes.ts",
+  "src/routes/screenshot.ts",
+    "src/lib/prisma.ts",
+    "src/lib/db.ts",
+    "src/routes/billing.ts",
+    "src/services/BatchAuditService.ts",
+    "src/services/CompanyDiscoveryService.ts",
+    "src/services/ProspectDiscoveryService.ts",
+  "src/services/RemediationEngine.ts",
+    "src/services/screenshot/**",
+    "src/services/screenshot/ScreenshotService.ts",
+    "src/services/email.ts",
+    "src/services/monitoring.ts"
+  ]
 }
