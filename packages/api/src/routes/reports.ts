@@ -1,148 +1,597 @@
-/**
- * Reports API Routes
- * Handles PDF and markdown report generation
- */
-
-import { Router, Request, Response } from 'express';
-import {
-  generateHTMLReport,
-  generateMarkdownReport,
-  ClientBrand,
-  ScanReport
-} from '../services/reportGenerator';
-import { getAllDrafts } from '../data/fintechStore';
+import { Router, Response } from 'express';
+import { body, validationResult } from 'express-validator';
+import { v4 as uuidv4 } from 'uuid';
+import { prisma } from '@/utils/database';
+import { 
+  ValidationError, 
+  NotFoundError, 
+  asyncHandler 
+} from '@/middleware/errorHandler';
+import { logger } from '@/utils/logger';
+import { AuthenticatedRequest } from '@/middleware/auth';
+import { generateReport } from '@/services/reportService';
 
 const router = Router();
 
-/**
- * POST /api/reports/generate
- * Generate a report for a scan
- */
-router.post('/generate', async (req: Request, res: Response) => {
-  try {
-    const { scanId, format = 'html', clientBrand } = req.body;
+// Validation rules
+const createReportValidation = [
+  body('scanId')
+    .isUUID()
+    .withMessage('Invalid scan ID format'),
+  body('name')
+    .isLength({ min: 1, max: 200 })
+    .trim()
+    .withMessage('Report name must be between 1 and 200 characters'),
+  body('description')
+    .optional()
+    .isLength({ max: 1000 })
+    .trim()
+    .withMessage('Description must be less than 1000 characters'),
+  body('format')
+    .optional()
+    .isIn(['PDF', 'HTML', 'CSV', 'JSON'])
+    .withMessage('Invalid format. Supported: PDF, HTML, CSV, JSON'),
+];
 
-    if (!scanId) {
-      return res.status(400).json({
-        success: false,
-        error: 'scanId is required'
-      });
-    }
+// Create new report
+router.post('/', createReportValidation, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user) {
+    throw new Error('Authentication required');
+  }
 
-    // Mock scan data (in production, fetch from database)
-    const mockScan: ScanReport = {
+  // Validate input
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    throw new ValidationError('Validation failed', errors.array());
+  }
+
+  const { scanId, name, description, format = 'PDF' } = req.body;
+
+  // Verify user has access to the scan
+  const scan = await prisma.scan.findFirst({
+    where: {
       id: scanId,
-      url: 'https://example.com',
-      complianceScore: 75,
-      violations: [], // Would be populated from actual data
-      createdAt: new Date(),
-      workerId: 'worker-123',
-      signature: 'abc123def456',
-      aiRemediationPlan: 'Fix critical issues first, then address high-priority items.'
-    };
+      OR: [
+        { userId: req.user.id },
+        { organization: { members: { some: { userId: req.user.id } } } },
+      ],
+    },
+  });
 
-    const brand: ClientBrand = clientBrand || {
-      companyName: 'Client Company',
-      primaryColor: '#2563eb',
-      secondaryColor: '#64748b'
-    };
-
-    let report: string;
-    let contentType: string;
-
-    if (format === 'markdown') {
-      report = generateMarkdownReport(mockScan, brand);
-      contentType = 'text/markdown';
-    } else {
-      report = generateHTMLReport(mockScan, brand);
-      contentType = 'text/html';
-    }
-
-    res.setHeader('Content-Type', contentType);
-    res.send(report);
-  } catch (error) {
-    console.error('Error generating report:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to generate report'
-    });
+  if (!scan) {
+    throw new NotFoundError('Scan');
   }
-});
 
-/**
- * POST /api/reports/draft/:draftId
- * Generate a report from an email draft
- */
-router.post('/draft/:draftId', async (req: Request, res: Response) => {
+  if (scan.status !== 'COMPLETED') {
+    throw new ValidationError('Cannot generate report for incomplete scan');
+  }
+
+  // Check if report already exists for this scan
+  const existingReport = await prisma.report.findUnique({
+    where: { scanId },
+  });
+
+  if (existingReport) {
+    throw new ValidationError('A report already exists for this scan');
+  }
+
+  // Create report record
+  const report = await prisma.report.create({
+    data: {
+      id: uuidv4(),
+      scanId,
+      userId: req.user.id,
+      name,
+      description,
+      format: format as any,
+      status: 'PENDING',
+    },
+    include: {
+      user: {
+        select: {
+          id: true,
+          email: true,
+          username: true,
+        },
+      },
+      scan: {
+        select: {
+          id: true,
+          url: true,
+          title: true,
+          score: true,
+          totalIssues: true,
+        },
+      },
+    },
+  });
+
+  // Queue report generation
+  await queueReportGeneration(report.id);
+
+  logger.info(`New report created: ${report.id} for scan: ${scanId} by user: ${req.user.id}`);
+
+  res.status(201).json({
+    success: true,
+    message: 'Report generation started',
+    data: report,
+  });
+}));
+
+// Get reports
+router.get('/', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user) {
+    throw new Error('Authentication required');
+  }
+
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 10;
+  const format = req.query.format as string;
+  const status = req.query.status as string;
+  const sortBy = req.query.sortBy as string || 'createdAt';
+  const sortOrder = req.query.sortOrder as string || 'desc';
+
+  const skip = (page - 1) * limit;
+
+  // Build where clause
+  const where: any = { userId: req.user.id };
+  
+  if (format && ['PDF', 'HTML', 'CSV', 'JSON'].includes(format)) {
+    where.format = format;
+  }
+  
+  if (status && ['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED'].includes(status)) {
+    where.status = status;
+  }
+
+  // Get reports
+  const [reports, total] = await Promise.all([
+    prisma.report.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { [sortBy]: sortOrder },
+      include: {
+        scan: {
+          select: {
+            id: true,
+            url: true,
+            title: true,
+            score: true,
+            totalIssues: true,
+            completedAt: true,
+          },
+        },
+      },
+    }),
+    prisma.report.count({ where }),
+  ]);
+
+  const totalPages = Math.ceil(total / limit);
+
+  res.json({
+    success: true,
+    data: {
+      reports,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    },
+  });
+}));
+
+// Get report by ID
+router.get('/:id', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user) {
+    throw new Error('Authentication required');
+  }
+
+  const reportId = req.params.id;
+
+  const report = await prisma.report.findFirst({
+    where: {
+      id: reportId,
+      OR: [
+        { userId: req.user.id },
+        { scan: { organization: { members: { some: { userId: req.user.id } } } } },
+      ],
+    },
+    include: {
+      user: {
+        select: {
+          id: true,
+          email: true,
+          username: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+      scan: {
+        select: {
+          id: true,
+          url: true,
+          title: true,
+          description: true,
+          score: true,
+          totalIssues: true,
+          criticalIssues: true,
+          seriousIssues: true,
+          moderateIssues: true,
+          minorIssues: true,
+          completedAt: true,
+          project: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!report) {
+    throw new NotFoundError('Report');
+  }
+
+  res.json({
+    success: true,
+    data: report,
+  });
+}));
+
+// Download report
+router.get('/:id/download', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user) {
+    throw new Error('Authentication required');
+  }
+
+  const reportId = req.params.id;
+
+  const report = await prisma.report.findFirst({
+    where: {
+      id: reportId,
+      OR: [
+        { userId: req.user.id },
+        { scan: { organization: { members: { some: { userId: req.user.id } } } } },
+      ],
+    },
+  });
+
+  if (!report) {
+    throw new NotFoundError('Report');
+  }
+
+  if (report.status !== 'COMPLETED' || !report.fileUrl) {
+    throw new ValidationError('Report is not ready for download');
+  }
+
+  // In a real implementation, you would serve the file from storage
+  // For now, we'll redirect to the file URL
+  res.redirect(report.fileUrl);
+}));
+
+// Regenerate report
+router.post('/:id/regenerate', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user) {
+    throw new Error('Authentication required');
+  }
+
+  const reportId = req.params.id;
+  const { format } = req.body;
+
+  const report = await prisma.report.findFirst({
+    where: {
+      id: reportId,
+      userId: req.user.id,
+    },
+  });
+
+  if (!report) {
+    throw new NotFoundError('Report');
+  }
+
+  if (report.status === 'PROCESSING') {
+    throw new ValidationError('Report is currently being generated');
+  }
+
+  // Update report status
+  const updatedReport = await prisma.report.update({
+    where: { id: reportId },
+    data: {
+      status: 'PENDING',
+      format: format || report.format,
+      fileUrl: null,
+      fileSize: null,
+    },
+  });
+
+  // Queue report generation
+  await queueReportGeneration(reportId);
+
+  logger.info(`Report regeneration initiated: ${reportId} by user: ${req.user.id}`);
+
+  res.json({
+    success: true,
+    message: 'Report regeneration started',
+    data: updatedReport,
+  });
+}));
+
+// Delete report
+router.delete('/:id', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user) {
+    throw new Error('Authentication required');
+  }
+
+  const reportId = req.params.id;
+
+  const report = await prisma.report.findFirst({
+    where: {
+      id: reportId,
+      userId: req.user.id,
+    },
+  });
+
+  if (!report) {
+    throw new NotFoundError('Report');
+  }
+
+  if (report.status === 'PROCESSING') {
+    throw new ValidationError('Cannot delete a report that is currently being generated');
+  }
+
+  // Delete report
+  await prisma.report.delete({
+    where: { id: reportId },
+  });
+
+  // In a real implementation, you would also delete the file from storage
+  
+  logger.info(`Report deleted: ${reportId} by user: ${req.user.id}`);
+
+  res.json({
+    success: true,
+    message: 'Report deleted successfully',
+  });
+}));
+
+// Get report templates
+router.get('/templates/list', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const templates = [
+    {
+      id: 'standard',
+      name: 'Standard WCAG Report',
+      description: 'Comprehensive report with all issues and recommendations',
+      format: 'PDF',
+      sections: ['summary', 'issues', 'recommendations', 'appendix'],
+    },
+    {
+      id: 'executive',
+      name: 'Executive Summary',
+      description: 'High-level overview for stakeholders',
+      format: 'PDF',
+      sections: ['summary', 'scorecard', 'recommendations'],
+    },
+    {
+      id: 'developer',
+      name: 'Developer Guide',
+      description: 'Technical details with code examples and fixes',
+      format: 'HTML',
+      sections: ['summary', 'issues', 'code-examples', 'fixes'],
+    },
+    {
+      id: 'compliance',
+      name: 'Compliance Report',
+      description: 'Formal compliance documentation',
+      format: 'PDF',
+      sections: ['summary', 'compliance-matrix', 'issues', 'remediation-plan'],
+    },
+  ];
+
+  res.json({
+    success: true,
+    data: templates,
+  });
+}));
+
+// Create report from template
+router.post('/templates/:templateId', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user) {
+    throw new Error('Authentication required');
+  }
+
+  const templateId = req.params.templateId;
+  const { scanId, name, description } = req.body;
+
+  // Validate template
+  const validTemplates = ['standard', 'executive', 'developer', 'compliance'];
+  if (!validTemplates.includes(templateId)) {
+    throw new ValidationError('Invalid template ID');
+  }
+
+  // Verify scan access
+  const scan = await prisma.scan.findFirst({
+    where: {
+      id: scanId,
+      OR: [
+        { userId: req.user.id },
+        { organization: { members: { some: { userId: req.user.id } } } },
+      ],
+    },
+  });
+
+  if (!scan) {
+    throw new NotFoundError('Scan');
+  }
+
+  if (scan.status !== 'COMPLETED') {
+    throw new ValidationError('Cannot generate report for incomplete scan');
+  }
+
+  // Check existing report
+  const existingReport = await prisma.report.findUnique({
+    where: { scanId },
+  });
+
+  if (existingReport) {
+    throw new ValidationError('A report already exists for this scan');
+  }
+
+  // Create report from template
+  const report = await prisma.report.create({
+    data: {
+      id: uuidv4(),
+      scanId,
+      userId: req.user.id,
+      name: name || `${templateId.charAt(0).toUpperCase() + templateId.slice(1)} Report for ${scan.url}`,
+      description,
+      format: templateId === 'developer' ? 'HTML' : 'PDF',
+      status: 'PENDING',
+    },
+    include: {
+      scan: {
+        select: {
+          id: true,
+          url: true,
+          title: true,
+        },
+      },
+    },
+  });
+
+  // Queue report generation with template
+  await queueReportGeneration(report.id, templateId);
+
+  logger.info(`Template report created: ${report.id} using template: ${templateId}`);
+
+  res.status(201).json({
+    success: true,
+    message: 'Report generation started from template',
+    data: report,
+  });
+}));
+
+// Share report (generate shareable link)
+router.post('/:id/share', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user) {
+    throw new Error('Authentication required');
+  }
+
+  const reportId = req.params.id;
+  const { expires_in = 7 * 24 * 60 * 60 } = req.body; // Default 7 days
+
+  const report = await prisma.report.findFirst({
+    where: {
+      id: reportId,
+      userId: req.user.id,
+    },
+  });
+
+  if (!report) {
+    throw new NotFoundError('Report');
+  }
+
+  if (report.status !== 'COMPLETED') {
+    throw new ValidationError('Cannot share a report that has not completed');
+  }
+
+  // Generate share token
+  const shareToken = require('jsonwebtoken').sign(
+    { reportId, type: 'share', userId: req.user.id },
+    process.env.JWT_SECRET!,
+    { expiresIn: expires_in }
+  );
+
+  // Store share token in cache
+  const { setCache } = await import('@/utils/redis');
+  await setCache(`share_token:${shareToken}`, reportId, expires_in);
+
+  const shareUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/shared-report/${shareToken}`;
+
+  res.json({
+    success: true,
+    message: 'Report share link generated',
+    data: {
+      shareUrl,
+      shareToken,
+      expiresAt: new Date(Date.now() + expires_in * 1000).toISOString(),
+    },
+  });
+}));
+
+// Get shared report (public endpoint)
+router.get('/shared/:shareToken', asyncHandler(async (req: Request, res: Response) => {
+  const { shareToken } = req.params;
+
   try {
-    const { draftId } = req.params;
-    const { format = 'html', clientBrand } = req.body;
-
-    // Fetch draft from store
-    const drafts = getAllDrafts();
-    const draft = drafts.find(d => d.id === draftId);
-
-    if (!draft) {
-      return res.status(404).json({
-        success: false,
-        error: 'Draft not found'
-      });
+    // Verify share token
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.verify(shareToken, process.env.JWT_SECRET!) as any;
+    
+    if (decoded.type !== 'share' || !decoded.reportId) {
+      throw new Error('Invalid share token');
     }
 
-    // Convert draft violations to scan report
-    const scanReport: ScanReport = {
-      id: draftId,
-      url: draft.violations[0]?.url || 'https://example.com',
-      complianceScore: calculateComplianceScore(draft.violations),
-      violations: draft.violations,
-      createdAt: draft.createdAt,
-      aiRemediationPlan: draft.notes || 'Review and fix all violations in priority order.'
-    };
-
-    const brand: ClientBrand = clientBrand || {
-      companyName: draft.company || 'Client Company',
-      primaryColor: '#2563eb',
-      secondaryColor: '#64748b'
-    };
-
-    let report: string;
-    let contentType: string;
-
-    if (format === 'markdown') {
-      report = generateMarkdownReport(scanReport, brand);
-      contentType = 'text/markdown';
-    } else {
-      report = generateHTMLReport(scanReport, brand);
-      contentType = 'text/html';
+    // Check if token is still valid in cache
+    const { getCache } = await import('@/utils/redis');
+    const reportId = await getCache(`share_token:${shareToken}`);
+    
+    if (!reportId || reportId !== decoded.reportId) {
+      throw new Error('Share token has expired or been revoked');
     }
 
-    res.setHeader('Content-Type', contentType);
-    res.send(report);
-  } catch (error) {
-    console.error('Error generating report from draft:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to generate report from draft'
+    // Get report data (limited for public view)
+    const report = await prisma.report.findUnique({
+      where: { id: reportId },
+      include: {
+        scan: {
+          select: {
+            id: true,
+            url: true,
+            title: true,
+            score: true,
+            totalIssues: true,
+            criticalIssues: true,
+            seriousIssues: true,
+            moderateIssues: true,
+            minorIssues: true,
+            completedAt: true,
+          },
+        },
+      },
     });
+
+    if (!report || report.status !== 'COMPLETED') {
+      throw new Error('Report not found or not available');
+    }
+
+    res.json({
+      success: true,
+      data: {
+        report: {
+          name: report.name,
+          description: report.description,
+          format: report.format,
+          createdAt: report.createdAt,
+          scan: report.scan,
+        },
+      },
+    });
+  } catch (error) {
+    throw new ValidationError('Invalid or expired share link');
   }
-});
+}));
 
-/**
- * Calculate compliance score based on violations
- */
-function calculateComplianceScore(violations: any[]): number {
-  if (violations.length === 0) return 100;
-
-  const criticalCount = violations.filter(v => v.severity === 'critical').length;
-  const highCount = violations.filter(v => v.severity === 'high').length;
-  const mediumCount = violations.filter(v => v.severity === 'medium').length;
-  const lowCount = violations.filter(v => v.severity === 'low').length;
-
-  // Weight violations by severity
-  const penalty = (criticalCount * 15) + (highCount * 8) + (mediumCount * 4) + (lowCount * 2);
-  const score = Math.max(0, 100 - penalty);
-
-  return Math.round(score);
+// Helper functions
+async function queueReportGeneration(reportId: string, template?: string): Promise<void> {
+  const { addToQueue } = await import('@/utils/redis');
+  await addToQueue('reports', { reportId, template }, 1);
 }
 
 export default router;
