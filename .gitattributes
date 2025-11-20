@@ -1,0 +1,87 @@
+# Git Attributes for Reproducibility
+# Ensures consistent handling across all platforms
+
+# Text files with Unix line endings
+* text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.xml text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+*.less text eol=lf
+*.sql text eol=lf
+*.sh text eol=lf eofnl
+*.bash text eol=lf eofnl
+
+# Binary files
+*.exe binary
+*.dll binary
+*.bin binary
+*.class binary
+*.jar binary
+*.o binary
+*.so binary
+*.dylib binary
+
+# Images
+*.png binary diff=exif
+*.jpg binary diff=exif
+*.jpeg binary diff=exif
+*.gif binary diff=exif
+*.webp binary
+*.ico binary
+*.svg text diff=svg
+*.svgz binary
+
+# Fonts
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.eot binary
+
+# Video & Audio
+*.mp4 binary
+*.m4v binary
+*.mov binary
+*.avi binary
+*.wav binary
+*.mp3 binary
+*.m4a binary
+
+# Archives
+*.zip binary
+*.tar binary
+*.tar.gz binary
+*.7z binary
+*.rar binary
+
+# Node modules (should rarely need committing)
+node_modules/** merge=ours
+node_modules -diff -merge
+
+# Test fixtures - keep exactly as committed
+src/fixtures/** binary
+test/data/** binary
+__tests__/fixtures/** binary
+tests/data/** binary
+
+# Build artifacts - don't track
+dist/** export-ignore
+build/** export-ignore
+.next/** export-ignore
+out/** export-ignore
+coverage/** export-ignore
+
+# Reproducibility artifacts
+.reproducibility/** export-ignore
+*-checksums*.txt export-ignore
+*-audit-*.txt export-ignore
+*-report*.md export-ignore

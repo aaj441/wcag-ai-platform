@@ -1,0 +1,136 @@
+name: '[Reproducibility] Audit #7 - CI/CD Pipeline Temporal Isolation'
+
+on:
+  schedule:
+    - cron: '0 8 * * 0' # Weekly on Sundays at 8 AM UTC
+
+jobs:
+  ci-temporal-audit:
+    name: Verify CI Temporal Consistency
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@a5ac7e51b41094c7467c0ff5b3978800b1f668f8 # v4.1.6
+
+      - name: Meta Prompt #7 - Audit GitHub Actions Versions
+        id: audit_versions
+        run: |
+          echo "## CI/CD Pipeline Temporal Isolation Audit" >> $GITHUB_STEP_SUMMARY
+
+          # Analyze .github/workflows
+          echo "### GitHub Actions Version Audit" >> $GITHUB_STEP_SUMMARY
+
+          find .github/workflows -name "*.yml" -o -name "*.yaml" | while read workflow; do
+            echo "File: $workflow" >> $GITHUB_STEP_SUMMARY
+
+            # Check for 'latest' tags
+            LATEST_COUNT=$(grep -c "@latest" "$workflow" || echo 0)
+            if [ $LATEST_COUNT -gt 0 ]; then
+              echo "⚠️ Found $LATEST_COUNT @latest references" >> $GITHUB_STEP_SUMMARY
+              grep "@latest" "$workflow" >> $GITHUB_STEP_SUMMARY
+            fi
+
+            # Check for unpinned versions
+            UNPINNED=$(grep -E "uses: .*@v[0-9]+$" "$workflow" || echo "")
+            if [ -n "$UNPINNED" ]; then
+              echo "⚠️ Found unpinned major versions" >> $GITHUB_STEP_SUMMARY
+              echo "$UNPINNED" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+      - name: Meta Prompt #7 - Identify External Dependencies
+        run: |
+          echo "### External Dependencies in CI" >> $GITHUB_STEP_SUMMARY
+
+          # Node version
+          NODE_VERSION=$(grep -r "node-version:" .github/workflows | head -1)
+          echo "Node versions: $NODE_VERSION" >> $GITHUB_STEP_SUMMARY
+
+          # npm registry
+          echo "npm registry: $(npm config get registry)" >> $GITHUB_STEP_SUMMARY
+
+          # Docker base images
+          if [ -f "Dockerfile" ]; then
+            echo "### Docker Base Images" >> $GITHUB_STEP_SUMMARY
+            grep "^FROM" Dockerfile >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Package managers
+          if grep -q "pip\|poetry\|cargo" .github/workflows/*; then
+            echo "### Other Package Managers" >> $GITHUB_STEP_SUMMARY
+            grep -h "pip\|poetry\|cargo" .github/workflows/* | grep -v "^#" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Meta Prompt #7 - Document Temporal Dependency Changes
+        run: |
+          echo "### Temporal Dependency Analysis" >> $GITHUB_STEP_SUMMARY
+
+          # Check git history for version changes
+          echo "Recent version changes in workflows:" >> $GITHUB_STEP_SUMMARY
+          git log --oneline -n 10 -- ".github/workflows/" >> $GITHUB_STEP_SUMMARY
+
+          # Check for cached dependencies
+          echo "### Dependency Caching" >> $GITHUB_STEP_SUMMARY
+          if grep -q "cache:" .github/workflows/*; then
+            echo "✅ Dependency caching configured" >> $GITHUB_STEP_SUMMARY
+            grep -h "cache:" .github/workflows/* >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ No dependency caching configured" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Meta Prompt #7 - Generate Pinned CI Config Recommendation
+        run: |
+          cat > /tmp/pinned-ci-recommendation.md << 'EOF'
+          # CI/CD Pipeline Temporal Isolation Recommendations
+
+          ## Issues Found
+          - GitHub Actions using @latest or unpinned versions
+          - Docker using latest/unpinned base images
+          - npm using rolling release strategy
+
+          ## Remediation
+
+          ### GitHub Actions
+          Replace:
+          ```yaml
+          - uses: actions/checkout@latest
+          ```
+
+          With:
+          ```yaml
+          - uses: actions/checkout@a5ac7e51b41094c7467c0ff5b3978800b1f668f8 # v4.1.6
+          ```
+
+          ### Docker Images
+          Replace:
+          ```dockerfile
+          FROM node:latest
+          ```
+
+          With:
+          ```dockerfile
+          FROM node:20.11.0-alpine3.19
+          ```
+
+          ### npm Registry
+          Use npm ci with exact lockfile versions (already recommended)
+
+          ## Verification
+          Run CI on same commit across multiple days:
+          Day 1: [timestamp]
+          Day 2: [timestamp]
+          Day 3: [timestamp]
+
+          Verify output consistency regardless of date.
+
+          EOF
+
+          cat /tmp/pinned-ci-recommendation.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Archive Audit Results
+        if: always()
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: ci-temporal-audit
+          path: /tmp/pinned-ci-recommendation.md

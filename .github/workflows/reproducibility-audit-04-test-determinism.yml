@@ -1,0 +1,130 @@
+name: '[Reproducibility] Audit #4 - Test Suite Determinism Deep-Dive'
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  schedule:
+    - cron: '0 5 * * *' # Daily at 5 AM UTC
+
+jobs:
+  test-determinism-audit:
+    name: Verify Test Determinism (10-Run Validation)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@a5ac7e51b41094c7467c0ff5b3978800b1f668f8 # v4.1.6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@60edb5dd545a775178fbb3ce5cbf6238cac20061 # v4.0.2
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Meta Prompt #4 - Run Test Suite 10 Times
+        id: ten_run_test
+        run: |
+          echo "## Test Determinism Verification (10 Runs)" >> $GITHUB_STEP_SUMMARY
+
+          mkdir -p /tmp/test-outputs
+
+          for RUN in {1..10}; do
+            echo "=== Test Run #$RUN ===" >> $GITHUB_STEP_SUMMARY
+
+            # Run tests with consistent environment
+            npm test -- --testPathIgnorePatterns=node_modules \
+                       --coverage=false \
+                       --verbose \
+                       --detectOpenHandles 2>&1 | tee /tmp/test-outputs/run-${RUN}.log
+
+            # Extract test output
+            SUMMARY=$(grep -E "Tests:|Snapshots:|Time:" /tmp/test-outputs/run-${RUN}.log | head -3)
+            echo "Summary: $SUMMARY" >> $GITHUB_STEP_SUMMARY
+
+            # Capture exit code
+            TEST_EXIT=$?
+            echo "Exit code: $TEST_EXIT" >> /tmp/test-outputs/run-${RUN}-exit.txt
+          done
+
+      - name: Meta Prompt #4 - Flaky Test Detection
+        id: flaky_detection
+        run: |
+          echo "### Flaky Test Analysis" >> $GITHUB_STEP_SUMMARY
+
+          # Compare all test outputs
+          FLAKY_TESTS=0
+          DETERMINISTIC_RUNS=0
+
+          # Generate hash of test output
+          for RUN in {1..10}; do
+            HASH=$(md5sum /tmp/test-outputs/run-${RUN}.log | awk '{print $1}')
+            echo "Run #$RUN checksum: $HASH"
+          done | sort | uniq -c > /tmp/test-output-hashes.txt
+
+          # Check if all hashes are identical
+          UNIQUE_HASHES=$(wc -l < /tmp/test-output-hashes.txt)
+
+          if [ $UNIQUE_HASHES -eq 1 ]; then
+            echo "✅ All 10 test runs produced identical output" >> $GITHUB_STEP_SUMMARY
+            DETERMINISTIC_RUNS=10
+          else
+            echo "❌ Test output varies across runs!" >> $GITHUB_STEP_SUMMARY
+            cat /tmp/test-output-hashes.txt >> $GITHUB_STEP_SUMMARY
+            FLAKY_TESTS=$((UNIQUE_HASHES - 1))
+          fi
+
+          echo "deterministic_runs=$DETERMINISTIC_RUNS" >> $GITHUB_OUTPUT
+          echo "flaky_tests=$FLAKY_TESTS" >> $GITHUB_OUTPUT
+
+          # Save hashes for audit
+          cp /tmp/test-output-hashes.txt test-determinism-audit-$(date +%s).txt
+
+      - name: Meta Prompt #4 - Detailed Flaky Test Report
+        if: steps.flaky_detection.outputs.flaky_tests != '0'
+        run: |
+          echo "### Flaky Test Investigation" >> $GITHUB_STEP_SUMMARY
+
+          # Diff outputs to find variance
+          echo "Differences between runs:" >> $GITHUB_STEP_SUMMARY
+          diff /tmp/test-outputs/run-1.log /tmp/test-outputs/run-2.log | head -30 >> $GITHUB_STEP_SUMMARY
+
+          # Check for known flakiness patterns
+          echo "### Checking for flakiness patterns..." >> $GITHUB_STEP_SUMMARY
+
+          # Race conditions (timing-dependent tests)
+          if grep -r "timeout\|setTimeout\|setInterval" /tmp/test-outputs/run-*.log; then
+            echo "⚠️ Found timing-dependent test patterns" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Unordered data structures
+          if grep -r "Map\|Set\|Object.keys" /tmp/test-outputs/run-*.log; then
+            echo "⚠️ Found potentially unordered data patterns" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Network dependency
+          if grep -r "fetch\|http\|api" /tmp/test-outputs/run-*.log; then
+            echo "⚠️ Found network-dependent test patterns" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          exit 1
+
+      - name: Meta Prompt #4 - Test Execution Order Analysis
+        if: always()
+        run: |
+          echo "### Test Execution Order & Duration" >> $GITHUB_STEP_SUMMARY
+
+          for RUN in {1..3}; do
+            echo "Run #$RUN:" >> $GITHUB_STEP_SUMMARY
+            grep "PASS\|FAIL" /tmp/test-outputs/run-${RUN}.log | head -20 >> $GITHUB_STEP_SUMMARY
+          done
+
+      - name: Archive Test Outputs
+        if: failure()
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: test-determinism-logs
+          path: |
+            /tmp/test-outputs/
+            test-determinism-audit-*.txt

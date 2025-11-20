@@ -1,0 +1,148 @@
+name: '[Reproducibility] Audit #8 - Data & Asset Fingerprinting'
+
+on:
+  pull_request:
+    paths:
+      - 'src/fixtures/**'
+      - 'test/data/**'
+      - 'public/**'
+      - '__tests__/fixtures/**'
+  schedule:
+    - cron: '0 9 * * *' # Daily at 9 AM UTC
+
+jobs:
+  asset-fingerprinting-audit:
+    name: Verify Asset Integrity & Determinism
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@a5ac7e51b41094c7467c0ff5b3978800b1f668f8 # v4.1.6
+
+      - name: Meta Prompt #8 - Asset Inventory
+        id: asset_inventory
+        run: |
+          echo "## Data & Asset Fingerprinting Verification" >> $GITHUB_STEP_SUMMARY
+
+          mkdir -p /tmp/asset-fingerprints
+
+          # Find all test fixtures and assets
+          echo "### Asset Inventory" >> $GITHUB_STEP_SUMMARY
+
+          ASSET_DIRS=(
+            "src/fixtures"
+            "test/data"
+            "public"
+            "__tests__/fixtures"
+            "tests/data"
+          )
+
+          TOTAL_ASSETS=0
+
+          for dir in "${ASSET_DIRS[@]}"; do
+            if [ -d "$dir" ]; then
+              ASSET_COUNT=$(find "$dir" -type f | wc -l)
+              if [ $ASSET_COUNT -gt 0 ]; then
+                echo "Directory: $dir ($ASSET_COUNT files)" >> $GITHUB_STEP_SUMMARY
+                TOTAL_ASSETS=$((TOTAL_ASSETS + ASSET_COUNT))
+              fi
+            fi
+          done
+
+          echo "Total assets found: $TOTAL_ASSETS" >> $GITHUB_STEP_SUMMARY
+
+          if [ $TOTAL_ASSETS -eq 0 ]; then
+            echo "No test fixtures found, skipping fingerprinting" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+
+      - name: Meta Prompt #8 - Generate Asset Checksums
+        run: |
+          echo "### Asset Checksums" >> $GITHUB_STEP_SUMMARY
+
+          # Generate SHA256 checksums for all assets
+          for dir in src/fixtures test/data public __tests__/fixtures tests/data; do
+            if [ -d "$dir" ]; then
+              find "$dir" -type f -exec sha256sum {} \; | tee -a /tmp/asset-checksums.txt
+            fi
+          done
+
+          # Sort for consistent ordering
+          sort /tmp/asset-checksums.txt > /tmp/asset-checksums-sorted.txt
+
+          echo "Generated checksums for all assets" >> $GITHUB_STEP_SUMMARY
+
+          # Display first 20 for audit
+          echo "First 20 assets:" >> $GITHUB_STEP_SUMMARY
+          head -20 /tmp/asset-checksums-sorted.txt >> $GITHUB_STEP_SUMMARY
+
+      - name: Meta Prompt #8 - Check Binary Commit Mode
+        run: |
+          echo "### Binary File Mode Verification" >> $GITHUB_STEP_SUMMARY
+
+          # Check if assets are committed in binary mode
+          for dir in src/fixtures test/data public __tests__/fixtures tests/data; do
+            if [ -d "$dir" ]; then
+              echo "Checking $dir..." >> $GITHUB_STEP_SUMMARY
+              git check-attr binary "$dir"/* >> /tmp/binary-mode.txt 2>&1 || true
+            fi
+          done
+
+          if grep -q "binary: set" /tmp/binary-mode.txt; then
+            echo "✅ Binary files marked as binary" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Check binary file handling in git" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Meta Prompt #8 - Detect Asset Mutations
+        run: |
+          echo "### Asset Mutation Detection" >> $GITHUB_STEP_SUMMARY
+
+          # Check for line ending issues
+          for dir in src/fixtures test/data public __tests__/fixtures tests/data; do
+            if [ -d "$dir" ]; then
+              CRLF_FILES=$(find "$dir" -type f -exec file {} \; | grep -c "CRLF" || echo 0)
+              if [ $CRLF_FILES -gt 0 ]; then
+                echo "⚠️ Found $CRLF_FILES files with CRLF line endings in $dir" >> $GITHUB_STEP_SUMMARY
+              fi
+            fi
+          done
+
+          # Check for recent modifications
+          echo "### Recent Asset Changes" >> $GITHUB_STEP_SUMMARY
+          for dir in src/fixtures test/data public __tests__/fixtures tests/data; do
+            if [ -d "$dir" ]; then
+              git log -1 --format="%H %ai %s" -- "$dir" >> $GITHUB_STEP_SUMMARY || true
+            fi
+          done
+
+      - name: Meta Prompt #8 - Verify No Preprocessing
+        run: |
+          echo "### Preprocessing Verification" >> $GITHUB_STEP_SUMMARY
+
+          # Check for common preprocessing patterns
+          if grep -r "processTestData\|transformFixture\|normalizeAsset" src/ tests/ 2>/dev/null; then
+            echo "⚠️ Found test data preprocessing" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ No detected preprocessing of test assets" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Check for image reencoding
+          if grep -r "sharp\|imagemagick\|pillow" --include="*.json" . 2>/dev/null | grep -v "node_modules"; then
+            echo "⚠️ Image processing library found (may affect determinism)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Archive Fingerprints
+        if: always()
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: asset-fingerprints
+          path: |
+            /tmp/asset-checksums-sorted.txt
+            /tmp/binary-mode.txt
+
+      - name: Store Fingerprints for Future Comparison
+        if: always()
+        run: |
+          cp /tmp/asset-checksums-sorted.txt asset-checksums-$(date +%s).txt
+          git add asset-checksums-*.txt || true

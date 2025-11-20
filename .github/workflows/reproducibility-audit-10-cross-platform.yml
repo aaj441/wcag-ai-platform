@@ -1,0 +1,221 @@
+name: '[Reproducibility] Audit #10 - Cross-Platform Normalization'
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  schedule:
+    - cron: '0 11 * * *' # Daily at 11 AM UTC
+
+jobs:
+  cross-platform-linux:
+    name: Cross-Platform Audit (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@a5ac7e51b41094c7467c0ff5b3978800b1f668f8 # v4.1.6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@60edb5dd545a775178fbb3ce5cbf6238cac20061 # v4.0.2
+        with:
+          node-version: '20'
+
+      - name: Meta Prompt #10 - Environment Capture (Linux)
+        id: env_linux
+        run: |
+          echo "## Cross-Platform Build Verification" >> $GITHUB_STEP_SUMMARY
+          echo "### Linux Environment" >> $GITHUB_STEP_SUMMARY
+
+          echo "OS: $(uname -s)" >> /tmp/env-linux.txt
+          echo "Platform: $(uname -m)" >> /tmp/env-linux.txt
+          echo "Node: $(node --version)" >> /tmp/env-linux.txt
+          echo "npm: $(npm --version)" >> /tmp/env-linux.txt
+
+          echo "Line ending mode:" >> /tmp/env-linux.txt
+          git config core.safecrlf >> /tmp/env-linux.txt
+
+          cat /tmp/env-linux.txt >> $GITHUB_STEP_SUMMARY
+
+      - name: Build on Linux
+        run: |
+          npm ci
+          npm run build 2>&1 | tail -20
+
+      - name: Generate Linux Checksums
+        run: |
+          mkdir -p /tmp/checksums-linux
+          find dist build .next out -type f 2>/dev/null | sort | xargs sha256sum > /tmp/checksums-linux.txt || true
+          wc -l /tmp/checksums-linux.txt >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Linux Checksums
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: checksums-linux
+          path: /tmp/checksums-linux.txt
+
+  cross-platform-macos:
+    name: Cross-Platform Audit (macOS)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@a5ac7e51b41094c7467c0ff5b3978800b1f668f8 # v4.1.6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@60edb5dd545a775178fbb3ce5cbf6238cac20061 # v4.0.2
+        with:
+          node-version: '20'
+
+      - name: Meta Prompt #10 - Environment Capture (macOS)
+        run: |
+          echo "### macOS Environment" >> /tmp/env-macos.txt
+          echo "OS: $(uname -s)" >> /tmp/env-macos.txt
+          echo "Platform: $(uname -m)" >> /tmp/env-macos.txt
+          echo "Node: $(node --version)" >> /tmp/env-macos.txt
+          echo "npm: $(npm --version)" >> /tmp/env-macos.txt
+
+      - name: Build on macOS
+        run: |
+          npm ci
+          npm run build 2>&1 | tail -20
+
+      - name: Generate macOS Checksums
+        run: |
+          find dist build .next out -type f 2>/dev/null | sort | xargs sha256sum > /tmp/checksums-macos.txt || true
+
+      - name: Upload macOS Checksums
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: checksums-macos
+          path: /tmp/checksums-macos.txt
+
+  cross-platform-windows:
+    name: Cross-Platform Audit (Windows)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@a5ac7e51b41094c7467c0ff5b3978800b1f668f8 # v4.1.6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@60edb5dd545a775178fbb3ce5cbf6238cac20061 # v4.0.2
+        with:
+          node-version: '20'
+
+      - name: Meta Prompt #10 - Environment Capture (Windows)
+        run: |
+          echo "### Windows Environment" > C:\temp\env-windows.txt
+          node --version >> C:\temp\env-windows.txt
+          npm --version >> C:\temp\env-windows.txt
+
+      - name: Build on Windows
+        run: |
+          npm ci
+          npm run build 2>&1 | tail -20
+
+      - name: Generate Windows Checksums
+        run: |
+          dir /s /b dist, build, .next, out 2>NUL | ForEach-Object { Get-FileHash -Path $_ -Algorithm SHA256 } | out-file -encoding UTF8 C:\temp\checksums-windows.txt
+
+      - name: Upload Windows Checksums
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: checksums-windows
+          path: C:\temp\checksums-windows.txt
+
+  cross-platform-comparison:
+    name: Compare Cross-Platform Results
+    needs: [cross-platform-linux, cross-platform-macos, cross-platform-windows]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Download All Checksums
+        uses: actions/download-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+
+      - name: Meta Prompt #10 - Compare Platform Results
+        run: |
+          echo "## Cross-Platform Comparison Results" >> $GITHUB_STEP_SUMMARY
+
+          # Normalize paths for comparison
+          echo "### Normalization" >> $GITHUB_STEP_SUMMARY
+
+          # Convert Windows paths to Unix format
+          sed 's|\\|/|g' checksums-windows/checksums-windows.txt > /tmp/checksums-windows-norm.txt
+
+          # Count artifacts per platform
+          LINUX_COUNT=$(wc -l < checksums-linux/checksums-linux.txt)
+          MACOS_COUNT=$(wc -l < checksums-macos/checksums-macos.txt)
+          WINDOWS_COUNT=$(wc -l < /tmp/checksums-windows-norm.txt)
+
+          echo "Linux artifacts: $LINUX_COUNT" >> $GITHUB_STEP_SUMMARY
+          echo "macOS artifacts: $MACOS_COUNT" >> $GITHUB_STEP_SUMMARY
+          echo "Windows artifacts: $WINDOWS_COUNT" >> $GITHUB_STEP_SUMMARY
+
+          # Extract filename only for comparison (not hashes)
+          cut -d' ' -f2 checksums-linux/checksums-linux.txt | sort > /tmp/files-linux.txt
+          cut -d' ' -f2 checksums-macos/checksums-macos.txt | sort > /tmp/files-macos.txt
+          cut -d' ' -f2 /tmp/checksums-windows-norm.txt | sort > /tmp/files-windows.txt
+
+          # Compare file lists
+          if diff /tmp/files-linux.txt /tmp/files-macos.txt > /dev/null && \
+             diff /tmp/files-macos.txt /tmp/files-windows.txt > /dev/null; then
+            echo "✅ All platforms produced same artifacts" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Platform differences detected" >> $GITHUB_STEP_SUMMARY
+            diff /tmp/files-linux.txt /tmp/files-macos.txt >> $GITHUB_STEP_SUMMARY || true
+          fi
+
+      - name: Meta Prompt #10 - Platform-Specific Issues
+        run: |
+          echo "### Platform-Specific Detections" >> $GITHUB_STEP_SUMMARY
+
+          # Check for Windows line endings in artifacts
+          file checksums-linux/checksums-linux.txt >> $GITHUB_STEP_SUMMARY
+
+          # Check for absolute paths
+          echo "Checking for absolute paths..." >> $GITHUB_STEP_SUMMARY
+          grep -E "^/|^C:" checksums-linux/checksums-linux.txt >> $GITHUB_STEP_SUMMARY || echo "No absolute paths" >> $GITHUB_STEP_SUMMARY
+
+          # Check for case sensitivity issues
+          echo "Files with case variations:" >> $GITHUB_STEP_SUMMARY
+          comm -23 /tmp/files-linux.txt /tmp/files-macos.txt >> $GITHUB_STEP_SUMMARY || true
+
+      - name: Meta Prompt #10 - Generate Cross-Platform Report
+        if: always()
+        run: |
+          cat > /tmp/cross-platform-report.md << 'EOF'
+          # Cross-Platform Build Verification Report
+
+          ## Summary
+          Tested build determinism across three platforms:
+          - Linux (Ubuntu)
+          - macOS
+          - Windows
+
+          ## Results
+          [See job summary above]
+
+          ## Issues to Address
+          1. **Path Separators**: Ensure all paths use `/` internally
+          2. **Line Endings**: Configure git with `core.safecrlf=true`
+          3. **Case Sensitivity**: Use lowercase for all filenames
+          4. **Absolute Paths**: Remove any hardcoded absolute paths
+          5. **Platform Executables**: Document platform-specific binary locations
+
+          ## Remediation
+          1. Add `.gitattributes` with:
+             ```
+             * text eol=lf
+             *.bin binary
+             *.exe binary
+             ```
+          2. Normalize all paths in build scripts
+          3. Test on all three platforms before merging
+
+          EOF
+
+          cat /tmp/cross-platform-report.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Archive Cross-Platform Report
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: cross-platform-report
+          path: /tmp/cross-platform-report.md

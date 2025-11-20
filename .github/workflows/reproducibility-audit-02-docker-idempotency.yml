@@ -1,0 +1,103 @@
+name: '[Reproducibility] Audit #2 - Container Build Idempotency'
+
+on:
+  pull_request:
+    paths:
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - '.dockerignore'
+  schedule:
+    - cron: '0 3 * * *' # Daily at 3 AM UTC
+
+jobs:
+  docker-idempotency-audit:
+    name: Verify Docker Build Determinism
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@a5ac7e51b41094c7467c0ff5b3978800b1f668f8 # v4.1.6
+
+      - name: Set up Docker
+        run: |
+          echo "Docker version: $(docker --version)"
+          echo "Docker buildx version: $(docker buildx version)"
+
+      - name: Meta Prompt #2 - Check Dockerfile Existence
+        id: check_dockerfile
+        run: |
+          if [ -f "Dockerfile" ]; then
+            echo "dockerfile_exists=true" >> $GITHUB_OUTPUT
+            echo "✅ Dockerfile found" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "dockerfile_exists=false" >> $GITHUB_OUTPUT
+            echo "⚠️ No Dockerfile found, skipping Docker audit" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+
+      - name: Meta Prompt #2 - Triple Docker Build Test
+        if: steps.check_dockerfile.outputs.dockerfile_exists == 'true'
+        id: triple_build
+        run: |
+          echo "## Container Build Idempotency Test" >> $GITHUB_STEP_SUMMARY
+          echo "Testing: Build docker image 3 times with --no-cache" >> $GITHUB_STEP_SUMMARY
+
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          IMAGE_NAME="wcag-ai-platform"
+
+          # Function to build and capture metadata
+          build_and_inspect() {
+            local BUILD_NUM=$1
+            echo "=== Build #$BUILD_NUM ===" >> $GITHUB_STEP_SUMMARY
+
+            # Build image
+            docker build --no-cache -t "${IMAGE_NAME}:build-${BUILD_NUM}" . 2>&1 | tail -20
+
+            # Capture image metadata
+            docker inspect "${IMAGE_NAME}:build-${BUILD_NUM}" > /tmp/build-${BUILD_NUM}-inspect.json
+
+            # Extract layer hashes
+            docker history "${IMAGE_NAME}:build-${BUILD_NUM}" --no-trunc > /tmp/build-${BUILD_NUM}-history.txt
+
+            echo "Build #$BUILD_NUM completed" >> $GITHUB_STEP_SUMMARY
+          }
+
+          # Run three builds
+          build_and_inspect 1
+          build_and_inspect 2
+          build_and_inspect 3
+
+          # Compare layer hashes
+          echo "### Layer Hash Comparison" >> $GITHUB_STEP_SUMMARY
+
+          HASH1=$(jq '.RootFS.Layers | sort | @csv' /tmp/build-1-inspect.json)
+          HASH2=$(jq '.RootFS.Layers | sort | @csv' /tmp/build-2-inspect.json)
+          HASH3=$(jq '.RootFS.Layers | sort | @csv' /tmp/build-3-inspect.json)
+
+          if [ "$HASH1" == "$HASH2" ] && [ "$HASH2" == "$HASH3" ]; then
+            echo "✅ All 3 builds produced identical layer hashes" >> $GITHUB_STEP_SUMMARY
+            echo "builds_deterministic=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Layer hashes differ between builds!" >> $GITHUB_STEP_SUMMARY
+            echo "Build 1 hash: $HASH1" >> $GITHUB_STEP_SUMMARY
+            echo "Build 2 hash: $HASH2" >> $GITHUB_STEP_SUMMARY
+            echo "Build 3 hash: $HASH3" >> $GITHUB_STEP_SUMMARY
+            echo "builds_deterministic=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Meta Prompt #2 - Environment Variable Analysis
+        if: steps.check_dockerfile.outputs.dockerfile_exists == 'true'
+        run: |
+          echo "### Environment Variable Analysis" >> $GITHUB_STEP_SUMMARY
+
+          # Check for timestamp-like env vars
+          jq '.Config.Env[]' /tmp/build-1-inspect.json | grep -E "(DATE|TIME|TIMESTAMP|BUILD_TIME)" || true >> $GITHUB_STEP_SUMMARY
+
+          # Check for dynamic values
+          echo "✅ Environment variables captured for audit" >> $GITHUB_STEP_SUMMARY
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker rmi wcag-ai-platform:build-{1,2,3} 2>/dev/null || true
