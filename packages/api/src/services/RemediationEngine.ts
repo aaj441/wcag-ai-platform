@@ -1,6 +1,7 @@
 import { prisma } from '../lib/db';
 import { log } from '../utils/logger';
 import { aiService, AIFixRequest } from './AIService';
+import { multiLLMValidator, MultiLLMValidationResult } from './MultiLLMValidator';
 
 export interface FixRequest {
   violationId: string;
@@ -205,5 +206,244 @@ export class RemediationEngine {
     });
 
     return templates;
+  }
+
+  /**
+   * Generate fix with multi-LLM validation
+   *
+   * Uses multiple LLMs to generate and validate fixes, providing:
+   * - Responses from multiple AI providers (GPT, Claude, Sonar)
+   * - Majority vote consensus
+   * - Expert critic review
+   * - Agreement scoring
+   *
+   * This provides higher confidence and transparency for critical fixes.
+   */
+  static async generateFixWithMultiLLM(req: FixRequest): Promise<{
+    fix: GeneratedFix;
+    validation: MultiLLMValidationResult;
+  }> {
+    try {
+      log.info('Generating fix with multi-LLM validation', {
+        violationId: req.violationId,
+        wcagCriteria: req.wcagCriteria,
+        issueType: req.issueType,
+      });
+
+      // Build AI request
+      const aiRequest: AIFixRequest = {
+        violationId: req.violationId,
+        wcagCriteria: req.wcagCriteria,
+        issueType: req.issueType,
+        description: req.description,
+        elementSelector: req.elementSelector,
+        codeSnippet: req.codeSnippet,
+        pageContext: req.pageContext,
+      };
+
+      // Run multi-LLM validation workflow
+      const validation = await multiLLMValidator.validateWithMultipleLLMs(aiRequest);
+
+      // Use the best response (either from critic's merged solution or majority vote)
+      const bestResponse = validation.critic.merged || validation.majorityVote;
+
+      // Create GeneratedFix from the best response
+      const fix: GeneratedFix = {
+        wcagCriteria: req.wcagCriteria,
+        issueType: req.issueType,
+        originalCode: req.codeSnippet,
+        fixedCode: bestResponse.fixedCode,
+        explanation: bestResponse.explanation,
+        confidenceScore: this.calculateEnhancedConfidence(bestResponse.confidence, validation),
+        codeLanguage: req.codeLanguage || 'html',
+      };
+
+      log.info('Multi-LLM fix generated successfully', {
+        violationId: req.violationId,
+        consensusLevel: validation.consensusLevel,
+        agreementScore: validation.critic.agreementScore,
+        finalConfidence: fix.confidenceScore,
+      });
+
+      return { fix, validation };
+    } catch (error) {
+      log.error(
+        'Failed to generate multi-LLM fix',
+        error instanceof Error ? error : new Error(String(error)),
+        { violationId: req.violationId }
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Save multi-LLM validation to database
+   */
+  static async saveMultiLLMValidation(
+    tenantId: string,
+    fixId: string,
+    validation: MultiLLMValidationResult,
+    request: FixRequest
+  ) {
+    try {
+      const validationRecord = await prisma.multiLLMValidation.create({
+        data: {
+          tenantId,
+          fixId,
+          violationId: request.violationId,
+          wcagCriteria: request.wcagCriteria,
+          issueType: request.issueType,
+          requestData: {
+            violationId: request.violationId,
+            wcagCriteria: request.wcagCriteria,
+            issueType: request.issueType,
+            description: request.description,
+            elementSelector: request.elementSelector,
+            codeSnippet: request.codeSnippet,
+            codeLanguage: request.codeLanguage,
+            pageContext: request.pageContext,
+          },
+          majorityVoteResult: {
+            fixedCode: validation.majorityVote.fixedCode,
+            explanation: validation.majorityVote.explanation,
+            confidence: validation.majorityVote.confidence,
+            alternativeFixes: validation.majorityVote.alternativeFixes,
+          },
+          criticReview: {
+            best: validation.critic.best,
+            issues: validation.critic.issues,
+            rationale: validation.critic.rationale,
+            agreementScore: validation.critic.agreementScore,
+            merged: validation.critic.merged,
+          },
+          consensusLevel: validation.consensusLevel,
+          agreementScore: validation.critic.agreementScore,
+          totalLatency: validation.totalLatency,
+          totalCost: validation.totalCost,
+          numProviders: validation.responses.length,
+          status: 'completed',
+          providerResponses: {
+            create: validation.responses.map((response) => ({
+              provider: response.provider,
+              model: response.model,
+              fixedCode: response.output.fixedCode,
+              explanation: response.output.explanation,
+              confidence: response.output.confidence,
+              alternativeFixes: response.output.alternativeFixes || [],
+              latency: response.latency,
+              cost: response.cost || 0,
+              issues: validation.critic.issues[response.model] || [],
+              selectedAsBest: validation.critic.best === response.model,
+              status: 'success',
+            })),
+          },
+        },
+        include: {
+          providerResponses: true,
+        },
+      });
+
+      log.info('Multi-LLM validation saved to database', {
+        validationId: validationRecord.id,
+        fixId,
+        numProviders: validation.responses.length,
+      });
+
+      return validationRecord;
+    } catch (error) {
+      log.error(
+        'Failed to save multi-LLM validation',
+        error instanceof Error ? error : new Error(String(error)),
+        { fixId }
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Calculate enhanced confidence based on multi-LLM consensus
+   *
+   * Boosts confidence when:
+   * - High agreement between models
+   * - High consensus level
+   * - Multiple models agree on the solution
+   */
+  private static calculateEnhancedConfidence(
+    baseConfidence: number,
+    validation: MultiLLMValidationResult
+  ): number {
+    let enhancedConfidence = baseConfidence;
+
+    // Boost for high agreement (up to +0.1)
+    const agreementBoost = validation.critic.agreementScore * 0.1;
+    enhancedConfidence += agreementBoost;
+
+    // Boost for consensus level
+    const consensusBoost = {
+      high: 0.05,
+      medium: 0.02,
+      low: 0,
+    };
+    enhancedConfidence += consensusBoost[validation.consensusLevel];
+
+    // Boost for multiple providers agreeing (up to +0.05)
+    const providerCountBoost = Math.min(validation.responses.length / 3, 1) * 0.05;
+    enhancedConfidence += providerCountBoost;
+
+    // Cap at 1.0
+    return Math.min(enhancedConfidence, 1.0);
+  }
+
+  /**
+   * Get multi-LLM validation metrics for a tenant
+   */
+  static async getMultiLLMMetrics(tenantId: string) {
+    const validations = await prisma.multiLLMValidation.findMany({
+      where: { tenantId },
+      include: {
+        providerResponses: true,
+      },
+    });
+
+    if (validations.length === 0) {
+      return {
+        totalValidations: 0,
+        averageAgreementScore: '0.00',
+        consensusBreakdown: { high: 0, medium: 0, low: 0 },
+        averageLatency: '0ms',
+        totalCost: '$0.00',
+        averageConfidence: '0.00',
+      };
+    }
+
+    const consensusBreakdown = validations.reduce(
+      (acc, v) => {
+        acc[v.consensusLevel as 'high' | 'medium' | 'low']++;
+        return acc;
+      },
+      { high: 0, medium: 0, low: 0 }
+    );
+
+    return {
+      totalValidations: validations.length,
+      averageAgreementScore: (
+        validations.reduce((sum, v) => sum + v.agreementScore, 0) / validations.length
+      ).toFixed(2),
+      consensusBreakdown,
+      averageLatency:
+        Math.round(
+          validations.reduce((sum, v) => sum + v.totalLatency, 0) / validations.length
+        ) + 'ms',
+      totalCost: '$' + validations.reduce((sum, v) => sum + v.totalCost, 0).toFixed(2),
+      averageConfidence:
+        validations.length > 0
+          ? (
+              validations.reduce((sum, v) => {
+                const result = v.majorityVoteResult as any;
+                return sum + (result.confidence || 0);
+              }, 0) / validations.length
+            ).toFixed(2)
+          : '0.00',
+    };
   }
 }
