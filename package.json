@@ -17,7 +17,11 @@
     "start:webapp": "cd packages/webapp && npm run start",
     "accessibility:scan": "node scripts/accessibility-scan.js",
     "accessibility:pa11y": "node scripts/pa11y-scan.js",
-    "evidence:update": "node scripts/update-evidence-vault.js"
+    "evidence:update": "node scripts/update-evidence-vault.js",
+    "test:fintech": "node tests/fintech/test-full-fintech-workflow.js",
+    "test:fintech:discover": "node tests/fintech/test-discover-fintech.js",
+    "test:fintech:scan": "node tests/fintech/test-scan-fintech.js",
+    "test:fintech:outreach": "node tests/fintech/test-outreach-fintech.js"
   },
   "keywords": [
     "wcag",
