@@ -3,7 +3,7 @@
  * Connects frontend to REST API
  */
 
-import { EmailDraft, EmailStatus, Violation } from '../types';
+import { EmailDraft, EmailStatus, Violation, EvidenceRecord, ComplianceMetrics, QuarterlyReport, CIScanResult } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
@@ -164,6 +164,111 @@ class ApiService {
     } catch {
       return false;
     }
+  }
+
+  // ============================================================================
+  // EVIDENCE VAULT ENDPOINTS
+  // ============================================================================
+
+  async storeEvidence(evidence: Partial<EvidenceRecord>): Promise<EvidenceRecord | null> {
+    const response = await this.request<EvidenceRecord>('/evidence/store', {
+      method: 'POST',
+      body: JSON.stringify(evidence),
+    });
+    return response.data || null;
+  }
+
+  async getAllEvidence(filters?: {
+    clientId?: string;
+    projectId?: string;
+    scanType?: 'manual' | 'automated' | 'ci-cd';
+    startDate?: Date;
+    endDate?: Date;
+    minComplianceScore?: number;
+    maxComplianceScore?: number;
+  }): Promise<EvidenceRecord[]> {
+    const params = new URLSearchParams();
+    if (filters?.clientId) params.append('clientId', filters.clientId);
+    if (filters?.projectId) params.append('projectId', filters.projectId);
+    if (filters?.scanType) params.append('scanType', filters.scanType);
+    if (filters?.startDate) params.append('startDate', filters.startDate.toISOString());
+    if (filters?.endDate) params.append('endDate', filters.endDate.toISOString());
+    if (filters?.minComplianceScore !== undefined) params.append('minComplianceScore', filters.minComplianceScore.toString());
+    if (filters?.maxComplianceScore !== undefined) params.append('maxComplianceScore', filters.maxComplianceScore.toString());
+
+    const query = params.toString();
+    const endpoint = `/evidence${query ? `?${query}` : ''}`;
+
+    const response = await this.request<EvidenceRecord[]>(endpoint);
+    return response.data || [];
+  }
+
+  async getEvidenceById(id: string): Promise<EvidenceRecord | null> {
+    const response = await this.request<EvidenceRecord>(`/evidence/${id}`);
+    return response.data || null;
+  }
+
+  async deleteEvidence(id: string): Promise<boolean> {
+    const response = await this.request(`/evidence/${id}`, {
+      method: 'DELETE',
+    });
+    return response.success;
+  }
+
+  async getComplianceMetrics(
+    period: 'daily' | 'weekly' | 'monthly' | 'quarterly' = 'monthly',
+    clientId?: string
+  ): Promise<ComplianceMetrics | null> {
+    const params = new URLSearchParams();
+    params.append('period', period);
+    if (clientId) params.append('clientId', clientId);
+
+    const response = await this.request<ComplianceMetrics>(`/evidence/metrics/dashboard?${params.toString()}`);
+    return response.data || null;
+  }
+
+  async storeCIScanResult(result: Partial<CIScanResult>): Promise<CIScanResult | null> {
+    const response = await this.request<CIScanResult>('/evidence/ci-scan', {
+      method: 'POST',
+      body: JSON.stringify(result),
+    });
+    return response.data || null;
+  }
+
+  async getCIScanResults(filters?: {
+    branch?: string;
+    passed?: boolean;
+    limit?: number;
+  }): Promise<CIScanResult[]> {
+    const params = new URLSearchParams();
+    if (filters?.branch) params.append('branch', filters.branch);
+    if (filters?.passed !== undefined) params.append('passed', filters.passed.toString());
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+
+    const query = params.toString();
+    const endpoint = `/evidence/ci-scans/list${query ? `?${query}` : ''}`;
+
+    const response = await this.request<CIScanResult[]>(endpoint);
+    return response.data || [];
+  }
+
+  async generateQuarterlyReport(quarter: string, clientId?: string): Promise<QuarterlyReport | null> {
+    const response = await this.request<QuarterlyReport>('/evidence/quarterly-report', {
+      method: 'POST',
+      body: JSON.stringify({ quarter, clientId }),
+    });
+    return response.data || null;
+  }
+
+  async getQuarterlyReports(clientId?: string): Promise<QuarterlyReport[]> {
+    const params = new URLSearchParams();
+    if (clientId) params.append('clientId', clientId);
+
+    const query = params.toString();
+    const endpoint = `/evidence/quarterly-reports/list${query ? `?${query}` : ''}`;
+
+    const response = await this.request<QuarterlyReport[]>(endpoint);
+    return response.data || [];
   }
 }
 

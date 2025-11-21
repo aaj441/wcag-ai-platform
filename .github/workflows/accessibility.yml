@@ -1,3 +1,16 @@
+name: Accessibility CI/CD Scanner
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    types: [ opened, synchronize, reopened ]
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  accessibility-scan:
+    name: Scan for WCAG Violations
 name: Accessibility Scan
 
 on:
@@ -13,6 +26,8 @@ jobs:
     
     permissions:
       contents: read
+      pull-requests: write
+      issues: write
       issues: write
       pull-requests: write
     
@@ -26,6 +41,167 @@ jobs:
           node-version: '20'
           cache: 'npm'
       
+      - name: Install dependencies
+        run: |
+          npm install -g axe-core puppeteer pa11y
+          cd packages/api && npm install
+          cd ../webapp && npm install
+      
+      - name: Build application
+        run: |
+          cd packages/api && npm run build
+          cd ../webapp && npm run build
+      
+      - name: Start API server
+        run: |
+          cd packages/api
+          npm start &
+          API_PID=$!
+          echo "API_PID=$API_PID" >> $GITHUB_ENV
+          # Wait for server to start
+          sleep 10
+          curl http://localhost:3001/health || echo "API not ready yet"
+      
+      - name: Start web server
+        run: |
+          cd packages/webapp
+          npm start &
+          WEBAPP_PID=$!
+          echo "WEBAPP_PID=$WEBAPP_PID" >> $GITHUB_ENV
+          # Wait for server to start
+          sleep 10
+          curl http://localhost:3000 || echo "Webapp not ready yet"
+      
+      - name: Run axe-core accessibility scan
+        id: axe-scan
+        continue-on-error: true
+        run: |
+          node scripts/accessibility-scan.js http://localhost:3000 --output json > axe-results.json
+          echo "exit_code=$?" >> $GITHUB_OUTPUT
+      
+      - name: Parse scan results
+        id: parse-results
+        run: |
+          if [ -f axe-results.json ]; then
+            CRITICAL=$(jq '.summary.critical' axe-results.json)
+            HIGH=$(jq '.summary.high' axe-results.json)
+            MEDIUM=$(jq '.summary.medium' axe-results.json)
+            LOW=$(jq '.summary.low' axe-results.json)
+            TOTAL=$(jq '.summary.total' axe-results.json)
+            SCORE=$(jq '.complianceScore' axe-results.json)
+            
+            echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
+            echo "high=$HIGH" >> $GITHUB_OUTPUT
+            echo "medium=$MEDIUM" >> $GITHUB_OUTPUT
+            echo "low=$LOW" >> $GITHUB_OUTPUT
+            echo "total=$TOTAL" >> $GITHUB_OUTPUT
+            echo "score=$SCORE" >> $GITHUB_OUTPUT
+          else
+            echo "critical=0" >> $GITHUB_OUTPUT
+            echo "high=0" >> $GITHUB_OUTPUT
+            echo "medium=0" >> $GITHUB_OUTPUT
+            echo "low=0" >> $GITHUB_OUTPUT
+            echo "total=0" >> $GITHUB_OUTPUT
+            echo "score=100" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Save to Evidence Vault
+        if: always()
+        env:
+          API_URL: http://localhost:3001
+        run: |
+          if [ -f axe-results.json ]; then
+            # Use jq to properly escape JSON values
+            COMMIT_SHA=$(echo "${{ github.sha }}" | jq -R .)
+            BRANCH=$(echo "${{ github.ref_name }}" | jq -R .)
+            
+            curl -X POST http://localhost:3001/api/evidence/ci-scan \
+              -H "Content-Type: application/json" \
+              -d @- <<EOF
+          {
+            "prNumber": ${{ github.event.pull_request.number || 0 }},
+            "commitSha": ${COMMIT_SHA},
+            "branch": ${BRANCH},
+            "passed": $([ "${{ steps.parse-results.outputs.critical }}" -eq 0 ] && echo "true" || echo "false"),
+            "complianceScore": ${{ steps.parse-results.outputs.score }},
+            "violations": $(cat axe-results.json | jq '.violations'),
+            "criticalBlockers": ${{ steps.parse-results.outputs.critical }},
+            "scanDurationMs": $(cat axe-results.json | jq '.scanDurationMs'),
+            "tool": "axe-core"
+          }
+          EOF
+          fi
+      
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const critical = ${{ steps.parse-results.outputs.critical }};
+            const high = ${{ steps.parse-results.outputs.high }};
+            const medium = ${{ steps.parse-results.outputs.medium }};
+            const low = ${{ steps.parse-results.outputs.low }};
+            const total = ${{ steps.parse-results.outputs.total }};
+            const score = ${{ steps.parse-results.outputs.score }};
+            const passed = critical === 0;
+            
+            const statusIcon = passed ? '✅' : '❌';
+            const scoreColor = score >= 90 ? '🟢' : score >= 75 ? '🟡' : '🔴';
+            
+            const comment = `## ${statusIcon} Accessibility Scan Results
+            
+            **Compliance Score:** ${scoreColor} **${score}%**
+            
+            ### Violations Summary
+            
+            | Severity | Count |
+            |----------|-------|
+            | 🔴 Critical | ${critical} |
+            | 🟠 High | ${high} |
+            | 🟡 Medium | ${medium} |
+            | 🟢 Low | ${low} |
+            | **Total** | **${total}** |
+            
+            ${critical > 0 ? `
+            ### ⚠️ Critical Issues Must Be Fixed
+            
+            This PR has **${critical} critical accessibility issue(s)** that block users with disabilities.
+            Please address these issues before merging.
+            ` : ''}
+            
+            ${passed ? `
+            ### ✅ Status: PASSED
+            
+            No critical accessibility issues detected. Great job! 🎉
+            ` : `
+            ### ❌ Status: FAILED
+            
+            Critical accessibility issues detected. This PR cannot be merged until these are resolved.
+            `}
+            
+            ---
+            
+            <details>
+            <summary>📚 WCAG 2.2 AA Compliance</summary>
+            
+            This scan checks for compliance with:
+            - WCAG 2.0 Level A & AA
+            - WCAG 2.1 Level A & AA
+            - WCAG 2.2 Level AA
+            
+            **Evidence Retention:** Results saved to Evidence Vault for 90 days
+            
+            **Tools Used:** axe-core automated scanner
+            </details>
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
       - name: Install root dependencies
         run: npm install || npm ci --legacy-peer-deps
 
@@ -82,6 +258,26 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
+          name: accessibility-scan-results
+          path: axe-results.json
+          retention-days: 90
+      
+      - name: Fail if critical issues found
+        if: steps.parse-results.outputs.critical != '0'
+        run: |
+          echo "❌ BLOCKING: Found ${{ steps.parse-results.outputs.critical }} critical accessibility issues"
+          echo "These issues prevent users with disabilities from accessing content."
+          echo "Please fix critical issues before merging."
+          exit 1
+      
+      - name: Cleanup
+        if: always()
+        run: |
+          if [ ! -z "$API_PID" ]; then
+            kill $API_PID || true
+          fi
+          if [ ! -z "$WEBAPP_PID" ]; then
+            kill $WEBAPP_PID || true
           name: accessibility-scan-results-${{ github.run_number }}
           path: evidence-vault/
           retention-days: 90

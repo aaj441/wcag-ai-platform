@@ -19,6 +19,7 @@ import clientsRouter from './routes/clients';
 import slaRouter from './routes/sla';
 import reportsRouter from './routes/reports';
 import proposalsRouter from './routes/proposals';
+import evidenceRouter from './routes/evidence';
 import targetDemographicsRouter from './routes/targetDemographics';
 import billingRouter from './routes/billing';
 import healthRouter from './routes/health';
@@ -123,6 +124,7 @@ app.use('/api/clients', clientsRouter);
 app.use('/api/sla', slaRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/proposals', proposalsRouter);
+app.use('/api/evidence', evidenceRouter);
 app.use('/api/target-demographics', targetDemographicsRouter);
 app.use('/api/billing', billingRouter);
 app.use('/api/transform', transformRouter);
@@ -146,6 +148,7 @@ app.get('/', (req: Request, res: Response) => {
       sla: '/api/sla',
       reports: '/api/reports',
       proposals: '/api/proposals',
+      evidence: '/api/evidence',
       targetDemographics: '/api/target-demographics',
       transform: '/api/transform',
     },

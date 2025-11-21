@@ -81,6 +81,19 @@ packages/
 
 ## **🚀 Quick Start**
 
+### For Consultants
+- **[Consultant Quick Start](CONSULTANT_QUICKSTART.md)** - Get started in 30 minutes
+- **[Business Playbook](CONSULTANT_BUSINESS_GUIDE.md)** - Complete guide to $10K MRR
+- **[Marketing Site Setup](consultant-site/README.md)** - Deploy your consulting website
+- **[Legal Templates](consultant-site/legal/README.md)** - ToS and Privacy Policy
+- **[Evidence Vault Guide](EVIDENCE_VAULT_GUIDE.md)** - 🔒 Compliance tracking & legal defense (NEW!)
+
+### For Developers
+- **[Full Stack Guide](FULL_STACK_GUIDE.md)** - Complete setup and deployment
+- **[Frontend README](packages/webapp/README.md)** - Frontend documentation
+- **[API README](packages/api/README.md)** - Backend API documentation
+- **[Implementation Summary](IMPLEMENTATION_SUMMARY.md)** - Technical details
+- **[Evidence Vault Guide](EVIDENCE_VAULT_GUIDE.md)** - 🔒 Evidence Vault & CI/CD automation (NEW!)
 ### **For Consultants (Start Earning):**
 
 ```bash
@@ -104,6 +117,129 @@ npx prisma db push
 # Terminal 1 (Backend):
 cd packages/api && npm run dev
 
+## 🎯 Features
+
+### 💼 Consultant Business Layer (NEW!)
+
+**Client Management:**
+- Automated onboarding with tier-based pricing
+- Multi-tenant support ready for Stripe/Clerk
+- Scan quota tracking and management
+- Client portal ready
+
+**Professional Reports:**
+- White-labeled PDF/HTML compliance reports
+- Executive summary with compliance scoring
+- Detailed violation breakdown
+- Customizable client branding
+
+**Automated Proposals:**
+- Dynamic proposal generation based on scan data
+- ROI calculations and business metrics
+- Three-tier pricing recommendations
+- HTML and Markdown formats
+
+**SLA Monitoring:**
+- Real-time scan performance tracking
+- Automatic breach detection and notifications
+- Statistics and analytics dashboards
+- Ready for PagerDuty integration
+
+**Evidence Vault & Compliance Tracking (NEW!):**
+- 📊 Real-time compliance metrics dashboard (daily/weekly/monthly/quarterly)
+- 🔒 Evidence storage with 90-day retention policy
+- 📈 Trend analysis and violation tracking
+- 📄 Automated quarterly compliance reports
+- ⚖️ Legal defense documentation generation
+- 🔄 CI/CD scan result tracking
+- 🎯 Compliance score calculation (WCAG 2.2 AA)
+- 🔍 Advanced filtering and search capabilities
+
+**CI/CD Accessibility Scanner (NEW!):**
+- 🤖 Automated GitHub Actions workflow for every PR
+- 🚦 Blocks merges with critical accessibility issues
+- 💬 Auto-comments PR results with compliance scores
+- 📦 90-day artifact retention
+- 🔧 Supports axe-core and pa11y scanners
+- 🎨 Beautiful violation summaries and trends
+- ⚡ Fast scans with headless browser automation
+
+### Consultant Approval Dashboard
+
+**Email Draft Management:**
+- Create, read, update, delete email drafts
+- Search across recipient, subject, company, body
+- Filter by status (draft, pending_review, approved, sent, rejected)
+- Sort by date, priority, or severity
+- Inline editing with validation
+- Toast notifications for all actions
+
+**Violation Display:**
+- 6 comprehensive WCAG violations with real examples
+- Expandable technical details
+- Code snippets with copy-to-clipboard
+- Screenshot display
+- WCAG criteria links to W3C documentation
+- Severity badges (Critical, High, Medium, Low)
+- Impact analysis for affected users
+
+**Workflow:**
+```
+draft → pending_review → approved → sent
+              ↓
+          rejected
+```
+
+### REST API Endpoints
+
+**Drafts:**
+- `GET /api/drafts` - List all drafts (with filters)
+- `GET /api/drafts/:id` - Get draft by ID
+- `POST /api/drafts` - Create new draft
+- `PUT /api/drafts/:id` - Update draft
+- `PATCH /api/drafts/:id/approve` - Approve draft
+- `PATCH /api/drafts/:id/reject` - Reject draft
+- `PATCH /api/drafts/:id/send` - Mark as sent
+- `DELETE /api/drafts/:id` - Delete draft
+
+**Violations:**
+- `GET /api/violations` - List all violations
+- `GET /api/violations/stats` - Get statistics
+
+**Clients (NEW!):**
+- `POST /api/clients/onboard` - Onboard new client
+- `GET /api/clients` - List all clients
+- `GET /api/clients/:id` - Get client by ID
+- `PATCH /api/clients/:id/scans` - Update scan count
+
+**SLA Monitoring (NEW!):**
+- `GET /api/sla/report` - Get SLA compliance report
+- `GET /api/sla/statistics` - Get overall statistics
+- `GET /api/sla/customer/:id` - Get customer scans
+- `POST /api/sla/scan/register` - Register scan for tracking
+- `POST /api/sla/scan/:id/complete` - Mark scan complete
+
+**Reports (NEW!):**
+- `POST /api/reports/generate` - Generate white-label report
+- `POST /api/reports/draft/:id` - Generate report from draft
+
+**Proposals (NEW!):**
+- `POST /api/proposals/generate` - Generate consulting proposal
+- `POST /api/proposals/recommend-tier` - Get tier recommendation
+
+**Evidence Vault (NEW!):**
+- `POST /api/evidence/store` - Store scan evidence with retention policy
+- `GET /api/evidence` - List evidence with filters
+- `GET /api/evidence/:id` - Get specific evidence record
+- `DELETE /api/evidence/:id` - Delete evidence record
+- `GET /api/evidence/metrics/dashboard` - Get compliance metrics
+- `POST /api/evidence/ci-scan` - Store CI/CD scan results
+- `GET /api/evidence/ci-scans/list` - List CI scan results
+- `POST /api/evidence/quarterly-report` - Generate quarterly report
+- `GET /api/evidence/quarterly-reports/list` - List quarterly reports
+
+**System:**
+- `GET /health` - Health check
 # Terminal 2 (Frontend):
 cd packages/webapp && npm run dev
 

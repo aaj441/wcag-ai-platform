@@ -28,6 +28,9 @@ export interface Violation {
   priority: number;
 }
 
+// Alias for backend compatibility - identical to backend's LegacyViolation type
+export type LegacyViolation = Violation;
+
 export interface EmailDraft {
   id: string;
   recipient: string;
@@ -186,3 +189,90 @@ export type StatusConfig = {
     icon: string;
   };
 };
+
+// ============================================================================
+// EVIDENCE VAULT - Compliance Tracking & Legal Defense
+// ============================================================================
+
+export interface EvidenceRecord {
+  id: string;
+  scanId: string;
+  url: string;
+  timestamp: Date;
+  complianceScore: number;
+  violationsCount: number;
+  criticalCount: number;
+  highCount: number;
+  mediumCount: number;
+  lowCount: number;
+  scanType: 'manual' | 'automated' | 'ci-cd';
+  scanTool: string;
+  violations: LegacyViolation[]; // Matches backend LegacyViolation type
+  screenshotUrl?: string;
+  reportUrl?: string;
+  clientId?: string;
+  projectId?: string;
+  retentionDays: number;
+  tags?: string[];
+  metadata?: Record<string, any>;
+}
+
+export interface ComplianceMetrics {
+  period: 'daily' | 'weekly' | 'monthly' | 'quarterly';
+  startDate: Date;
+  endDate: Date;
+  totalScans: number;
+  averageComplianceScore: number;
+  totalViolations: number;
+  violationsByType: {
+    critical: number;
+    high: number;
+    medium: number;
+    low: number;
+  };
+  trendData: Array<{
+    date: Date;
+    complianceScore: number;
+    violationsCount: number;
+  }>;
+  topViolations: Array<{
+    wcagCriteria: string;
+    count: number;
+    severity: ViolationSeverity;
+  }>;
+  scanCoverage: {
+    totalUrls: number;
+    scannedUrls: number;
+    coveragePercentage: number;
+  };
+}
+
+export interface QuarterlyReport {
+  id: string;
+  quarter: string;
+  clientId?: string;
+  generatedAt: Date;
+  metrics: ComplianceMetrics;
+  executiveSummary: string;
+  evidenceRecords: EvidenceRecord[];
+  recommendations: string[];
+  legalDefenseDocumentation: {
+    complianceEfforts: string[];
+    remediationActions: string[];
+    ongoingMonitoring: string[];
+  };
+}
+
+export interface CIScanResult {
+  id: string;
+  prNumber?: number;
+  commitSha: string;
+  branch: string;
+  timestamp: Date;
+  passed: boolean;
+  complianceScore: number;
+  violations: Violation[];
+  criticalBlockers: number;
+  scanDurationMs: number;
+  tool: string;
+}
