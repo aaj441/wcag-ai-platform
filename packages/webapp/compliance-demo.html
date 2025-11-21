@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WCAG Compliance Demo - Before & After</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+        }
+
+        /* Demo Controls */
+        .demo-controls {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #1a1a1a;
+            color: white;
+            padding: 1rem;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .demo-controls h1 {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .toggle-button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .toggle-button:hover {
+            background: #45a049;
+            transform: scale(1.05);
+        }
+
+        .state-indicator {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-left: 1rem;
+        }
+
+        .state-before {
+            background: #f44336;
+            color: white;
+        }
+
+        .state-after {
+            background: #4CAF50;
+            color: white;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-top: 80px;
+        }
+
+        /* Violation Highlighting */
+        .violation {
+            position: relative;
+            border: 3px solid #f44336 !important;
+            box-shadow: 0 0 0 3px rgba(244, 67, 54, 0.2) !important;
+        }
+
+        .violation::after {
+            content: '⚠ ' attr(data-violation);
+            position: absolute;
+            top: -30px;
+            left: 0;
+            background: #f44336;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: nowrap;
+            z-index: 100;
+        }
+
+        /* Hide violations in 'after' state */
+        body.after .violation {
+            border: none !important;
+            box-shadow: none !important;
+        }
+
+        body.after .violation::after {
+            display: none;
+        }
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 4rem 2rem;
+            text-align: center;
+            color: white;
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        /* BEFORE: Low contrast text */
+        .hero-subtitle-before {
+            font-size: 1.25rem;
+            color: #9370DB;
+            margin-bottom: 2rem;
+        }
+
+        /* AFTER: Good contrast text */
+        .hero-subtitle-after {
+            font-size: 1.25rem;
+            color: white;
+            margin-bottom: 2rem;
+        }
+
+        /* BEFORE: Non-semantic clickable div */
+        .cta-div-before {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 12px 32px;
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        /* AFTER: Proper button */
+        .cta-button-after {
+            display: inline-block;
+            background: #4CAF50;
+            color: white;
+            padding: 16px 40px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .cta-button-after:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+
+        .cta-button-after:focus {
+            outline: none;
+            border-color: #FFD700;
+            box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.3);
+        }
+
+        /* Features Section */
+        .features {
+            padding: 4rem 2rem;
+            background: #f5f5f5;
+        }
+
+        .features h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 3rem;
+            color: #333;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .feature-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        /* BEFORE: Image without alt text */
+        .feature-icon-before {
+            width: 64px;
+            height: 64px;
+            background: #667eea;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+        }
+
+        /* AFTER: Image with alt text */
+        .feature-icon-after {
+            width: 64px;
+            height: 64px;
+            background: #4CAF50;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+        }
+
+        .feature-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+
+        .feature-card p {
+            color: #666;
+            line-height: 1.8;
+        }
+
+        /* Contact Form */
+        .contact {
+            padding: 4rem 2rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .contact h2 {
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        /* BEFORE: Input without label */
+        .input-before {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+
+        /* AFTER: Input with visible label */
+        .form-label-after {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .input-after {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .input-after:focus {
+            outline: none;
+            border-color: #4CAF50;
+            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+        }
+
+        /* BEFORE: Small, hard-to-tap button */
+        .submit-before {
+            background: #667eea;
+            color: white;
+            padding: 6px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        /* AFTER: Properly sized button */
+        .submit-after {
+            background: #4CAF50;
+            color: white;
+            padding: 14px 32px;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            width: 100%;
+        }
+
+        .submit-after:hover {
+            background: #45a049;
+        }
+
+        .submit-after:focus {
+            outline: none;
+            border-color: #FFD700;
+            box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.3);
+        }
+
+        /* Footer */
+        footer {
+            background: #333;
+            color: white;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        /* Violation Counter */
+        .violation-count {
+            background: #f44336;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+
+        /* Hide/Show elements based on state */
+        body.before .after-only {
+            display: none;
+        }
+
+        body.after .before-only {
+            display: none;
+        }
+    </style>
+</head>
+<body class="before">
+    <!-- Demo Controls -->
+    <div class="demo-controls">
+        <div>
+            <h1>WCAG Compliance Demo</h1>
+            <span class="state-indicator state-before before-only">BEFORE: With Violations</span>
+            <span class="state-indicator state-after after-only">AFTER: Fixed & Compliant</span>
+            <span class="violation-count before-only">7 Violations Found</span>
+        </div>
+        <button class="toggle-button" onclick="toggleState()">
+            <span class="before-only">Show Fixed Version →</span>
+            <span class="after-only">← Show Violations</span>
+        </button>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Hero Section -->
+        <section class="hero">
+            <h1>Transform Your Business Online</h1>
+
+            <!-- Low Contrast Text (WCAG 1.4.3) -->
+            <p class="hero-subtitle-before before-only violation" data-violation="Low Contrast (1.4.3)">
+                We make digital transformation simple and affordable
+            </p>
+            <p class="hero-subtitle-after after-only">
+                We make digital transformation simple and affordable
+            </p>
+
+            <!-- Non-semantic clickable div (WCAG 4.1.2) -->
+            <div class="cta-div-before before-only violation" data-violation="Not Keyboard Accessible (2.1.1)">
+                Get Started Today
+            </div>
+            <button class="cta-button-after after-only">
+                Get Started Today
+            </button>
+        </section>
+
+        <!-- Features Section -->
+        <section class="features">
+            <h2>Why Choose Us?</h2>
+            <div class="feature-grid">
+                <!-- Feature 1 - Missing Alt Text -->
+                <div class="feature-card">
+                    <div class="feature-icon-before before-only violation" data-violation="Missing Alt Text (1.1.1)"></div>
+                    <div class="feature-icon-after after-only" role="img" aria-label="Fast Performance icon"></div>
+                    <h3>Fast Performance</h3>
+                    <p>Lightning-fast load times that keep your customers engaged and happy.</p>
+                </div>
+
+                <!-- Feature 2 - Missing Alt Text -->
+                <div class="feature-card">
+                    <div class="feature-icon-before before-only violation" data-violation="Missing Alt Text (1.1.1)"></div>
+                    <div class="feature-icon-after after-only" role="img" aria-label="Secure Platform icon"></div>
+                    <h3>Secure Platform</h3>
+                    <p>Bank-level security to protect your data and your customers' privacy.</p>
+                </div>
+
+                <!-- Feature 3 - Missing Alt Text -->
+                <div class="feature-card">
+                    <div class="feature-icon-before before-only violation" data-violation="Missing Alt Text (1.1.1)"></div>
+                    <div class="feature-icon-after after-only" role="img" aria-label="24/7 Support icon"></div>
+                    <h3>24/7 Support</h3>
+                    <p>Our dedicated team is always here to help you succeed.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Contact Form -->
+        <section class="contact">
+            <h2>Get In Touch</h2>
+            <form>
+                <!-- Input without label (WCAG 1.3.1, 3.3.2) -->
+                <div class="form-group">
+                    <label class="form-label-after after-only" for="name-input">Full Name</label>
+                    <input
+                        type="text"
+                        id="name-input"
+                        placeholder="Your name"
+                        class="input-before before-only violation"
+                        data-violation="Missing Label (3.3.2)"
+                    >
+                    <input
+                        type="text"
+                        id="name-input-after"
+                        placeholder="Your name"
+                        class="input-after after-only"
+                    >
+                </div>
+
+                <!-- Input without label (WCAG 1.3.1, 3.3.2) -->
+                <div class="form-group">
+                    <label class="form-label-after after-only" for="email-input">Email Address</label>
+                    <input
+                        type="email"
+                        id="email-input"
+                        placeholder="your@email.com"
+                        class="input-before before-only violation"
+                        data-violation="Missing Label (3.3.2)"
+                    >
+                    <input
+                        type="email"
+                        id="email-input-after"
+                        placeholder="your@email.com"
+                        class="input-after after-only"
+                    >
+                </div>
+
+                <!-- Small touch target (WCAG 2.5.5) -->
+                <button type="submit" class="submit-before before-only violation" data-violation="Touch Target Too Small (2.5.5)">
+                    Submit
+                </button>
+                <button type="submit" class="submit-after after-only">
+                    Submit
+                </button>
+            </form>
+        </section>
+
+        <!-- Footer -->
+        <footer>
+            <p>&copy; 2024 Your Business. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script>
+        function toggleState() {
+            const body = document.body;
+            if (body.classList.contains('before')) {
+                body.classList.remove('before');
+                body.classList.add('after');
+            } else {
+                body.classList.remove('after');
+                body.classList.add('before');
+            }
+        }
+
+        // Allow keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Space' || e.key === ' ') {
+                const target = e.target;
+                if (target.classList.contains('cta-div-before')) {
+                    e.preventDefault();
+                    alert('This would navigate somewhere - but it\'s not keyboard accessible!');
+                }
+            }
+        });
+    </script>
+</body>
+</html>
