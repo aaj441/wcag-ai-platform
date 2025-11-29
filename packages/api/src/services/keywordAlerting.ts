@@ -3,6 +3,7 @@
  * Triggers priority notifications based on specific keywords in email drafts
  */
 
+import { randomUUID } from 'crypto';
 import { EmailDraft } from '../types';
 import { containsPriorityKeywords, getPriorityKeywords } from './keywordExtractor';
 
@@ -97,7 +98,7 @@ export function generateAlertsForDraft(draft: EmailDraft): Alert[] {
     for (const [ruleKeyword, config] of Object.entries(ALERT_RULES)) {
       if (keywordLower.includes(ruleKeyword.toLowerCase())) {
         alerts.push({
-          id: `alert-${draft.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          id: `alert-${draft.id}-${randomUUID()}`,
           draftId: draft.id,
           type: config.type,
           severity: config.severity,

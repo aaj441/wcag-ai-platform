@@ -95,6 +95,14 @@ class ApiService {
     return response.data || null;
   }
 
+  async approveAllDrafts(approvedBy?: string): Promise<{ count: number; drafts: EmailDraft[] } | null> {
+    const response = await this.request<{ count: number; drafts: EmailDraft[] }>('/drafts/approve-all', {
+      method: 'POST',
+      body: JSON.stringify({ approvedBy }),
+    });
+    return response.data || null;
+  }
+
   async rejectDraft(id: string): Promise<EmailDraft | null> {
     const response = await this.request<EmailDraft>(`/drafts/${id}/reject`, {
       method: 'PATCH',

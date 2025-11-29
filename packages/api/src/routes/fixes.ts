@@ -305,4 +305,249 @@ router.get('/metrics', authMiddleware, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/fixes/generate/multi-llm
+ *
+ * Generate a fix using multi-LLM validation
+ * Uses multiple LLM providers for consensus and expert review
+ *
+ * Body: {
+ *   violationId: string
+ *   wcagCriteria: string
+ *   issueType: string
+ *   description: string
+ *   codeLanguage?: string
+ * }
+ *
+ * Returns: {
+ *   fix: GeneratedFix
+ *   validation: {
+ *     responses: LLMResponse[]
+ *     majorityVote: AIFixResponse
+ *     critic: CriticReview
+ *     consensusLevel: 'high' | 'medium' | 'low'
+ *     agreementScore: number
+ *   }
+ * }
+ */
+router.post('/generate/multi-llm', authMiddleware, ensureTenantAccess, async (req, res) => {
+  try {
+    const { violationId, wcagCriteria, issueType, description, codeLanguage } = req.body;
+    const tenantId = req.tenantId!;
+
+    if (!violationId || !wcagCriteria || !issueType) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: violationId, wcagCriteria, issueType',
+      });
+    }
+
+    // Get violation to check ownership and code
+    const violation = await prisma.violation.findUnique({
+      where: { id: violationId },
+      include: { scan: true },
+    });
+
+    if (!violation || violation.scan?.tenantId !== tenantId) {
+      return res.status(404).json({ success: false, error: 'Violation not found' });
+    }
+
+    // Check if fix already exists
+    const existingFix = await prisma.fix.findUnique({
+      where: { violationId },
+    });
+
+    if (existingFix) {
+      return res.json({
+        success: true,
+        data: existingFix,
+        message: 'Fix already generated for this violation',
+      });
+    }
+
+    // Generate fix with multi-LLM validation
+    const { fix: generatedFix, validation } = await RemediationEngine.generateFixWithMultiLLM({
+      violationId,
+      wcagCriteria,
+      issueType,
+      description,
+      elementSelector: violation.elementSelector || undefined,
+      codeSnippet: violation.codeSnippet || undefined,
+      codeLanguage,
+    });
+
+    // Save fix to database
+    const fix = await RemediationEngine.saveFix(tenantId, violationId, generatedFix);
+
+    // Save multi-LLM validation to database
+    const validationRecord = await RemediationEngine.saveMultiLLMValidation(
+      tenantId,
+      fix.id,
+      validation,
+      {
+        violationId,
+        wcagCriteria,
+        issueType,
+        description,
+        elementSelector: violation.elementSelector || undefined,
+        codeSnippet: violation.codeSnippet || undefined,
+        codeLanguage,
+      }
+    );
+
+    log.info('Multi-LLM fix generated', {
+      violationId,
+      wcagCriteria,
+      issueType,
+      consensusLevel: validation.consensusLevel,
+      agreementScore: validation.critic.agreementScore,
+      confidenceScore: generatedFix.confidenceScore,
+    });
+
+    res.json({
+      success: true,
+      data: {
+        fix,
+        validation: {
+          id: validationRecord.id,
+          responses: validation.responses,
+          majorityVote: validation.majorityVote,
+          critic: validation.critic,
+          consensusLevel: validation.consensusLevel,
+          agreementScore: validation.critic.agreementScore,
+          totalLatency: validation.totalLatency,
+          totalCost: validation.totalCost,
+        },
+      },
+      message: `Fix generated with ${(fix.confidenceScore * 100).toFixed(0)}% confidence using ${validation.responses.length} LLM providers (${validation.consensusLevel} consensus)`,
+    });
+  } catch (error) {
+    log.error(
+      'Failed to generate multi-LLM fix',
+      error instanceof Error ? error : new Error(String(error))
+    );
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate multi-LLM fix',
+    });
+  }
+});
+
+/**
+ * GET /api/fixes/multi-llm/:validationId
+ *
+ * Get details of a specific multi-LLM validation
+ */
+router.get('/multi-llm/:validationId', authMiddleware, async (req, res) => {
+  try {
+    const { validationId } = req.params;
+
+    const validation = await prisma.multiLLMValidation.findUnique({
+      where: { id: validationId },
+      include: {
+        providerResponses: true,
+        fix: true,
+      },
+    });
+
+    if (!validation || validation.tenantId !== req.tenantId) {
+      return res.status(404).json({ success: false, error: 'Validation not found' });
+    }
+
+    res.json({
+      success: true,
+      data: validation,
+    });
+  } catch (error) {
+    log.error(
+      'Failed to fetch multi-LLM validation',
+      error instanceof Error ? error : new Error(String(error))
+    );
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch multi-LLM validation',
+    });
+  }
+});
+
+/**
+ * GET /api/fixes/multi-llm/metrics
+ *
+ * Get multi-LLM validation metrics for the tenant
+ */
+router.get('/multi-llm-metrics', authMiddleware, async (req, res) => {
+  try {
+    const metrics = await RemediationEngine.getMultiLLMMetrics(req.tenantId!);
+
+    res.json({
+      success: true,
+      data: metrics,
+    });
+  } catch (error) {
+    log.error(
+      'Failed to fetch multi-LLM metrics',
+      error instanceof Error ? error : new Error(String(error))
+    );
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch multi-LLM metrics',
+    });
+  }
+});
+
+/**
+ * GET /api/fixes/multi-llm/validations
+ *
+ * Get all multi-LLM validations for the tenant
+ */
+router.get('/multi-llm-validations', authMiddleware, async (req, res) => {
+  try {
+    const { limit = 20, offset = 0, consensusLevel } = req.query;
+
+    const where: any = { tenantId: req.tenantId! };
+    if (consensusLevel) {
+      where.consensusLevel = consensusLevel;
+    }
+
+    const validations = await prisma.multiLLMValidation.findMany({
+      where,
+      include: {
+        providerResponses: true,
+        fix: {
+          include: {
+            violation: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: Number(limit),
+      skip: Number(offset),
+    });
+
+    const total = await prisma.multiLLMValidation.count({ where });
+
+    res.json({
+      success: true,
+      data: {
+        validations,
+        pagination: {
+          total,
+          limit: Number(limit),
+          offset: Number(offset),
+          hasMore: total > Number(offset) + Number(limit),
+        },
+      },
+    });
+  } catch (error) {
+    log.error(
+      'Failed to fetch multi-LLM validations',
+      error instanceof Error ? error : new Error(String(error))
+    );
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch multi-LLM validations',
+    });
+  }
+});
+
 export default router;

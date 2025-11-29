@@ -67,6 +67,30 @@ export interface EmailDraft {
   tags?: string[];
 }
 
+export interface ConsultantProfile {
+  id: string;
+  name: string;
+  email: string;
+  wcagCertified: boolean;
+  yearsExperience: number;
+  specialization?: string;
+  isActive: boolean;
+  totalAuditsReviewed: number;
+  accuracyScore: number; // 0.0-1.0
+}
+
+export interface Consultant {
+  id: string;
+  name: string;
+  email: string;
+  company?: string;
+  role?: string;
+  phone?: string;
+  website?: string;
+  hubspotContactId?: string;
+  lastContacted?: Date;
+  responseRate?: number;
+}
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
@@ -75,21 +99,7 @@ export interface ApiResponse<T = unknown> {
   details?: unknown;
 }
 
-// Consultant type (to mirror frontend and support test data)
-export interface Consultant {
-  id: string;
-  name: string;
-  email: string;
-  company: string;
-  website?: string;
-  phone?: string;
-  hubspotContactId?: string;
-  lastContacted?: Date;
-  responseRate?: number;
-}
 
-// Alias for backwards compatibility
-export type ConsultantProfile = Consultant;
 
 export interface PaginatedResponse<T> extends ApiResponse<T[]> {
   pagination: {

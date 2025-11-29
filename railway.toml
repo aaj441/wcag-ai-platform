@@ -1,0 +1,16 @@
+# Railway Configuration for WCAG AI Platform
+# This is the main configuration file for Railway deployment
+
+[build]
+builder = "nixpacks"
+buildCommand = "npm install && npm run build:api"
+
+[deploy]
+startCommand = "npm run start:api"
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "on-failure"
+restartPolicyMaxRetries = 10
+
+[env]
+NODE_ENV = "production"

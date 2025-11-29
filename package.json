@@ -1,0 +1,37 @@
+{
+  "name": "wcag-ai-platform",
+  "version": "1.0.0",
+  "description": "WCAG AI Platform - AI-Powered Accessibility Compliance",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "cd packages/api && npm run dev",
+    "dev:webapp": "cd packages/webapp && npm run dev",
+    "build": "npm run build:api && npm run build:webapp",
+    "build:api": "cd packages/api && npm run build",
+    "build:webapp": "cd packages/webapp && npm run build",
+    "start": "npm run start:api & npm run start:webapp",
+    "start:api": "cd packages/api && npm run start",
+    "start:webapp": "cd packages/webapp && npm run start",
+    "accessibility:scan": "node scripts/accessibility-scan.js",
+    "accessibility:pa11y": "node scripts/pa11y-scan.js",
+    "evidence:update": "node scripts/update-evidence-vault.js"
+  },
+  "keywords": [
+    "wcag",
+    "accessibility",
+    "a11y",
+    "compliance",
+    "ai"
+  ],
+  "author": "WCAG AI Platform",
+  "license": "MIT",
+  "devDependencies": {
+    "@axe-core/puppeteer": "^4.8.0",
+    "puppeteer": "^23.0.0",
+    "pa11y": "^7.0.0",
+    "wait-on": "^7.2.0"
+  }
+}

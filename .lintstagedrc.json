@@ -1,0 +1,12 @@
+{
+  "*.{js,jsx,ts,tsx}": [
+    "eslint --fix",
+    "prettier --write"
+  ],
+  "*.{json,md,yml,yaml}": [
+    "prettier --write"
+  ],
+  "*.{js,jsx,ts,tsx,py}": [
+    "bash -c 'if grep -E &quot;password\\s*=\\s*[\\&quot;\\'][^\\&quot;\\']&quot; &quot;$0&quot; | grep -v &quot;process.env&quot; | grep -v &quot;.example&quot;; then echo &quot;Hardcoded password detected in $0&quot;; exit 1; fi'"
+  ]
+}

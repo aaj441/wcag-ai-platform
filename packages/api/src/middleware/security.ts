@@ -7,9 +7,10 @@
 import { Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
-import { createHmac } from 'crypto';
+import { createHmac, timingSafeEqual } from 'crypto';
 import ipaddr from 'ipaddr.js';
 import dns from 'dns/promises';
+import jwt from 'jsonwebtoken';
 import { log } from '../utils/logger';
 
 // ========================================
@@ -186,7 +187,7 @@ export function signRequest(body: any, secret: string): string {
 }
 
 /**
- * Verify webhook signature
+ * Verify webhook signature (SECURITY: using constant-time comparison)
  */
 export function verifyWebhookSignature(
   req: Request,
@@ -208,13 +209,34 @@ export function verifyWebhookSignature(
 
   const expectedSignature = signRequest(req.body, secret);
 
-  if (signature !== expectedSignature) {
-    log.securityEvent('invalid_webhook_signature', {
-      ip: req.ip,
-      expected: expectedSignature.substring(0, 8),
-      received: signature.substring(0, 8),
-    });
+  // SECURITY: Use constant-time comparison to prevent timing attacks
+  try {
+    const signatureBuffer = Buffer.from(signature, 'hex');
+    const expectedBuffer = Buffer.from(expectedSignature, 'hex');
 
+    // Ensure buffers are same length before comparison
+    if (signatureBuffer.length !== expectedBuffer.length) {
+      log.securityEvent('invalid_webhook_signature', {
+        ip: req.ip,
+        reason: 'Length mismatch',
+      });
+      res.status(401).json({ error: 'Invalid webhook signature' });
+      return;
+    }
+
+    if (!timingSafeEqual(signatureBuffer, expectedBuffer)) {
+      log.securityEvent('invalid_webhook_signature', {
+        ip: req.ip,
+        reason: 'Signature mismatch',
+      });
+      res.status(401).json({ error: 'Invalid webhook signature' });
+      return;
+    }
+  } catch (error) {
+    log.securityEvent('webhook_signature_verification_error', {
+      ip: req.ip,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
     res.status(401).json({ error: 'Invalid webhook signature' });
     return;
   }
@@ -306,37 +328,102 @@ export function validateScanRequest(
 }
 
 // ========================================
-// Authentication Middleware (stub)
+// Authentication Middleware
 // ========================================
 
+// Extend Express Request type
+declare global {
+  namespace Express {
+    interface Request {
+      userId?: string;
+      userEmail?: string;
+      userRole?: string;
+    }
+  }
+}
+
 /**
- * JWT Authentication
- * TODO: Implement full JWT validation
+ * JWT Authentication - PRODUCTION READY
+ * Verifies JWT tokens and attaches user info to request
  */
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
-  const token = req.headers.authorization?.replace('Bearer ', '');
+  const authHeader = req.headers.authorization;
 
-  if (!token) {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    log.securityEvent('missing_auth_token', {
+      ip: req.ip,
+      path: req.path,
+    });
     res.status(401).json({ error: 'Authentication required' });
     return;
   }
 
-  // TODO: Verify JWT token
-  // For now, just check if token exists
-  (req as any).userId = 'user-123'; // Stub
-  next();
+  const token = authHeader.replace('Bearer ', '');
+  const jwtSecret = process.env.JWT_SECRET;
+
+  if (!jwtSecret) {
+    log.error('JWT_SECRET not configured', new Error('JWT_SECRET environment variable is not set'));
+    res.status(500).json({ error: 'Authentication service unavailable' });
+    return;
+  }
+
+  try {
+    // Verify JWT token
+    const decoded = jwt.verify(token, jwtSecret, {
+      algorithms: ['HS256'], // Only allow HMAC SHA-256
+      maxAge: '24h', // Tokens expire after 24 hours
+    }) as { userId: string; email: string; role?: string };
+
+    // Attach user info to request
+    req.userId = decoded.userId;
+    req.userEmail = decoded.email;
+    req.userRole = decoded.role || 'user';
+
+    log.info('Authenticated request', {
+      userId: req.userId,
+      path: req.path,
+      method: req.method,
+    });
+
+    next();
+  } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      log.securityEvent('expired_jwt_token', {
+        ip: req.ip,
+        path: req.path,
+      });
+      res.status(401).json({ error: 'Token expired', code: 'TOKEN_EXPIRED' });
+      return;
+    }
+
+    if (error instanceof jwt.JsonWebTokenError) {
+      log.securityEvent('invalid_jwt_token', {
+        ip: req.ip,
+        path: req.path,
+        reason: error.message,
+      });
+      res.status(401).json({ error: 'Invalid token', code: 'INVALID_TOKEN' });
+      return;
+    }
+
+    log.error('JWT verification error', error instanceof Error ? error : new Error(String(error)));
+    res.status(500).json({ error: 'Authentication failed' });
+    return;
+  }
 }
 
 /**
  * Optional authentication (for mixed endpoints)
+ * If token is provided, it must be valid
  */
 export function optionalAuth(req: Request, res: Response, next: NextFunction): void {
-  const token = req.headers.authorization?.replace('Bearer ', '');
+  const authHeader = req.headers.authorization;
 
-  if (token) {
-    // TODO: Verify JWT token
-    (req as any).userId = 'user-123'; // Stub
+  // No auth header = proceed as unauthenticated
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return next();
   }
 
-  next();
+  // Auth header provided = must be valid
+  return requireAuth(req, res, next);
 }

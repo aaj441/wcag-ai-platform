@@ -94,6 +94,7 @@ router.get('/:id', (req: Request, res: Response) => {
 /**
  * POST /api/drafts
  * Create a new email draft
+ * SECURITY: Input validation with Zod
  */
 router.post('/', (req: Request, res: Response) => {
   try {
@@ -148,6 +149,7 @@ router.post('/', (req: Request, res: Response) => {
 /**
  * PUT /api/drafts/:id
  * Update a draft
+ * SECURITY: Input validation with Zod
  */
 router.put('/:id', (req: Request, res: Response) => {
   try {
@@ -187,7 +189,7 @@ router.put('/:id', (req: Request, res: Response) => {
       if (!validNext.includes(nextStatus)) {
         const response: ApiResponse = {
           success: false,
-            error: `Invalid status transition: ${existing.status} -> ${nextStatus}`,
+          error: `Invalid status transition: ${existing.status} -> ${nextStatus}`,
         };
         return res.status(422).json(response);
       }
@@ -320,6 +322,52 @@ router.patch('/:id/reject', (req: Request, res: Response) => {
     const response: ApiResponse = {
       success: false,
       error: 'Failed to reject draft',
+    };
+    res.status(500).json(response);
+  }
+});
+
+/**
+ * POST /api/drafts/approve-all
+ * Bulk approve all drafts with pending_review status
+ */
+router.post('/approve-all', (req: Request, res: Response) => {
+  try {
+    const { approvedBy } = req.body;
+    const allDrafts = getAllDrafts();
+
+    // Filter only pending_review drafts
+    const pendingDrafts = allDrafts.filter(d => d.status === 'pending_review');
+
+    if (pendingDrafts.length === 0) {
+      const response: ApiResponse = {
+        success: true,
+        data: { count: 0, drafts: [] },
+        message: 'No pending drafts to approve',
+      };
+      return res.json(response);
+    }
+
+    // Approve each draft
+    const approvedDrafts = pendingDrafts.map(draft => {
+      return updateDraft(draft.id, {
+        status: 'approved',
+        approvedBy: approvedBy || 'admin@wcag-ai.com',
+        approvedAt: new Date(),
+      });
+    }).filter(d => d !== null);
+
+    const response: ApiResponse = {
+      success: true,
+      data: { count: approvedDrafts.length, drafts: approvedDrafts },
+      message: `${approvedDrafts.length} draft(s) approved successfully`,
+    };
+
+    res.json(response);
+  } catch (error) {
+    const response: ApiResponse = {
+      success: false,
+      error: 'Failed to approve drafts',
     };
     res.status(500).json(response);
   }

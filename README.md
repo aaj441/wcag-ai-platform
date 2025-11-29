@@ -91,19 +91,23 @@ packages/
 node --version  # Should be v18+
 npm install
 
-# 3. Set up AI API keys
+# 3. Set up AI API keys (required for site transformation)
 cd packages/api
 cp .env.example .env
-# Add your ANTHROPIC_API_KEY or OPENAI_API_KEY
+# Add your OPENAI_API_KEY or ANTHROPIC_API_KEY
 
-# 4. Start the platform
+# 4. Initialize database (for fix templates)
+npx prisma generate
+npx prisma db push
+
+# 5. Start the platform
 # Terminal 1 (Backend):
 cd packages/api && npm run dev
 
 # Terminal 2 (Frontend):
 cd packages/webapp && npm run dev
 
-# 5. Open http://localhost:3000 - Start building sites!
+# 6. Open http://localhost:3000 - Start building sites!
 ```
 
 ### **For Developers (Technical Setup):**
@@ -115,11 +119,18 @@ cd packages/api && npm install
 cd ../webapp && npm install
 
 # Set up database
+cd packages/api
+npx prisma generate
 npx prisma db push
 
-# Configure AI services
-echo "ANTHROPIC_API_KEY=your_key_here" >> packages/api/.env
+# Configure AI services (required for transformation)
 echo "OPENAI_API_KEY=your_key_here" >> packages/api/.env
+# OR
+echo "ANTHROPIC_API_KEY=your_key_here" >> packages/api/.env
+echo "AI_MODEL=gpt-4" >> packages/api/.env
+
+# Optional: Configure GitHub integration (for PR deployment)
+echo "GITHUB_TOKEN=your_token_here" >> packages/api/.env
 
 # Run validation suite
 npm run test:wcag
@@ -203,10 +214,43 @@ Run the end-to-end demo to see the full client journey:
 |-------|-------------|
 | [Consultant Quickstart](CONSULTANT_QUICKSTART.md) | Get your first client site built in 30 minutes |
 | [Business Playbook](CONSULTANT_BUSINESS_GUIDE.md) | Complete sales & marketing strategy |
+| [Site Transformation API](SITE_TRANSFORMATION_API.md) | **NEW:** AI-powered remediation API documentation |
 | [Content Marketing](content/README.md) | LinkedIn AI Accessibility Teardown templates |
 | [Architecture](WCAGAI_Architecture_Flow.md) | Technical platform architecture |
+| [Deployment Harmony Guide](DEPLOYMENT_HARMONY_GUIDE.md) | **NEW:** Unified deployment verification system |
 | [Deployment](DEPLOYMENT_AUDIT_RAILWAY_VERCEL.md) | Production deployment guide |
 | [Testing](END_TO_END_TESTING_GUIDE.md) | Automated WCAG testing suite |
+| [Accessibility Scripts](scripts/README.md) | CI/CD accessibility scanner automation |
+
+---
+
+## **🔍 Automated Accessibility Scanning**
+
+The platform includes automated CI/CD accessibility scanning using axe-core and Pa11y:
+
+### **Features:**
+- ✅ **Automated scans on every PR** - Catch violations before they reach production
+- 🚫 **Critical violation blocking** - PRs with critical issues are automatically blocked
+- 📊 **Detailed reports** - Comprehensive violation details with severity levels
+- 📂 **Evidence vault** - All scan results stored for 90 days
+- 💬 **PR comments** - Automated feedback on every pull request
+
+### **Quick Test:**
+```bash
+# Install dependencies
+npm install
+
+# Run accessibility scan (requires running app)
+npm run accessibility:scan http://localhost:3000
+
+# Or use Pa11y
+npm run accessibility:pa11y http://localhost:3000
+
+# Update evidence vault
+npm run evidence:update
+```
+
+See [scripts/README.md](scripts/README.md) for detailed documentation.
 
 ---
 
@@ -233,9 +277,10 @@ Run the end-to-end demo to see the full client journey:
 - **Radix UI** - Accessible component library
 
 ### **Deployment:**
-- **Vercel** - Production hosting (primary)
-- **Railway** - Alternative deployment option
-- **GitHub Actions** - CI/CD pipelines
+- **Railway** - Backend API hosting with auto-scaling
+- **Vercel** - Frontend hosting with global CDN
+- **GitHub Actions** - CI/CD pipelines with automated verification
+- **Deployment Harmony System** - Unified deployment coordinator with pre/post validation
 
 ---
 
@@ -260,6 +305,54 @@ Run the end-to-end demo to see the full client journey:
 
 ---
 
+## **🚀 Deployment & Verification System**
+
+### **Unified Deployment Harmony**
+
+The platform includes a comprehensive deployment verification system that ensures all changes work together seamlessly:
+
+#### **Verify Harmony Agent**
+Custom GitHub Copilot agent that verifies:
+- ✅ Type consistency between frontend and backend
+- ✅ API contract alignment
+- ✅ Configuration validity
+- ✅ Security implementations
+- ✅ Cross-platform integration
+
+#### **Automated Verification**
+```bash
+# Pre-deployment check
+./deployment/scripts/verify-deployment-harmony.sh --pre-deploy production
+
+# Score: 95%+
+# ✅ 35/37 checks passed
+# Ready for deployment
+```
+
+#### **Unified Deployment Coordinator**
+One command to deploy both Railway (backend) + Vercel (frontend):
+```bash
+# Deploy everything
+./deployment/scripts/deploy-unified.sh production
+
+# Includes:
+# ✓ Pre-deployment validation
+# ✓ Coordinated deployment
+# ✓ Post-deployment verification
+# ✓ Automatic rollback on failure
+```
+
+#### **CI/CD Integration**
+GitHub Actions automatically:
+- Verifies every PR for harmony
+- Runs comprehensive validation
+- Comments results on PRs
+- Prevents broken deployments
+
+**Learn more:** [Deployment Harmony Guide](DEPLOYMENT_HARMONY_GUIDE.md)
+
+---
+
 ## **🎯 Next Steps**
 
 ### **Today:**
@@ -271,8 +364,9 @@ Run the end-to-end demo to see the full client journey:
 ### **This Week:**
 1. Set up your consultant profile
 2. Configure Stripe for billing
-3. Deploy to production (Vercel)
-4. Run first real client project
+3. Verify deployment harmony: `./deployment/scripts/verify-deployment-harmony.sh --pre-deploy production`
+4. Deploy to production: `./deployment/scripts/deploy-unified.sh production`
+5. Run first real client project
 
 ### **This Month:**
 1. Sign first 3 clients

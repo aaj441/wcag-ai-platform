@@ -11,6 +11,7 @@
 const crypto = require('crypto');
 const fs = require('fs').promises;
 const path = require('path');
+const { sanitizeIdentifier, safePathJoin } = require('../utils/securityUtils');
 
 /**
  * Worker Identity Manager
@@ -45,45 +46,53 @@ class WorkerIdentityManager {
    * @returns {Object} Worker registration info with public key
    */
   async registerWorker(workerId, metadata = {}) {
-    if (this.workers.has(workerId)) {
-      throw new Error(`Worker ${workerId} already registered`);
-    }
+    try {
+      // Sanitize workerId to prevent path traversal
+      const sanitizedWorkerId = sanitizeIdentifier(workerId);
 
-    // Generate RSA key pair for worker
-    const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
-      modulusLength: 2048,
-      publicKeyEncoding: {
-        type: 'spki',
-        format: 'pem'
-      },
-      privateKeyEncoding: {
-        type: 'pkcs8',
-        format: 'pem',
-        cipher: 'aes-256-cbc',
-        passphrase: process.env.WORKER_KEY_PASSPHRASE || 'default-passphrase'
+      if (this.workers.has(sanitizedWorkerId)) {
+        throw new Error(`Worker ${sanitizedWorkerId} already registered`);
       }
-    });
 
-    const workerInfo = {
-      workerId,
-      publicKey,
-      privateKey,
-      status: 'active',
-      registeredAt: new Date().toISOString(),
-      lastSeen: new Date().toISOString(),
-      metadata
-    };
+      // Generate RSA key pair for worker
+      const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+        modulusLength: 2048,
+        publicKeyEncoding: {
+          type: 'spki',
+          format: 'pem'
+        },
+        privateKeyEncoding: {
+          type: 'pkcs8',
+          format: 'pem',
+          cipher: 'aes-256-cbc',
+          passphrase: process.env.WORKER_KEY_PASSPHRASE || 'default-passphrase'
+        }
+      });
 
-    this.workers.set(workerId, workerInfo);
-    await this.saveWorkerKey(workerId, workerInfo);
+      const workerInfo = {
+        workerId: sanitizedWorkerId,
+        publicKey,
+        privateKey,
+        status: 'active',
+        registeredAt: new Date().toISOString(),
+        lastSeen: new Date().toISOString(),
+        metadata
+      };
 
-    console.log(`✅ Worker registered: ${workerId}`);
-    return {
-      workerId,
-      publicKey,
-      status: 'active',
-      registeredAt: workerInfo.registeredAt
-    };
+      this.workers.set(sanitizedWorkerId, workerInfo);
+      await this.saveWorkerKey(sanitizedWorkerId, workerInfo);
+
+      console.log(`✅ Worker registered: ${sanitizedWorkerId}`);
+      return {
+        workerId: sanitizedWorkerId,
+        publicKey,
+        status: 'active',
+        registeredAt: workerInfo.registeredAt
+      };
+    } catch (error) {
+      console.error(`Failed to register worker ${workerId}:`, error);
+      throw error;
+    }
   }
 
   /**
@@ -287,20 +296,28 @@ class WorkerIdentityManager {
    * @private
    */
   async saveWorkerKey(workerId, workerInfo) {
-    const keyPath = path.join(this.keystorePath, `${workerId}.json`);
-    const keyData = {
-      workerId: workerInfo.workerId,
-      publicKey: workerInfo.publicKey,
-      privateKey: workerInfo.privateKey,
-      status: workerInfo.status,
-      registeredAt: workerInfo.registeredAt,
-      lastSeen: workerInfo.lastSeen,
-      revokedAt: workerInfo.revokedAt,
-      revocationReason: workerInfo.revocationReason,
-      metadata: workerInfo.metadata
-    };
+    try {
+      // Sanitize workerId to prevent path traversal
+      const sanitizedWorkerId = sanitizeIdentifier(workerId);
+      const keyPath = safePathJoin(this.keystorePath, `${sanitizedWorkerId}.json`);
 
-    await fs.writeFile(keyPath, JSON.stringify(keyData, null, 2));
+      const keyData = {
+        workerId: workerInfo.workerId,
+        publicKey: workerInfo.publicKey,
+        privateKey: workerInfo.privateKey,
+        status: workerInfo.status,
+        registeredAt: workerInfo.registeredAt,
+        lastSeen: workerInfo.lastSeen,
+        revokedAt: workerInfo.revokedAt,
+        revocationReason: workerInfo.revocationReason,
+        metadata: workerInfo.metadata
+      };
+
+      await fs.writeFile(keyPath, JSON.stringify(keyData, null, 2));
+    } catch (error) {
+      console.error(`Failed to save worker key for ${workerId}:`, error);
+      throw error;
+    }
   }
 
   /**
@@ -313,13 +330,22 @@ class WorkerIdentityManager {
       for (const file of files) {
         if (!file.endsWith('.json')) continue;
 
-        const keyPath = path.join(this.keystorePath, file);
-        const keyData = JSON.parse(await fs.readFile(keyPath, 'utf8'));
-        
-        this.workers.set(keyData.workerId, keyData);
-        
-        if (keyData.status === 'revoked') {
-          this.revokedWorkers.add(keyData.workerId);
+        try {
+          // Safe path joining - file comes from fs.readdir
+          const keyPath = safePathJoin(this.keystorePath, file);
+          const keyData = JSON.parse(await fs.readFile(keyPath, 'utf8'));
+
+          // Sanitize workerId from loaded data
+          const sanitizedWorkerId = sanitizeIdentifier(keyData.workerId);
+          keyData.workerId = sanitizedWorkerId;
+
+          this.workers.set(sanitizedWorkerId, keyData);
+
+          if (keyData.status === 'revoked') {
+            this.revokedWorkers.add(sanitizedWorkerId);
+          }
+        } catch (error) {
+          console.warn(`Failed to load worker key file ${file}:`, error.message);
         }
       }
       console.log(`📦 Loaded ${this.workers.size} worker keys`);

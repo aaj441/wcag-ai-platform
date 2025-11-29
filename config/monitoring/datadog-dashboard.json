@@ -1,0 +1,419 @@
+{
+  "title": "WCAG AI Platform - Production Monitoring",
+  "description": "Comprehensive dashboard for monitoring production deployment health, performance, and user activity",
+  "template_variables": [
+    {
+      "name": "env",
+      "default": "production",
+      "prefix": "env"
+    }
+  ],
+  "layout_type": "ordered",
+  "widgets": [
+    {
+      "id": 1,
+      "definition": {
+        "type": "group",
+        "title": "🚀 Deployment Health",
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "definition": {
+              "type": "timeseries",
+              "requests": [
+                {
+                  "q": "sum:wcagai.requests.count{$env}.as_rate()",
+                  "display_type": "line",
+                  "style": {
+                    "palette": "dog_classic",
+                    "line_type": "solid",
+                    "line_width": "normal"
+                  }
+                }
+              ],
+              "title": "Request Rate (req/s)",
+              "yaxis": {
+                "include_zero": true
+              }
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "requests": [
+                {
+                  "q": "(sum:wcagai.errors.count{$env}.as_rate() / sum:wcagai.requests.count{$env}.as_rate()) * 100",
+                  "display_type": "line",
+                  "style": {
+                    "palette": "warm",
+                    "line_type": "solid",
+                    "line_width": "thick"
+                  }
+                }
+              ],
+              "title": "Error Rate (%)",
+              "markers": [
+                {
+                  "value": "y = 5",
+                  "display_type": "error dashed",
+                  "label": "5% threshold"
+                },
+                {
+                  "value": "y = 1",
+                  "display_type": "warning dashed",
+                  "label": "1% warning"
+                }
+              ],
+              "yaxis": {
+                "min": "0",
+                "max": "10"
+              }
+            }
+          },
+          {
+            "definition": {
+              "type": "query_value",
+              "requests": [
+                {
+                  "q": "avg:wcagai.uptime{$env}",
+                  "aggregator": "avg"
+                }
+              ],
+              "title": "Uptime (%)",
+              "precision": 3,
+              "custom_unit": "%"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "definition": {
+        "type": "group",
+        "title": "⚡ Performance Metrics",
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "definition": {
+              "type": "timeseries",
+              "requests": [
+                {
+                  "q": "avg:wcagai.response_time.p50{$env}",
+                  "display_type": "line",
+                  "style": {
+                    "palette": "cool"
+                  }
+                },
+                {
+                  "q": "avg:wcagai.response_time.p95{$env}",
+                  "display_type": "line",
+                  "style": {
+                    "palette": "warm"
+                  }
+                },
+                {
+                  "q": "avg:wcagai.response_time.p99{$env}",
+                  "display_type": "line",
+                  "style": {
+                    "palette": "purple"
+                  }
+                }
+              ],
+              "title": "Response Time (ms) - p50, p95, p99",
+              "markers": [
+                {
+                  "value": "y = 500",
+                  "display_type": "warning dashed",
+                  "label": "500ms target"
+                },
+                {
+                  "value": "y = 1000",
+                  "display_type": "error dashed",
+                  "label": "1s critical"
+                }
+              ]
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "requests": [
+                {
+                  "q": "avg:wcagai.database.query_time{$env}",
+                  "display_type": "line"
+                }
+              ],
+              "title": "Database Query Time (ms)"
+            }
+          },
+          {
+            "definition": {
+              "type": "query_value",
+              "requests": [
+                {
+                  "q": "avg:wcagai.response_time.p95{$env}",
+                  "aggregator": "avg"
+                }
+              ],
+              "title": "Current p95 Response Time",
+              "custom_unit": "ms",
+              "precision": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "definition": {
+        "type": "group",
+        "title": "🔒 Security & Rate Limiting",
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "definition": {
+              "type": "timeseries",
+              "requests": [
+                {
+                  "q": "sum:wcagai.rate_limit.exceeded{$env}.as_count()",
+                  "display_type": "bars"
+                }
+              ],
+              "title": "Rate Limit Violations"
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "requests": [
+                {
+                  "q": "sum:wcagai.auth.failed{$env}.as_count()",
+                  "display_type": "bars",
+                  "style": {
+                    "palette": "warm"
+                  }
+                }
+              ],
+              "title": "Failed Authentication Attempts"
+            }
+          },
+          {
+            "definition": {
+              "type": "query_value",
+              "requests": [
+                {
+                  "q": "sum:wcagai.security.incidents{$env}",
+                  "aggregator": "sum"
+                }
+              ],
+              "title": "Security Incidents (24h)",
+              "precision": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "definition": {
+        "type": "group",
+        "title": "🔍 Business Metrics",
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "definition": {
+              "type": "timeseries",
+              "requests": [
+                {
+                  "q": "sum:wcagai.scans.created{$env}.as_count()",
+                  "display_type": "bars"
+                }
+              ],
+              "title": "Scans Created"
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "requests": [
+                {
+                  "q": "sum:wcagai.scans.completed{$env}.as_count()",
+                  "display_type": "bars",
+                  "style": {
+                    "palette": "green"
+                  }
+                },
+                {
+                  "q": "sum:wcagai.scans.failed{$env}.as_count()",
+                  "display_type": "bars",
+                  "style": {
+                    "palette": "red"
+                  }
+                }
+              ],
+              "title": "Scan Success vs Failures"
+            }
+          },
+          {
+            "definition": {
+              "type": "query_value",
+              "requests": [
+                {
+                  "q": "(sum:wcagai.scans.completed{$env} / sum:wcagai.scans.created{$env}) * 100",
+                  "aggregator": "avg"
+                }
+              ],
+              "title": "Scan Success Rate (%)",
+              "custom_unit": "%",
+              "precision": 1
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "requests": [
+                {
+                  "q": "sum:wcagai.emails.sent{$env}.as_count()",
+                  "display_type": "bars"
+                }
+              ],
+              "title": "Emails Sent"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": 5,
+      "definition": {
+        "type": "group",
+        "title": "💾 Database Health",
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "definition": {
+              "type": "timeseries",
+              "requests": [
+                {
+                  "q": "avg:wcagai.database.connections.active{$env}",
+                  "display_type": "line"
+                },
+                {
+                  "q": "avg:wcagai.database.connections.max{$env}",
+                  "display_type": "line",
+                  "style": {
+                    "palette": "warm",
+                    "line_type": "dashed"
+                  }
+                }
+              ],
+              "title": "Database Connections (Active vs Max)"
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "requests": [
+                {
+                  "q": "avg:wcagai.database.slow_queries{$env}.as_count()",
+                  "display_type": "bars"
+                }
+              ],
+              "title": "Slow Queries (>1s)"
+            }
+          },
+          {
+            "definition": {
+              "type": "query_value",
+              "requests": [
+                {
+                  "q": "avg:wcagai.database.health{$env}",
+                  "aggregator": "last"
+                }
+              ],
+              "title": "Database Health",
+              "precision": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "definition": {
+        "type": "group",
+        "title": "🖥️ Infrastructure",
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "definition": {
+              "type": "timeseries",
+              "requests": [
+                {
+                  "q": "avg:system.cpu.user{$env}",
+                  "display_type": "line"
+                }
+              ],
+              "title": "CPU Usage (%)"
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "requests": [
+                {
+                  "q": "avg:system.mem.used{$env} / avg:system.mem.total{$env} * 100",
+                  "display_type": "line"
+                }
+              ],
+              "title": "Memory Usage (%)",
+              "markers": [
+                {
+                  "value": "y = 80",
+                  "display_type": "warning dashed"
+                }
+              ]
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "requests": [
+                {
+                  "q": "avg:wcagai.process.heap_used{$env}",
+                  "display_type": "area"
+                }
+              ],
+              "title": "Node.js Heap Memory (MB)"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "definition": {
+        "type": "group",
+        "title": "📊 Deployment Events",
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "definition": {
+              "type": "event_stream",
+              "query": "tags:deployment,env:$env",
+              "title": "Recent Deployments"
+            }
+          },
+          {
+            "definition": {
+              "type": "event_timeline",
+              "query": "tags:deployment,env:$env OR tags:incident,env:$env",
+              "title": "Deployment & Incident Timeline"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,66 +1,105 @@
-# 🚀 Quick Deployment Reference Card
+# ⚡ WCAGAI Quick Deploy Guide
 
-## Prerequisites (5 min)
-```powershell
-npm install -g @railway/cli vercel
-railway login
-vercel login
-```
+**TL;DR:** 4 commands to production
 
-## Deploy API to Railway (5 min)
-```powershell
-cd packages\api
+---
 
-# One-time setup
-railway link
+## 🚀 Deploy Now (15 Minutes)
 
-# Configure
-railway variables set NODE_ENV=production
-railway variables set PORT=3001
-railway variables set CORS_ORIGIN=*
+### 1. Pre-Flight (5 min)
 
-# Deploy
-railway up
+```bash
+# Install dependencies
+cd packages/api && npm install
 
-# Get URL (save this!)
-railway domain
-```
-**Railway URL**: _______________________________________
+# Build
+npm run build
 
-## Deploy Webapp to Vercel (5 min)
-```powershell
-cd packages\webapp
+# Apply database indexes
+npx prisma db execute --file prisma/migrations/performance_indexes.sql
 
-# Configure (use Railway URL from above)
-vercel env add VITE_API_BASE_URL production
-
-# Deploy
-vercel --prod
-```
-**Vercel URL**: _______________________________________
-
-## Update CORS (2 min)
-```powershell
-cd packages\api
-railway variables set CORS_ORIGIN=https://your-vercel-url.vercel.app
-railway up
-```
-
-## Test Deployment (2 min)
-```powershell
-# API
-curl https://your-railway-url.railway.app/health
-
-# Webapp
-# Open browser: https://your-vercel-url.vercel.app
-```
-
-## Troubleshooting
-```powershell
-railway logs          # View API logs
-vercel logs          # View webapp logs
-railway restart      # Restart API
+# Verify
+curl http://localhost:8080/health
 ```
 
 ---
-**Total Time**: ~15 minutes | **Docs**: See DEPLOYMENT_GUIDE.md
+
+### 2. Deploy to Staging (5 min)
+
+```bash
+# Railway
+railway up --environment staging
+
+# Vercel (webapp)
+cd packages/webapp && vercel --prod --env staging
+
+# Test
+curl https://staging.wcagai.com/health/detailed | jq
+```
+
+---
+
+### 3. Run Stress Test (5 min)
+
+```bash
+cd packages/api
+
+# Quick test
+tsx stress-tests/memory-leak-detector.ts
+
+# Expected: ✅ PASSED
+```
+
+---
+
+### 4. Deploy to Production (2 min)
+
+```bash
+# Create backup
+pg_dump $DATABASE_URL > backup-$(date +%Y%m%d).sql
+
+# Deploy
+railway up --environment production
+
+# Verify
+curl https://api.wcagai.com/health
+```
+
+---
+
+## 🎯 Success = All Green
+
+```bash
+curl https://api.wcagai.com/health/detailed | jq
+
+# Expected:
+{
+  "status": "healthy",           ✅
+  "circuitBreakers": {
+    "healthy": true              ✅
+  },
+  "queue": {
+    "capacity": "healthy"        ✅
+  }
+}
+```
+
+---
+
+## 🔄 Rollback (if needed)
+
+```bash
+railway rollback
+```
+
+---
+
+## 📊 Monitor
+
+- **Logs:** `railway logs --follow`
+- **Sentry:** https://sentry.io
+- **Metrics:** `/health/detailed`
+
+---
+
+**That's it! You're live.** 🎉
