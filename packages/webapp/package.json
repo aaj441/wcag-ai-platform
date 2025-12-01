@@ -9,6 +9,11 @@
     "build": "vite build",
     "preview": "vite preview",
     "start": "node server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "test:components": "vitest run src/__tests__/components",
     "lint": "eslint src --ext .ts,.tsx",
     "type-check": "tsc --noEmit"
   },

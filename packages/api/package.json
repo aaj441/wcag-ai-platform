@@ -8,9 +8,19 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:database": "jest src/__tests__/database",
+    "test:middleware": "jest src/__tests__/middleware",
+    "test:queue": "jest src/__tests__/queue",
+    "test:integration": "jest src/__tests__/integration",
+    "test:all": "npm run test:database && npm run test:middleware && npm run test:queue && npm run test:integration",
+    "test:ci": "jest --ci --coverage --maxWorkers=2",
     "lint": "eslint src --ext .ts",
     "seed": "tsx prisma/seed.ts",
-    "migrate": "prisma migrate dev"
+    "migrate": "prisma migrate dev",
+    "prisma:validate": "prisma validate",
+    "prisma:generate": "prisma generate"
   },
   "keywords": [
     "wcag",
