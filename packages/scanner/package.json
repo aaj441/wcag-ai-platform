@@ -1,0 +1,27 @@
+{
+  "name": "@infinitysoul/scanner",
+  "version": "2.0.0",
+  "description": "InfinitySoul WCAG Scanner Engine with AI-powered analysis",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": ["wcag", "accessibility", "scanner", "ai", "compliance"],
+  "author": "InfinitySoul",
+  "license": "MIT",
+  "dependencies": {
+    "@google/generative-ai": "^0.2.0",
+    "axe-core": "^4.8.0",
+    "puppeteer": "^21.6.0",
+    "bullmq": "^4.15.0",
+    "ioredis": "^5.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.3"
+  }
+}
