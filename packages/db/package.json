@@ -1,0 +1,23 @@
+{
+  "name": "@infinitysoul/db",
+  "version": "2.0.0",
+  "description": "InfinitySoul Database - Prisma schema and database client",
+  "main": "src/index.ts",
+  "scripts": {
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio",
+    "db:seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.7.1"
+  },
+  "devDependencies": {
+    "prisma": "^5.7.1",
+    "tsx": "^4.7.0",
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.3"
+  }
+}

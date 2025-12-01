@@ -1,0 +1,224 @@
+// InfinitySoul Database Schema
+// Multi-tenant WCAG compliance platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// AUTHENTICATION & TENANCY
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  emailVerified DateTime?
+  image         String?
+  role          UserRole  @default(USER)
+
+  // Relations
+  tenantId      String
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  scans         Scan[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([email])
+  @@index([tenantId])
+}
+
+model Tenant {
+  id              String   @id @default(cuid())
+  name            String
+  slug            String   @unique
+  plan            Plan     @default(FREE)
+  status          TenantStatus @default(ACTIVE)
+
+  // Subscription details
+  stripeCustomerId     String?  @unique
+  stripeSubscriptionId String?  @unique
+  subscriptionEndsAt   DateTime?
+
+  // Usage limits
+  monthlyScansLimit    Int      @default(10)
+  monthlyScansUsed     Int      @default(0)
+
+  // Relations
+  users           User[]
+  scans           Scan[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([slug])
+  @@index([stripeCustomerId])
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+enum Plan {
+  FREE
+  BASIC
+  PRO
+  ENTERPRISE
+}
+
+// ============================================
+// SCANS & VIOLATIONS
+// ============================================
+
+model Scan {
+  id                String      @id @default(cuid())
+  url               String
+  status            ScanStatus  @default(QUEUED)
+  wcagLevel         WcagLevel   @default(AA)
+  scanType          ScanType    @default(FULL)
+
+  // Results
+  complianceScore   Int?
+  totalViolations   Int         @default(0)
+  criticalCount     Int         @default(0)
+  seriousCount      Int         @default(0)
+  moderateCount     Int         @default(0)
+  minorCount        Int         @default(0)
+
+  // AI Analysis
+  executiveSummary  String?
+  aiConfidence      Float?
+
+  // Processing metadata
+  startedAt         DateTime?
+  completedAt       DateTime?
+  errorMessage      String?
+  queueJobId        String?     @unique
+
+  // Relations
+  userId            String
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenantId          String
+  tenant            Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  violations        Violation[]
+
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([tenantId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Violation {
+  id                String          @id @default(cuid())
+
+  // Violation details
+  wcagCode          String          // e.g., "1.1.1", "1.3.1"
+  wcagLevel         WcagLevel
+  severity          Severity
+  category          ViolationCategory
+
+  // Description
+  title             String
+  description       String
+  impact            String
+
+  // Location
+  selector          String?
+  html              String?
+
+  // AI Enrichment
+  aiSuggestion      String?
+  remediation       String[]
+  confidenceScore   Float?
+
+  // Confidence metrics
+  elementVisibility Float?
+  dynamicContent    Float?
+  browserCompat     Float?
+  sampleSize        Float?
+
+  // Relations
+  scanId            String
+  scan              Scan            @relation(fields: [scanId], references: [id], onDelete: Cascade)
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([scanId])
+  @@index([wcagCode])
+  @@index([severity])
+}
+
+enum ScanStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum WcagLevel {
+  A
+  AA
+  AAA
+}
+
+enum ScanType {
+  QUICK
+  FULL
+  DEEP
+}
+
+enum Severity {
+  CRITICAL
+  SERIOUS
+  MODERATE
+  MINOR
+}
+
+enum ViolationCategory {
+  PERCEIVABLE
+  OPERABLE
+  UNDERSTANDABLE
+  ROBUST
+}
+
+// ============================================
+// AUDIT LOG
+// ============================================
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  action        String   // e.g., "SCAN_CREATED", "USER_LOGGED_IN"
+  entityType    String   // e.g., "Scan", "User"
+  entityId      String
+  userId        String?
+  tenantId      String?
+  metadata      Json?
+  ipAddress     String?
+  userAgent     String?
+
+  createdAt     DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([tenantId])
+  @@index([createdAt])
+}
