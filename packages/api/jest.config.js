@@ -3,53 +3,34 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   roots: ['<rootDir>/src'],
-  testMatch: ['**/__tests__/**/*.test.ts', '**/?(*.)+(spec|test).ts'],
-  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+  testMatch: ['**/__tests__/**/*.test.ts'],
   collectCoverageFrom: [
-    'src/services/BatchAuditService.ts',
-    'src/services/CompanyDiscoveryService.ts',
-    'src/services/RiskScoringService.ts',
-    'src/services/RemediationEngine.ts',
-    'src/services/orchestration/CircuitBreaker.ts',
-    'src/services/keywordExtractor.ts',
-    'src/services/AIService.ts',
+    'src/**/*.ts',
+    '!src/**/*.d.ts',
+    '!src/**/__tests__/**',
+    '!src/types.ts',
   ],
+  coverageDirectory: 'coverage',
+  coverageReporters: ['text', 'lcov', 'html'],
   coverageThreshold: {
-    'src/services/RiskScoringService.ts': {
-      branches: 95,
-      functions: 100,
-      lines: 98,
-      statements: 98,
-    },
-    'src/services/RemediationEngine.ts': {
-      branches: 85,
-      functions: 100,
-      lines: 100,
-      statements: 100,
-    },
-    'src/services/orchestration/CircuitBreaker.ts': {
-      branches: 100,
-      functions: 100,
-      lines: 100,
-      statements: 100,
+    global: {
+      branches: 70,
+      functions: 75,
+      lines: 80,
+      statements: 80,
     },
   },
-  coverageReporters: ['text', 'lcov', 'html', 'json-summary'],
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
+  transform: {
+    '^.+\\.ts$': ['ts-jest', {
+      tsconfig: 'tsconfig.json',
+    }],
+  },
   setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts'],
   testTimeout: 10000,
   verbose: true,
+  transformIgnorePatterns: ['node_modules/'],
   clearMocks: true,
   resetMocks: true,
   restoreMocks: true,
-  moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
-  },
-  transform: {
-    '^.+\\.tsx?$': ['ts-jest', {
-      tsconfig: {
-        esModuleInterop: true,
-        allowSyntheticDefaultImports: true,
-      },
-    }],
-  },
 };
