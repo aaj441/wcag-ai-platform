@@ -9,7 +9,15 @@
     "build": "vite build",
     "preview": "vite preview",
     "start": "node server.js",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest watch",
+    "test:components": "vitest run --testPathPattern=components",
+    "test:integration": "vitest run --testPathPattern=integration",
     "lint": "eslint src --ext .ts,.tsx",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
     "type-check": "tsc --noEmit"
   },
   "keywords": [
