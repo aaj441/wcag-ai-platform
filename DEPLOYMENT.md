@@ -1,370 +1,366 @@
-# 🚀 Production Deployment Guide
+# 🚀 WCAG AI Platform - Vercel Deployment Guide
 
-Complete guide to deploy the WCAG AI Platform to production with all security features enabled.
+## Quick Deploy (One-Click)
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/aaj441/wcag-ai-platform&branch=feature/mobile-first-complete-implementation)
+
+---
 
 ## 📋 Prerequisites
 
-- [x] All security fixes merged to main branch
-- [x] Railway account created
-- [x] PostgreSQL database provisioned
-- [x] Domain name configured (for CORS)
-- [x] Production secrets generated
+- [x] GitHub account
+- [x] Vercel account (free tier works)
+- [x] Code pushed to feature branch
 
 ---
 
-## 🔐 Step 1: Generate Production Secrets
+## 🚀 Step 1: Deploy to Vercel
+
+### Option A: One-Click Deploy (Easiest)
+
+1. Click the deploy button above
+2. Connect your GitHub account
+3. Select repository: `aaj441/wcag-ai-platform`
+4. Branch: `feature/mobile-first-complete-implementation`
+5. Click **Deploy**
+6. Wait 2-3 minutes for build
+7. Done! Your site is live at `https://your-project.vercel.app`
+
+### Option B: Vercel CLI
 
 ```bash
-# Generate JWT Secret (256-bit)
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-
-# Generate Webhook Secret
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
-
-**Save these securely!** You'll need them in Step 3.
-
----
-
-## 🔀 Step 2: Merge Security Fixes
-
-```bash
-# Ensure you're on main branch
-git checkout main
-
-# Merge the security fixes
-git merge claude/fix-security-issues-01K3e2LwsNqMopDUDmGmr7vD
-
-# Push to GitHub
-git push origin main
-
-# Tag the release
-git tag -a v1.0.0-security-hardened -m "Production-ready with all security fixes"
-git push origin v1.0.0-security-hardened
-```
-
----
-
-## 🚂 Step 3: Configure Railway
-
-### A. Add Environment Variables
-
-Go to Railway Dashboard → Your Project → Variables tab and add:
-
-#### Required Variables
-
-```bash
-JWT_SECRET=<your-generated-secret-from-step-1>
-CORS_ORIGIN=https://your-frontend-domain.com
-NODE_ENV=production
-DATABASE_URL=<provided-by-railway-postgres>
-```
-
-#### Optional but Recommended
-
-```bash
-WEBHOOK_SECRET=<your-webhook-secret-from-step-1>
-API_RATE_LIMIT=100
-LOG_LEVEL=info
-OPENAI_API_KEY=<your-openai-key-if-using-ai-features>
-SENTRY_DSN=<your-sentry-dsn-if-using-sentry>
-```
-
-### B. Deploy
-
-Railway will automatically deploy when you push to main. Monitor the deployment:
-
-```bash
-# Install Railway CLI (optional)
-npm install -g @railway/cli
+# Install Vercel CLI
+npm install -g vercel
 
 # Login
-railway login
+vercel login
 
-# View logs
-railway logs --tail
+# Deploy from project root
+cd wcag-ai-platform
+vercel
+
+# Follow prompts:
+# - Setup and deploy? Yes
+# - Which scope? (select your account)
+# - Link to existing project? No
+# - Project name? wcag-ai-platform
+# - Directory? ./
+# - Override settings? No
+
+# Deploy to production
+vercel --prod
 ```
 
 ---
 
-## ✅ Step 4: Verify Deployment
+## 🔐 Step 2: Configure Environment Variables
 
-### A. Basic Health Check
+### In Vercel Dashboard:
 
-```bash
-# Replace with your Railway URL
-PROD_URL="https://your-project.up.railway.app"
+1. Go to your project
+2. Settings → Environment Variables
+3. Add these variables:
 
-# Test health endpoint
-curl $PROD_URL/health
+#### Required
+
+```
+NODE_ENV=production
+CORS_ORIGIN=https://your-project.vercel.app
 ```
 
-Expected response:
-```json
-{
-  "status": "healthy",
-  "timestamp": "2024-01-20T12:00:00.000Z",
-  "environment": "production",
-  "version": "1.0.0"
-}
+#### Optional (for future features)
+
+```
+DATABASE_URL=postgresql://...
+REDIS_URL=redis://...
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-### B. Security Headers Check
+4. Click **Save**
+5. **Important:** Redeploy after adding variables
+
+---
+
+## ✅ Step 3: Verify Deployment
+
+### Test Your Live Site
 
 ```bash
-curl -I $PROD_URL/health | grep -E "Strict-Transport|X-Frame|Content-Security"
+# Replace with your Vercel URL
+PROD_URL="https://your-project.vercel.app"
+
+# Test landing page
+curl -I $PROD_URL
+# Expected: 200 OK
+
+# Test API health
+curl $PROD_URL/api/health
+# Expected: {"success":true,"status":"healthy",...}
+
+# Test scanner page
+curl -I $PROD_URL/app/scanner.html
+# Expected: 200 OK
 ```
 
-Expected headers:
-- ✅ `Strict-Transport-Security: max-age=31536000`
-- ✅ `X-Frame-Options: DENY`
-- ✅ `Content-Security-Policy: default-src 'self'`
-- ✅ `X-Content-Type-Options: nosniff`
+### Test Scanner Functionality
 
-### C. Run Full Security Test Suite
+1. Visit `https://your-project.vercel.app/app/scanner.html`
+2. Enter URL: `https://www.w3.org`
+3. Click **Start Free Scan**
+4. Wait for results (30-60 seconds)
+5. Verify violations are displayed
+
+---
+
+## 📊 Step 4: Monitor Your Deployment
+
+### Vercel Analytics (Built-in)
+
+1. Go to your project dashboard
+2. Click **Analytics** tab
+3. View:
+   - Page views
+   - Unique visitors
+   - Performance metrics
+   - Error rates
+
+### View Logs
 
 ```bash
-cd packages/api
+# Via CLI
+vercel logs --follow
 
-# Test against production
-API_URL=$PROD_URL \
-JWT_SECRET=<your-production-jwt-secret> \
-./scripts/test-security.sh
-```
-
-Expected: **80%+ pass rate** ✅
-
-### D. Test JWT Authentication
-
-```bash
-# Generate a test token
-node -e "
-const jwt = require('jsonwebtoken');
-const token = jwt.sign(
-  { userId: 'test-user', email: 'test@example.com', role: 'admin' },
-  '<your-production-jwt-secret>',
-  { expiresIn: '1h' }
-);
-console.log('Test Token:', token);
-"
-
-# Test authenticated endpoint
-curl -H "Authorization: Bearer <token-from-above>" \
-  $PROD_URL/api/drafts
+# Or in dashboard:
+# Deployments → Click deployment → View Function Logs
 ```
 
 ---
 
-## 📊 Step 5: Set Up Monitoring
+## 🌐 Step 5: Custom Domain (Optional)
 
-### A. Uptime Monitoring (UptimeRobot)
+### Add Your Domain
 
-1. Go to [uptimerobot.com](https://uptimerobot.com)
-2. Create free account
-3. Add HTTP(s) monitor
-4. URL: `https://your-project.up.railway.app/health`
-5. Interval: 5 minutes
-6. Add email/SMS alerts
-
-### B. Error Tracking (Sentry)
-
-If using Sentry:
-```bash
-# Add Sentry DSN to Railway variables
-SENTRY_DSN=https://your-key@sentry.io/project
-```
-
-### C. Log Monitoring
-
-```bash
-# View production logs
-railway logs --tail
-
-# Look for security events:
-# - "rate_limit_exceeded"
-# - "invalid_jwt_token"
-# - "validation_failed"
-# - "ssrf_attempt_blocked"
-```
-
----
-
-## 🔒 Step 6: Security Verification Checklist
-
-Run through this checklist:
-
-```bash
-# 1. Health check returns 200
-curl -s -o /dev/null -w "%{http_code}" $PROD_URL/health
-# Expected: 200
-
-# 2. Rate limiting works (should get 429 after 100 requests)
-for i in {1..105}; do
-  curl -s -o /dev/null -w "%{http_code}\n" $PROD_URL/api/drafts
-  sleep 0.1
-done
-# Expected: See 429 after ~100 requests
-
-# 3. CORS blocks unauthorized origins
-curl -H "Origin: https://evil.com" -I $PROD_URL/api/drafts
-# Expected: No Access-Control-Allow-Origin header
-
-# 4. JWT required for protected endpoints
-curl -s $PROD_URL/api/drafts
-# Expected: 401 or 200 (depending on if endpoint is protected)
-
-# 5. Invalid JWT rejected
-curl -H "Authorization: Bearer invalid.token.here" -s $PROD_URL/api/drafts
-# Expected: 401 with error message
-
-# 6. Input validation works
-curl -X POST $PROD_URL/api/drafts \
-  -H "Content-Type: application/json" \
-  -d '{"recipient":"not-an-email","subject":"Test","body":"Test"}' \
-  -s | jq .
-# Expected: 400 with validation error
-```
-
----
-
-## 🎯 Step 7: Configure Domain (Optional)
-
-### A. Custom Domain Setup
-
-In Railway:
 1. Go to Settings → Domains
-2. Add custom domain: `api.yourdomain.com`
-3. Add DNS records as shown
-4. Wait for SSL certificate
+2. Enter your domain: `wcag-scanner.com`
+3. Click **Add**
 
-### B. Update Environment Variables
+### Configure DNS
+
+**Option A: Use Vercel Nameservers (Recommended)**
+```
+ns1.vercel-dns.com
+ns2.vercel-dns.com
+```
+
+**Option B: Add DNS Records**
+```
+Type: A
+Name: @
+Value: 76.76.21.21
+
+Type: CNAME  
+Name: www
+Value: cname.vercel-dns.com
+```
+
+4. Wait for DNS propagation (5-60 minutes)
+5. SSL automatically provisioned by Vercel
+
+### Update CORS
 
 ```bash
-# Update CORS_ORIGIN to match your frontend
-CORS_ORIGIN=https://app.yourdomain.com
+# In Vercel Dashboard → Environment Variables
+CORS_ORIGIN=https://your-custom-domain.com
 ```
+
+Redeploy after updating.
 
 ---
 
-## 🚨 Troubleshooting
+## 🔧 Troubleshooting
 
-### Issue: 500 Internal Server Error
+### Issue: API Routes Return 404
+
+**Solution:**
+```bash
+# Check vercel.json routing
+# Ensure this section exists:
+{
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/backend/server.js" }
+  ]
+}
+
+# Redeploy
+vercel --prod
+```
+
+### Issue: Scanner Timeout
+
+**Problem:** Puppeteer timeouts on serverless
+
+**Solution:** Use chrome-aws-lambda
 
 ```bash
-# Check Railway logs
-railway logs
+# Add to backend/package.json
+npm install chrome-aws-lambda puppeteer-core
 
-# Common causes:
-# - JWT_SECRET not set
-# - DATABASE_URL incorrect
-# - CORS_ORIGIN misconfigured
+# Update scanner.js to use chrome-aws-lambda
+# See: https://github.com/alixaxel/chrome-aws-lambda
 ```
 
 ### Issue: CORS Errors
 
+**Solution:**
 ```bash
-# Verify CORS_ORIGIN matches frontend exactly
-echo $CORS_ORIGIN
-# Should be: https://your-frontend.com (no trailing slash)
+# Verify CORS_ORIGIN matches exactly
+# No trailing slash!
+# ✅ https://your-domain.com
+# ❌ https://your-domain.com/
 
-# Update in Railway dashboard
-CORS_ORIGIN=https://your-exact-frontend-domain.com
+# Update in Vercel dashboard
+# Redeploy
 ```
 
-### Issue: JWT Authentication Failing
+### Issue: Environment Variables Not Working
+
+**Solution:**
+1. Check variables in Vercel Dashboard
+2. **Must redeploy** after adding new variables
+3. Variables take effect on next deployment
 
 ```bash
-# Verify JWT_SECRET is set in Railway
-# Generate test token with production secret
-# Check token isn't expired
-```
-
-### Issue: Database Connection Fails
-
-```bash
-# Railway provides DATABASE_URL automatically
-# Check it's set: railway variables
-
-# Test connection
-psql $DATABASE_URL -c "SELECT 1;"
+vercel --prod  # Force redeploy
 ```
 
 ---
 
-## 📈 Post-Deployment Tasks
+## 📈 Performance Optimization
 
-### Immediate (Day 1)
+### Edge Functions (Already Configured)
 
-- [ ] Verify all endpoints return correct status codes
-- [ ] Test authentication flow end-to-end
-- [ ] Verify rate limiting works
-- [ ] Check logs for errors
-- [ ] Set up uptime monitoring
+- API routes run on Vercel Edge Network
+- ~50ms global response times
+- Auto-scaling
 
-### Week 1
+### Cache Control
 
-- [ ] Monitor error rates in Sentry
-- [ ] Check for authentication failures
-- [ ] Review security event logs
-- [ ] Verify backups are running
-- [ ] Load test critical endpoints
+```javascript
+// backend/server.js
+app.use('/consultant', express.static(path.join(__dirname, '../consultant-site'), {
+  maxAge: '1d',
+  etag: true
+}));
+```
 
-### Ongoing
+### Analyze Bundle Size
 
-- [ ] Weekly: Review security logs
-- [ ] Monthly: Run security test suite
-- [ ] Monthly: Update dependencies (`npm audit`)
-- [ ] Quarterly: Rotate JWT_SECRET (optional)
-- [ ] Quarterly: Security audit
+```bash
+# Check deployment size
+vercel inspect <deployment-url>
+```
+
+---
+
+## 🚨 Security Checklist
+
+- [x] HTTPS enabled (automatic)
+- [x] CORS configured
+- [x] Rate limiting (express-rate-limit)
+- [x] Helmet security headers
+- [x] Input validation (express-validator)
+- [ ] Add authentication (Phase 8)
+- [ ] Add API keys (Phase 8)
+
+---
+
+## 💰 Cost Estimate
+
+### Vercel Hobby Plan (FREE)
+- ✅ Unlimited deployments
+- ✅ 100GB bandwidth/month
+- ✅ Automatic HTTPS
+- ✅ Custom domains (100 max)
+- ⚠️ Serverless execution: 100 hours/month
+
+### When to Upgrade to Pro ($20/month)
+- Need >100GB bandwidth
+- Commercial use
+- Team collaboration
+- Advanced analytics
+- Password protection
 
 ---
 
 ## 🔄 Rollback Procedure
 
-If something goes wrong:
+### Via Dashboard
+1. Deployments tab
+2. Find previous working deployment
+3. Click **...** → **Promote to Production**
 
+### Via CLI
 ```bash
-# 1. Check Railway logs for errors
-railway logs --tail
-
-# 2. Rollback to previous deployment
-# Railway Dashboard → Deployments → Click previous deployment → "Redeploy"
-
-# 3. Or rollback via CLI
-railway rollback
-
-# 4. Verify health
-curl https://your-project.up.railway.app/health
+vercel ls                    # List deployments
+vercel promote <url>         # Promote specific one
 ```
 
 ---
 
-## 📞 Support
+## 📋 Post-Deployment Checklist
 
-- **Security Issues:** Open GitHub issue with `[SECURITY]` tag
-- **Deployment Issues:** Check Railway docs or support
-- **Bug Reports:** GitHub Issues
-
----
-
-## ✅ Deployment Checklist
-
-Before marking deployment complete:
-
-- [ ] Security fixes merged to main
-- [ ] Production secrets generated and saved
-- [ ] Railway environment variables configured
-- [ ] Deployed successfully (no errors in logs)
-- [ ] Health endpoint returns 200
-- [ ] Security headers present
-- [ ] Rate limiting working
-- [ ] JWT authentication enabled
-- [ ] CORS properly configured
-- [ ] Security test suite passing (80%+)
-- [ ] Monitoring/alerts configured
-- [ ] Documentation updated
-- [ ] Team notified of production URL
+- [ ] Site deployed successfully
+- [ ] Landing page loads (`/`)
+- [ ] Scanner page loads (`/app/scanner.html`)
+- [ ] API health check works (`/api/health`)
+- [ ] Scan functionality works
+- [ ] Environment variables set
+- [ ] Custom domain configured (optional)
+- [ ] Analytics enabled
+- [ ] Monitoring set up
 
 ---
 
-**Congratulations! Your WCAG AI Platform is now production-ready with enterprise-grade security! 🎉**
+## 🎯 Your Live URLs
+
+After deployment:
+
+```
+Landing Page: https://your-project.vercel.app/
+Scanner UI:   https://your-project.vercel.app/app/scanner.html
+API Health:   https://your-project.vercel.app/api/health
+API Scan:     POST https://your-project.vercel.app/api/scan
+```
+
+---
+
+## 📞 Support Resources
+
+- **Vercel Docs**: https://vercel.com/docs
+- **Community**: https://github.com/vercel/vercel/discussions
+- **Status**: https://vercel-status.com
+- **Issues**: https://github.com/aaj441/wcag-ai-platform/issues
+
+---
+
+## Quick Commands
+
+```bash
+vercel              # Deploy preview
+vercel --prod       # Deploy production
+vercel logs         # View logs
+vercel ls           # List deployments
+vercel env pull     # Download env vars
+vercel inspect <url> # Analyze deployment
+```
+
+---
+
+**🎉 Congratulations! Your WCAG AI Platform is now live on Vercel!**
+
+Next steps:
+- Test the scanner with real websites
+- Share the URL with users
+- Monitor analytics and performance
+- Iterate based on feedback
