@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AI-powered WCAG 2.1 compliance scanner. Fix accessibility violations in 60 days, avoid $75K+ lawsuits, reach 19% more customers.">
+    <title>WCAG AI Platform - Automated Accessibility Compliance Scanner</title>
+    <link rel="stylesheet" href="/css/mobile-first.css">
+    <style>
+        /* Hero Section */
+        .hero {
+            background: var(--gradient-hero);
+            padding: var(--space-12) 0 var(--space-8);
+            text-align: center;
+        }
+        
+        .hero-title {
+            font-size: var(--font-3xl);
+            font-weight: 700;
+            margin-bottom: var(--space-4);
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent-primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        @media (min-width: 768px) {
+            .hero-title {
+                font-size: var(--font-4xl);
+            }
+        }
+        
+        .hero-subtitle {
+            font-size: var(--font-md);
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto var(--space-8);
+        }
+        
+        .hero-stats {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: var(--space-4);
+            margin-top: var(--space-8);
+        }
+        
+        @media (min-width: 640px) {
+            .hero-stats {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        
+        /* Features */
+        .features {
+            padding: var(--space-12) 0;
+            background: var(--bg-deep);
+        }
+        
+        .feature-card {
+            text-align: center;
+        }
+        
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto var(--space-4);
+            background: var(--gradient-primary);
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        
+        /* Pricing */
+        .pricing {
+            padding: var(--space-12) 0;
+        }
+        
+        .pricing-card {
+            border: 2px solid var(--border);
+            transition: all 0.3s ease;
+        }
+        
+        .pricing-card:hover {
+            border-color: var(--accent-primary);
+            box-shadow: var(--shadow-glow);
+        }
+        
+        .pricing-card.featured {
+            border-color: var(--accent-primary);
+            position: relative;
+        }
+        
+        .pricing-badge {
+            position: absolute;
+            top: -12px;
+            right: var(--space-6);
+            background: var(--gradient-primary);
+            color: #000;
+            padding: var(--space-1) var(--space-4);
+            border-radius: var(--radius-xl);
+            font-size: var(--font-xs);
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        
+        .price {
+            font-size: var(--font-4xl);
+            font-weight: 700;
+            margin: var(--space-4) 0;
+        }
+        
+        .price-small {
+            font-size: var(--font-md);
+            font-weight: 400;
+            color: var(--text-muted);
+        }
+        
+        /* CTA Section */
+        .cta {
+            background: var(--bg-secondary);
+            padding: var(--space-12) 0;
+            text-align: center;
+        }
+        
+        .cta-title {
+            font-size: var(--font-3xl);
+            margin-bottom: var(--space-4);
+        }
+    </style>
+</head>
+<body>
+    <a href="#main" class="skip-link">Skip to main content</a>
+    
+    <!-- Navigation -->
+    <nav class="container" style="padding-top: var(--space-6); padding-bottom: var(--space-6);">
+        <div class="flex flex-row" style="justify-content: space-between; align-items: center;">
+            <div style="font-size: var(--font-xl); font-weight: 700;">
+                <span style="color: var(--accent-primary);">WCAG</span> AI
+            </div>
+            <div class="hide-mobile">
+                <div class="flex flex-row" style="gap: var(--space-6);">
+                    <a href="#features" style="color: var(--text-primary); text-decoration: none;">Features</a>
+                    <a href="#pricing" style="color: var(--text-primary); text-decoration: none;">Pricing</a>
+                    <a href="/scanner.html" class="btn btn-primary" style="width: auto; padding: 8px 20px; min-height: 40px;">Start Free Scan</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Hero -->
+    <main id="main">
+        <section class="hero">
+            <div class="container">
+                <h1 class="hero-title">
+                    Fix Accessibility Violations<br>Before They Cost $75K+
+                </h1>
+                <p class="hero-subtitle">
+                    AI-powered WCAG 2.1 compliance scanner finds and fixes violations in 60 days. 
+                    Avoid lawsuits, reach 19% more customers, boost SEO rankings.
+                </p>
+                
+                <div class="flex" style="max-width: 400px; margin: 0 auto; gap: var(--space-3);">
+                    <a href="/scanner.html" class="btn btn-primary btn-lg">Start Free Compliance Scan</a>
+                    <button class="btn btn-secondary">Watch 2-Minute Demo</button>
+                </div>
+                
+                <div class="hero-stats">
+                    <div class="stat-card">
+                        <div class="stat-value">$75K</div>
+                        <div class="stat-label">Avg ADA Lawsuit Settlement</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" style="background: var(--gradient-blue); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">19%</div>
+                        <div class="stat-label">Users With Disabilities</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" style="background: var(--gradient-danger); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">60 Days</div>
+                        <div class="stat-label">To Full Compliance</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Features -->
+        <section id="features" class="features">
+            <div class="container">
+                <h2 class="text-center" style="font-size: var(--font-3xl); margin-bottom: var(--space-8);">AI-Powered Compliance Engine</h2>
+                
+                <div class="grid grid-2 grid-3" style="gap: var(--space-6);">
+                    <div class="feature-card">
+                        <div class="feature-icon">🔍</div>
+                        <h3>Automated Scanning</h3>
+                        <p>Puppeteer + axe-core engine scans every page for 67+ WCAG 2.1 AA violations in minutes</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">🤖</div>
+                        <h3>Multi-LLM Analysis</h3>
+                        <p>GPT-4, Claude-3, Gemini analyze violations and generate code fixes with 95% accuracy</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">⚡</div>
+                        <h3>Priority-Based Fixes</h3>
+                        <p>Critical issues first: alt text, color contrast, keyboard nav, form labels</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">📊</div>
+                        <h3>Before/After Reports</h3>
+                        <p>Visual comparison shows violations → fixes with screenshot evidence for legal teams</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">🛡️</div>
+                        <h3>Continuous Monitoring</h3>
+                        <p>Weekly rescans catch new violations from code deploys, ensuring ongoing compliance</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">📈</div>
+                        <h3>ROI Dashboard</h3>
+                        <p>Track lawsuit risk reduction, accessibility score, SEO improvements, user reach</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Social Proof -->
+        <section style="padding: var(--space-12) 0; background: var(--bg-primary);">
+            <div class="container">
+                <div class="card" style="text-align: center; padding: var(--space-8);">
+                    <h3 style="font-size: var(--font-2xl); margin-bottom: var(--space-6);">Trusted by Compliance Teams</h3>
+                    <div class="grid grid-2 grid-4" style="gap: var(--space-8);">
+                        <div style="color: var(--text-muted); font-size: var(--font-xl); font-weight: 700;">TechCorp</div>
+                        <div style="color: var(--text-muted); font-size: var(--font-xl); font-weight: 700;">FinServe</div>
+                        <div style="color: var(--text-muted); font-size: var(--font-xl); font-weight: 700;">HealthPlus</div>
+                        <div style="color: var(--text-muted); font-size: var(--font-xl); font-weight: 700;">EduLearn</div>
+                    </div>
+                    <p style="margin-top: var(--space-6); font-size: var(--font-sm); color: var(--text-muted);">"Fixed 67 critical violations in 45 days. Zero lawsuits since." - CTO, TechCorp</p>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Pricing -->
+        <section id="pricing" class="pricing">
+            <div class="container">
+                <h2 class="text-center" style="font-size: var(--font-3xl); margin-bottom: var(--space-8);">Simple, Transparent Pricing</h2>
+                
+                <div class="grid grid-2 grid-3" style="gap: var(--space-6);">
+                    <!-- Starter -->
+                    <div class="card pricing-card">
+                        <h3>Starter</h3>
+                        <div class="price">$299<span class="price-small">/mo</span></div>
+                        <p style="color: var(--text-muted); margin-bottom: var(--space-6);">For small websites</p>
+                        <ul style="list-style: none; margin-bottom: var(--space-6);">
+                            <li style="padding: var(--space-2) 0;">✓ Up to 10 pages</li>
+                            <li style="padding: var(--space-2) 0;">✓ Monthly scans</li>
+                            <li style="padding: var(--space-2) 0;">✓ PDF reports</li>
+                            <li style="padding: var(--space-2) 0;">✓ Email support</li>
+                        </ul>
+                        <button class="btn btn-secondary">Start Free Trial</button>
+                    </div>
+                    
+                    <!-- Professional (Featured) -->
+                    <div class="card pricing-card featured">
+                        <span class="pricing-badge">Most Popular</span>
+                        <h3>Professional</h3>
+                        <div class="price">$999<span class="price-small">/mo</span></div>
+                        <p style="color: var(--text-muted); margin-bottom: var(--space-6);">For growing companies</p>
+                        <ul style="list-style: none; margin-bottom: var(--space-6);">
+                            <li style="padding: var(--space-2) 0;">✓ Up to 100 pages</li>
+                            <li style="padding: var(--space-2) 0;">✓ Weekly scans</li>
+                            <li style="padding: var(--space-2) 0;">✓ AI-generated fixes</li>
+                            <li style="padding: var(--space-2) 0;">✓ Priority support</li>
+                            <li style="padding: var(--space-2) 0;">✓ Legal report package</li>
+                        </ul>
+                        <button class="btn btn-primary">Start Free Trial</button>
+                    </div>
+                    
+                    <!-- Enterprise -->
+                    <div class="card pricing-card">
+                        <h3>Enterprise</h3>
+                        <div class="price">$2,499<span class="price-small">/mo</span></div>
+                        <p style="color: var(--text-muted); margin-bottom: var(--space-6);">For large organizations</p>
+                        <ul style="list-style: none; margin-bottom: var(--space-6);">
+                            <li style="padding: var(--space-2) 0;">✓ Unlimited pages</li>
+                            <li style="padding: var(--space-2) 0;">✓ Daily scans</li>
+                            <li style="padding: var(--space-2) 0;">✓ White-label reports</li>
+                            <li style="padding: var(--space-2) 0;">✓ Dedicated account manager</li>
+                            <li style="padding: var(--space-2) 0;">✓ SLA + Legal guarantee</li>
+                        </ul>
+                        <button class="btn btn-secondary">Contact Sales</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- CTA -->
+        <section class="cta">
+            <div class="container">
+                <h2 class="cta-title">Start Your Free Compliance Scan Today</h2>
+                <p style="max-width: 600px; margin: 0 auto var(--space-8); color: var(--text-secondary);">
+                    See exactly which WCAG violations put you at risk. Get AI-generated fixes in minutes. 
+                    No credit card required.
+                </p>
+                <a href="/scanner.html" class="btn btn-primary btn-lg" style="max-width: 400px; margin: 0 auto;">Scan Your Website Now →</a>
+            </div>
+        </section>
+    </main>
+    
+    <!-- Footer -->
+    <footer style="background: var(--bg-deep); padding: var(--space-8) 0; text-align: center; color: var(--text-muted);">
+        <div class="container">
+            <p style="font-size: var(--font-sm);">© 2025 WCAG AI Platform. WCAG 2.1 AA Compliant.</p>
+            <div style="margin-top: var(--space-4); display: flex; gap: var(--space-4); justify-content: center; flex-wrap: wrap;">
+                <a href="/legal/privacy.html" style="color: var(--text-muted); font-size: var(--font-sm);">Privacy Policy</a>
+                <a href="/legal/terms.html" style="color: var(--text-muted); font-size: var(--font-sm);">Terms of Service</a>
+                <a href="/contact.html" style="color: var(--text-muted); font-size: var(--font-sm);">Contact</a>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
