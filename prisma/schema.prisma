@@ -1,0 +1,201 @@
+// prisma/schema.prisma - Multi-Tenant SaaS Database Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Multi-tenant organization model
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  plan      PlanTier @default(STARTER)
+  
+  // Relationships
+  scans         Scan[]
+  users         User[]
+  subscriptions Subscription[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([slug])
+}
+
+// User/team member model
+model User {
+  id             String       @id @default(cuid())
+  email          String       @unique
+  name           String?
+  role           UserRole     @default(MEMBER)
+  
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([email])
+  @@index([organizationId])
+}
+
+// Scan job model
+model Scan {
+  id             String     @id @default(cuid())
+  url            String
+  status         ScanStatus @default(QUEUED)
+  
+  // Scan configuration
+  maxPages  Int      @default(50)
+  maxDepth  Int      @default(3)
+  standards String[] @default(["WCAG2.2"])
+  
+  // Results
+  totalPages         Int?
+  totalViolations    Int?
+  criticalViolations Int?
+  complianceScore    Int?
+  wcagLevel          String?
+  
+  // Evidence
+  evidenceHash    String?
+  screenshotBefore String? // S3/IPFS URL
+  screenshotAfter  String? // S3/IPFS URL
+  reportPdfUrl     String?
+  
+  // Relationships
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  violations     Violation[]
+  evidence       EvidenceBundle?
+  
+  // Timestamps
+  queuedAt    DateTime  @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+  failedAt    DateTime?
+  
+  @@index([organizationId])
+  @@index([status])
+  @@index([url])
+  @@index([completedAt])
+}
+
+// Individual violation model
+model Violation {
+  id          String @id @default(cuid())
+  
+  // Violation details
+  wcagId      String // e.g., "color-contrast"
+  impact      String // critical, serious, moderate, minor
+  description String
+  helpText    String @db.Text
+  helpUrl     String?
+  
+  // Instances
+  count       Int    @default(1)
+  elements    Json[] // Array of affected DOM elements
+  
+  // Relationship
+  scanId String
+  scan   Scan   @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  
+  @@index([scanId])
+  @@index([impact])
+}
+
+// Legal-grade evidence bundle
+model EvidenceBundle {
+  id String @id @default(cuid())
+  
+  // Cryptographic proof
+  hash           String  @unique // SHA-256
+  ipfsCid        String? // IPFS content identifier
+  opentimestamp  String? // OpenTimestamps proof
+  signature      String? // Ed25519 signature
+  
+  // Metadata
+  chromiumVersion  String
+  puppeteerVersion String
+  axeCoreVersion   String
+  userAgent        String @db.Text
+  
+  // Timestamps
+  capturedAt DateTime @default(now())
+  sealedAt   DateTime?
+  
+  // Relationship (one-to-one with Scan)
+  scanId String @unique
+  scan   Scan   @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  
+  @@index([hash])
+  @@index([ipfsCid])
+}
+
+// Subscription/billing model
+model Subscription {
+  id     String   @id @default(cuid())
+  plan   PlanTier
+  status SubscriptionStatus @default(ACTIVE)
+  
+  // Stripe integration
+  stripeCustomerId       String?
+  stripeSubscriptionId   String?
+  stripePriceId          String?
+  
+  // Usage tracking
+  scansUsed     Int      @default(0)
+  scansIncluded Int      // Based on plan
+  
+  // Billing cycle
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAt           DateTime?
+  canceledAt         DateTime?
+  
+  // Relationship
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([organizationId])
+  @@index([status])
+}
+
+// Enums
+enum UserRole {
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum ScanStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum PlanTier {
+  STARTER   // $49/mo - 50 scans
+  PRO       // $149/mo - 300 scans
+  BUSINESS  // $499/mo - 2000 scans
+  ENTERPRISE // Custom pricing
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  PAST_DUE
+  PAUSED
+}
