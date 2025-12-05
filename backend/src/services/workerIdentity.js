@@ -287,7 +287,8 @@ class WorkerIdentityManager {
    */
   canonicalize(data) {
     // Sort keys and create deterministic JSON representation
-    const sorted = JSON.stringify(data, Object.keys(data).sort());
+    const sortedKeys = Object.keys(data).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    const sorted = JSON.stringify(data, sortedKeys);
     return sorted;
   }
 
@@ -324,28 +325,39 @@ class WorkerIdentityManager {
    * Load worker keys from persistent storage
    * @private
    */
-  async loadWorkerKeys() {
+    async loadWorkerKeys() {
     try {
       const files = await fs.readdir(this.keystorePath);
-      for (const file of files) {
-        if (!file.endsWith('.json')) continue;
-
+      const jsonFiles = files.filter(file => file.endsWith('.json'));
+      
+      // Load all files in parallel for better performance
+      const loadPromises = jsonFiles.map(async (file) => {
         try {
           // Safe path joining - file comes from fs.readdir
           const keyPath = safePathJoin(this.keystorePath, file);
           const keyData = JSON.parse(await fs.readFile(keyPath, 'utf8'));
-
+          
           // Sanitize workerId from loaded data
           const sanitizedWorkerId = sanitizeIdentifier(keyData.workerId);
           keyData.workerId = sanitizedWorkerId;
-
-          this.workers.set(sanitizedWorkerId, keyData);
-
-          if (keyData.status === 'revoked') {
-            this.revokedWorkers.add(sanitizedWorkerId);
-          }
+          
+          return keyData;
         } catch (error) {
           console.warn(`Failed to load worker key file ${file}:`, error.message);
+          return null;
+        }
+      });
+      
+      const allKeyData = await Promise.all(loadPromises);
+      
+      // Process loaded data (filter out nulls from failed loads)
+      for (const keyData of allKeyData) {
+        if (!keyData) continue;
+        
+        this.workers.set(keyData.workerId, keyData);
+        
+        if (keyData.status === 'revoked') {
+          this.revokedWorkers.add(keyData.workerId);
         }
       }
       console.log(`📦 Loaded ${this.workers.size} worker keys`);
